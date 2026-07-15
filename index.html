@@ -54,6 +54,14 @@ canvas{display:block;position:absolute;top:0;left:0;}
 #worldInfo .names{display:flex;flex-direction:column;line-height:1.2;}
 #worldInfo .wname{font-weight:700;font-size:14px;}
 #worldInfo .wweather{font-size:11px;color:var(--text-dim);}
+#leftCol{display:flex;flex-direction:column;gap:6px;}
+#hpWrap{width:200px;padding:6px 12px;pointer-events:auto;}
+#hpWrap .lvRow{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;}
+#hpBarBg{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
+#hpBarFill{height:100%;width:100%;background:linear-gradient(90deg,#4ade80,#fbbf24,#ef4444);background-size:200% 100%;transition:width .3s;}
+#hurtFlash{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle,rgba(239,68,68,0) 40%,rgba(239,68,68,0.35) 100%);
+  opacity:0;transition:opacity .15s;z-index:40;}
+#hurtFlash.show{opacity:1;}
 #statsCol{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:108px;}
 #coinsRow{padding:6px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;pointer-events:auto;}
 #coinsRow .c-icon{color:var(--accent2);}
@@ -187,12 +195,37 @@ canvas{display:block;position:absolute;top:0;left:0;}
 .bossIntro .bname{font-size:22px;font-weight:900;margin:10px 0 4px;color:#ff8a8a;}
 .bossIntro .bdesc{font-size:12.5px;color:var(--text-dim);margin-bottom:16px;}
 
+/* ---------- Travel / Portal loading screen ---------- */
+#travelOverlay{position:absolute;inset:0;z-index:180;display:none;align-items:center;justify-content:center;
+  overflow:hidden;background:radial-gradient(ellipse at 50% 30%, #0d3a52 0%, #051826 55%, #020a11 100%);}
+#travelOverlay.show{display:flex;}
+.travelFish{position:absolute;bottom:-60px;font-size:34px;opacity:0.8;filter:drop-shadow(0 0 10px rgba(56,211,201,0.4));
+  animation:travelRise 5.5s ease-in infinite;}
+@keyframes travelRise{
+  0%{transform:translateY(0) translateX(0) rotate(-6deg);opacity:0;}
+  10%{opacity:0.85;}
+  50%{transform:translateY(-45vh) translateX(18px) rotate(6deg);}
+  90%{opacity:0.5;}
+  100%{transform:translateY(-95vh) translateX(-14px) rotate(-4deg);opacity:0;}
+}
+.travelCore{position:relative;z-index:2;text-align:center;background:rgba(6,20,32,0.55);border:1px solid rgba(255,255,255,0.1);
+  border-radius:24px;padding:38px 46px;backdrop-filter:blur(6px);}
+.travelIcon{font-size:52px;margin-bottom:10px;animation:floaty 2.4s ease-in-out infinite;}
+.travelText{font-size:18px;font-weight:700;color:var(--text);margin-bottom:18px;}
+.travelBarOuter{width:280px;height:10px;border-radius:8px;background:rgba(255,255,255,0.1);overflow:hidden;margin:0 auto;
+  border:1px solid rgba(255,255,255,0.12);}
+.travelBarFill{height:100%;width:0%;background:linear-gradient(90deg,#38d3c9,#ffd166);}
+.travelHint{margin-top:12px;font-size:11.5px;color:var(--text-dim);letter-spacing:.4px;}
+
 @media (max-width:640px){
   #minimapWrap{transform:scale(0.8);transform-origin:top right;}
   #questTracker{width:170px;font-size:10px;}
   #topBar{gap:4px;}
   #levelWrap{width:120px;}
+  #hpWrap{width:140px;}
   .modal{max-width:96vw;}
+  .travelCore{padding:28px 24px;}
+  .travelBarOuter{width:220px;}
 }
 </style>
 </head>
@@ -212,11 +245,17 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
   <!-- HUD -->
   <div class="hud interactive" id="topBar">
-    <div class="panel" id="worldInfo">
-      <span class="icon" id="worldIcon">🌱</span>
-      <div class="names">
-        <span class="wname" id="worldName">Lago Inicial</span>
-        <span class="wweather" id="worldWeather">☀️ Soleado</span>
+    <div id="leftCol">
+      <div class="panel" id="worldInfo">
+        <span class="icon" id="worldIcon">🌱</span>
+        <div class="names">
+          <span class="wname" id="worldName">Lago Inicial</span>
+          <span class="wweather" id="worldWeather">☀️ Soleado</span>
+        </div>
+      </div>
+      <div class="panel" id="hpWrap">
+        <div class="lvRow"><span>❤️ Vida</span><span id="hpVal">100/100</span></div>
+        <div id="hpBarBg"><div id="hpBarFill"></div></div>
       </div>
     </div>
     <div id="statsCol">
@@ -227,6 +266,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       </div>
     </div>
   </div>
+  <div id="hurtFlash"></div>
 
   <div class="hud interactive" id="minimapWrap">
     <canvas id="minimap" width="140" height="100"></canvas>
@@ -269,6 +309,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <button class="tabBtn active" data-shoptab="rods">Cañas</button>
         <button class="tabBtn" data-shoptab="bait">Carnadas</button>
         <button class="tabBtn" data-shoptab="bag">Mochilas</button>
+        <button class="tabBtn" data-shoptab="boats">Botes</button>
       </div>
       <div class="modalBody"><div class="grid" id="shopGrid"></div></div>
     </div>
@@ -373,6 +414,21 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <button class="bigBtn" style="padding:10px 26px;font-size:14px;" id="biStartBtn">Comenzar Desafío</button>
         <div><button class="modalClose" style="margin-top:12px;" data-close="mBossIntro">Cancelar</button></div>
       </div>
+    </div>
+  </div>
+
+  <div id="travelOverlay">
+    <div class="travelFish" style="left:12%;animation-delay:0s;">🐟</div>
+    <div class="travelFish" style="left:28%;animation-delay:1.1s;">🐠</div>
+    <div class="travelFish" style="left:47%;animation-delay:0.5s;">🐡</div>
+    <div class="travelFish" style="left:63%;animation-delay:1.6s;">🐟</div>
+    <div class="travelFish" style="left:78%;animation-delay:0.9s;">🐠</div>
+    <div class="travelFish" style="left:90%;animation-delay:0.2s;">🐙</div>
+    <div class="travelCore">
+      <div class="travelIcon" id="travelIcon">🌊</div>
+      <div class="travelText">Viajando a <span id="travelWorldName">otro mundo</span>&hellip;</div>
+      <div class="travelBarOuter"><div class="travelBarFill" id="travelBarFill"></div></div>
+      <div class="travelHint">Navegando a través del portal</div>
     </div>
   </div>
 
@@ -515,6 +571,14 @@ const BAG_UPGRADES = [
   {id:'mochila1', name:'Mochila Mediana', price:1000,  cap:30, icon:'🎒'},
   {id:'mochila2', name:'Mochila Grande',  price:8000,  cap:50, icon:'🎒'},
   {id:'mochila3', name:'Mochila Legendaria',price:40000,cap:99, icon:'🎒'},
+];
+const BOATS = [
+  {id:'balsa',    name:'Balsa de Madera',   price:200,    speed:280, luck:1.15, hullColor:'#a9793f', accent:'#6b4a24', sail:false, icon:'🛶'},
+  {id:'remos',    name:'Bote de Remos',     price:900,    speed:320, luck:1.35, hullColor:'#8a5a30', accent:'#553417', sail:false, icon:'🚣'},
+  {id:'lancha',   name:'Lancha a Motor',    price:4000,   speed:380, luck:1.7,  hullColor:'#dc2626', accent:'#7f1d1d', sail:false, icon:'🚤'},
+  {id:'velero',   name:'Velero',            price:15000,  speed:440, luck:2.2,  hullColor:'#e2e8f0', accent:'#64748b', sail:true,  icon:'⛵'},
+  {id:'yate',     name:'Yate de Lujo',      price:60000,  speed:500, luck:3,    hullColor:'#fbbf24', accent:'#92400e', sail:true,  icon:'🛥️'},
+  {id:'legendario_boat', name:'Buque Legendario', price:220000, speed:580, luck:4.2, hullColor:'#a855f7', accent:'#4c1d95', sail:true, icon:'🚢'},
 ];
 const COLORS = [
   {id:'celeste',name:'Celeste',price:0,hex:'#38bdf8'},
@@ -806,7 +870,37 @@ WORLDS.forEach(w=>{
   w.bossSpot = {x:bossIsl.x + (rnd()-0.5)*bossIsl.rx*1.6, y:bossIsl.y + (rnd()-0.5)*bossIsl.ry*1.6+isLandSafeOffset()};
   function isLandSafeOffset(){ return 0; }
   const startIsl = w.islands[0];
-  w.spawn = {x:startIsl.x, y:startIsl.y - startIsl.ry - 40};
+  w.spawn = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.5};
+  w.boatSpawn = {x:startIsl.x, y:startIsl.y - startIsl.ry - 40};
+  w.dockSpot = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.82};
+
+  // portal near the far/right corner of the map, nudged off any island
+  let px = w.width-220, py = 220;
+  for(let tries=0; tries<40; tries++){
+    let onLand=false;
+    for(const isl of w.islands){
+      const dx=px-isl.x, dy=py-isl.y;
+      if((dx*dx)/((isl.rx+90)*(isl.rx+90))+(dy*dy)/((isl.ry+90)*(isl.ry+90))<=1){ onLand=true; break; }
+    }
+    if(!onLand) break;
+    px = w.width-220-tries*20; py = 220+tries*35;
+  }
+  w.portalSpot = {x:px, y:py};
+});
+
+const BOAT_VENDOR_NAMES = ['Cap. Ren','Cap. Sol','Cap. Mira','Cap. Toko','Cap. Vale','Cap. Nix','Cap. Ori','Cap. Dune','Cap. Iris','Cap. Noct'];
+WORLDS.forEach(w=>{
+  const rnd = mulberry32(hashStr(w.id+'_dock'));
+  w.npcs.push({
+    id:'boatvendor_'+w.id, name:BOAT_VENDOR_NAMES[w.idx]||'Capitán', color:'#7a5230',
+    x:w.dockSpot.x, y:w.dockSpot.y, role:'boatVendor',
+    lines:[
+      '¿Buscas un bote para explorar mar adentro?',
+      'Con un buen bote llegarás a zonas llenas de criaturas raras.',
+      'El portal del rincón lejano solo se cruza navegando. ¡Prepárate bien!',
+      'Cuidado al nadar, el agua abierta no perdona a los descuidados.',
+    ],
+  });
 });
 
 function isLand(world,x,y){
@@ -860,6 +954,9 @@ const ACHIEVEMENTS = [
   {id:'todos_mundos',name:'Explorador Total',desc:'Desbloquea todos los mundos',icon:'🗺️',reward:50000,check:s=>s.unlockedWorlds.length>=WORLDS.length},
   {id:'diez_cofres',name:'Cazatesoros',desc:'Abre 10 cofres',icon:'🧰',reward:800,check:s=>s.stats.chestsOpened>=10},
   {id:'media_hora',name:'Pescador Dedicado',desc:'Pesca durante 30 minutos acumulados',icon:'⏱️',reward:1000,check:s=>s.stats.totalPlaytimeSec>=1800},
+  {id:'primer_bote',name:'Marinero de Agua Dulce',desc:'Compra tu primer bote',icon:'🛶',reward:200,check:s=>s.boatIndex>=0},
+  {id:'capitan_legendario',name:'Capitán Legendario',desc:'Consigue el Buque Legendario',icon:'🚢',reward:20000,check:s=>s.boatIndex>=BOATS.length-1},
+  {id:'cruza_portal',name:'Explorador de Mares',desc:'Cruza tu primer portal en bote',icon:'🌀',reward:1500,check:s=>(s.stats.portalsCrossed||0)>=1},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
 ];
@@ -888,16 +985,19 @@ function defaultState(){
   const baits={}; BAITS.forEach(b=>baits[b.id]=b.id==='lombriz'?5:0);
   return {
     coins:50, xp:0, level:1,
+    hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial'],
+    visitedWorlds:['lago_inicial'],
     bossKeys:{}, bossDefeated:{},
     rodIndex:0, baits, selectedBait:null,
+    boatIndex:-1, isOnBoat:false,
     backpackCap:15, keepnet:[],
     dex:{},
     quests,
     achievements:{},
     cosmetics:{owned:['celeste','none_hat','none_aura','none_trail'],color:'celeste',hat:'none',aura:'none',trail:'none'},
-    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0},
+    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0,portalsCrossed:0},
     npcMet:{},
     settings:{musicOn:true,sfxOn:true},
     playerPos:{},
@@ -921,6 +1021,9 @@ function loadGame(){
       S.settings = Object.assign(def.settings, parsed.settings||{});
       S.quests = parsed.quests && Object.keys(parsed.quests).length? parsed.quests : def.quests;
       WORLDS.forEach(w=>{ if(!S.quests[w.id] || !S.quests[w.id].length) S.quests[w.id]=[makeQuest(),makeQuest(),makeQuest()]; });
+      // saves from before boats/portals existed: grandfather already-unlocked worlds in as visited
+      if(!parsed.visitedWorlds){ S.visitedWorlds = S.unlockedWorlds.slice(); }
+      if(S.hp==null) S.hp = S.maxHp;
     }
   }catch(e){ S = defaultState(); }
 }
@@ -963,14 +1066,22 @@ const fishing = {
 };
 
 /* ---------------------------- WORLD SWITCH ---------------------------- */
-function setWorld(worldId, keepPos){
+function setWorld(worldId, opts){
+  opts = opts || {};
   const w = WORLDS.find(x=>x.id===worldId); if(!w) return;
   curWorld = w;
   S.currentWorld = worldId;
-  if(!keepPos){
+  if(opts.viaPortal){
+    player.x = w.boatSpawn.x; player.y = w.boatSpawn.y;
+    S.isOnBoat = true;
+  } else if(!opts.keepPos){
     const p = S.playerPos[worldId];
     if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
+    // safety: older saves (or edge cases) may place the player in the water on foot
+    if(!S.isOnBoat && !isLand(w, player.x, player.y)){ player.x=w.spawn.x; player.y=w.spawn.y; }
   }
+  if(!S.visitedWorlds) S.visitedWorlds=[];
+  if(!S.visitedWorlds.includes(worldId)) S.visitedWorlds.push(worldId);
   curWeather = pick(w.weatherPool);
   weatherTimer = 0;
   weatherParticles = [];
@@ -984,6 +1095,56 @@ function setWorld(worldId, keepPos){
 function updateWeatherLabel(){
   const wt = WEATHER_TYPES[curWeather];
   document.getElementById('worldWeather').textContent = wt.icon+' '+wt.name;
+}
+
+/* ---------------------------- PORTAL / TRAVEL ---------------------------- */
+function tryEnterPortal(){
+  const nextWorld = WORLDS[curWorld.idx+1];
+  if(!nextWorld) return;
+  if(S._traveling) return;
+  const d = Math.hypot(curWorld.portalSpot.x-player.x, curWorld.portalSpot.y-player.y);
+  if(d<70){
+    if(S.unlockedWorlds.includes(nextWorld.id)){
+      startTravel(nextWorld.id);
+    } else if(!S._portalWarned){
+      S._portalWarned = true;
+      toast('🔒 Desbloquea '+nextWorld.name+' en el Mapa de Mundos para cruzar el portal.');
+      setTimeout(()=>{ S._portalWarned=false; }, 5000);
+    }
+  }
+}
+
+function startTravel(worldId){
+  const w = WORLDS.find(x=>x.id===worldId); if(!w) return;
+  S._traveling = true;
+  Audio1.sfx('chest');
+  showLoadingScreen(w);
+  setTimeout(()=>{
+    setWorld(worldId, {viaPortal:true});
+    hideLoadingScreen();
+    S._traveling = false;
+    S.stats.portalsCrossed = (S.stats.portalsCrossed||0)+1;
+    toast('⛵ Has llegado a '+w.icon+' '+w.name+'.');
+    checkAchievements();
+    saveGame();
+  }, 2400);
+}
+
+function showLoadingScreen(w){
+  document.getElementById('travelIcon').textContent = w.icon;
+  document.getElementById('travelWorldName').textContent = w.name;
+  const fill = document.getElementById('travelBarFill');
+  fill.style.transition='none'; fill.style.width='0%';
+  const overlay = document.getElementById('travelOverlay');
+  overlay.classList.add('show');
+  void fill.offsetWidth;
+  requestAnimationFrame(()=>{
+    fill.style.transition='width 2.2s linear';
+    fill.style.width='100%';
+  });
+}
+function hideLoadingScreen(){
+  document.getElementById('travelOverlay').classList.remove('show');
 }
 
 /* ---------------------------- TOASTS ---------------------------- */
@@ -1010,40 +1171,73 @@ actionBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onActionPress
 actionBtn.addEventListener('pointerup', e=>{ onActionRelease(); });
 actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
 
+function currentBoat(){ return S.boatIndex>=0? BOATS[S.boatIndex] : null; }
+
 function onActionPress(){
   if(!started) return;
   if(fishing.state==='minigame'){ fishing.reelHeld = true; return; }
   if(fishing.state==='biting'){ startMinigame(); return; }
   if(fishing.state==='idle'){
     if(nearNpc){ openDialogue(nearNpc); return; }
-    if(canFish || curWorld._nearBoss){ startCast(curWorld._nearBoss); return; }
+    if(curWorld._nearBoss){ startCastWrapper(true); return; }
+    if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
+    if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
+    if(canFish){ startCastWrapper(false); return; }
   }
 }
 function onActionRelease(){ fishing.reelHeld = false; }
 
 /* ---------------------------- MOVEMENT / PROXIMITY ---------------------------- */
+const PLAYER_WALK_SPEED = 230;
+const WATER_DPS = 9;
+const HP_REGEN = 4;
+let canBoard=false, canDisembark=false, boardTargetPoint=null, isBoatMoving=false;
+
 function updatePlayer(dt){
   let mx=0,my=0;
   if(keys['w']||keys['arrowup']) my-=1;
   if(keys['s']||keys['arrowdown']) my+=1;
   if(keys['a']||keys['arrowleft']) mx-=1;
   if(keys['d']||keys['arrowright']) mx+=1;
-  const moving = (mx!==0||my!==0) && fishing.state==='idle';
+  const inputHeld = (mx!==0||my!==0);
+  const moving = inputHeld && fishing.state==='idle';
+  isBoatMoving = S.isOnBoat && inputHeld;
+  const boat = currentBoat();
+  const speed = S.isOnBoat && boat? boat.speed : PLAYER_WALK_SPEED;
+
   if(moving){
     const len = Math.hypot(mx,my)||1;
     mx/=len; my/=len;
-    player.x += mx*player.speed*dt;
-    player.y += my*player.speed*dt;
-    player.x = clamp(player.x, 20, curWorld.width-20);
-    player.y = clamp(player.y, 20, curWorld.height-20);
+    const nx = player.x + mx*speed*dt;
+    const ny = player.y + my*speed*dt;
+    const okX = S.isOnBoat? !isLand(curWorld,nx,player.y) : isLand(curWorld,nx,player.y);
+    const okY = S.isOnBoat? !isLand(curWorld,player.x,ny) : isLand(curWorld,player.x,ny);
+    if(okX){ player.x = clamp(nx, 20, curWorld.width-20); }
+    if(okY){ player.y = clamp(ny, 20, curWorld.height-20); }
+    if(!S.isOnBoat){
+      // pressing toward open water on foot: can't cross it, and touching it hurts
+      const probeX = player.x+mx*26, probeY = player.y+my*26;
+      if(!isLand(curWorld,probeX,probeY)){
+        S.hp = Math.max(0, S.hp - WATER_DPS*dt);
+        S._hurtFlash = 0.18;
+        if(S.hp<=0) handleDrowning();
+      }
+    }
     player.facing.x=mx; player.facing.y=my;
     player.bob += dt*10;
-    if(S.cosmetics.trail!=='none' && Math.random()<0.4){
+    if(!S.isOnBoat && S.cosmetics.trail!=='none' && Math.random()<0.4){
       player.trail.push({x:player.x,y:player.y,life:0.6,type:S.cosmetics.trail});
+    }
+    if(S.isOnBoat && Math.random()<0.5){
+      player.trail.push({x:player.x-mx*20,y:player.y-my*20,life:0.5,type:'burbujas'});
     }
   }
   player.trail.forEach(t=>t.life-=dt);
   player.trail = player.trail.filter(t=>t.life>0);
+  if(S._hurtFlash>0) S._hurtFlash = Math.max(0,S._hurtFlash-dt);
+
+  // regen when safe
+  S.hp = Math.min(S.maxHp, S.hp + HP_REGEN*dt);
 
   S.playerPos[curWorld.id] = {x:player.x,y:player.y};
 
@@ -1059,11 +1253,35 @@ function updatePlayer(dt){
     const avail = !cooldownUntil || Date.now()>cooldownUntil;
     if(avail && Math.hypot(ch.x-player.x, ch.y-player.y)<45){ nearChest = ch; break; }
   }
+
   const fx = player.x+player.facing.x*46, fy=player.y+player.facing.y*46;
-  canFish = fishing.state==='idle' && !nearNpc && !nearChest && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-  curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<70 && fishing.state==='idle' && !nearNpc && !nearChest;
+  canBoard=false; canDisembark=false; boardTargetPoint=null;
+  if(!nearNpc && !nearChest && fishing.state==='idle'){
+    if(!S.isOnBoat && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+      canBoard = true; boardTargetPoint = {x:fx,y:fy};
+    } else if(S.isOnBoat && isLand(curWorld,fx,fy)){
+      canDisembark = true; boardTargetPoint = {x:fx,y:fy};
+    }
+  }
+
+  if(S.isOnBoat){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !canDisembark && !isBoatMoving;
+  } else {
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !canBoard && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+  }
+  curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<80 && fishing.state==='idle' && !nearNpc && !nearChest;
 
   if(nearChest){ tryOpenChest(nearChest); }
+  if(S.isOnBoat) tryEnterPortal();
+}
+
+function handleDrowning(){
+  toast('🌊 ¡Casi te ahogas! Vuelve a la orilla.');
+  Audio1.sfx('fail');
+  player.x = curWorld.spawn.x; player.y = curWorld.spawn.y;
+  S.hp = Math.round(S.maxHp*0.4);
+  fishing.state='idle';
+  saveGame();
 }
 
 /* ---------------------------- ACTION PROMPT / BUTTON ---------------------------- */
@@ -1099,6 +1317,18 @@ function updateActionUI(){
     promptEl.classList.add('show');
     btn.textContent='Desafiar'; btn.disabled=false; return;
   }
+  if(canBoard){
+    promptEl.textContent = 'Subir al bote'; promptEl.classList.add('show');
+    btn.textContent='Embarcar'; btn.disabled=false; return;
+  }
+  if(canDisembark){
+    promptEl.textContent = 'Bajar a tierra'; promptEl.classList.add('show');
+    btn.textContent='Desembarcar'; btn.disabled=false; return;
+  }
+  if(S.isOnBoat && isBoatMoving){
+    promptEl.textContent = 'Detente para pescar'; promptEl.classList.add('show');
+    btn.textContent='Pescar'; btn.disabled=true; return;
+  }
   if(canFish){
     promptEl.classList.remove('show');
     btn.textContent='Pescar'; btn.disabled=false; return;
@@ -1110,11 +1340,24 @@ function updateActionUI(){
 /* ---------------------------- FISHING FLOW ---------------------------- */
 function currentRod(){ return RODS[S.rodIndex]; }
 
+function nearestIslandGap(world,x,y){
+  let min = Infinity;
+  for(const isl of world.islands){
+    const dx=x-isl.x, dy=y-isl.y;
+    const norm = Math.sqrt((dx*dx)/(isl.rx*isl.rx)+(dy*dy)/(isl.ry*isl.ry));
+    const gap = (norm-1)*Math.max(isl.rx,isl.ry);
+    if(gap<min) min=gap;
+  }
+  return Math.max(0,min);
+}
+
 function weightedPickFish(){
   const rod = currentRod();
   const maxTierIdx = rod.maxTier;
   const weatherBoost = WEATHER_TYPES[curWeather].boost;
   const baitObj = S.selectedBait? BAITS.find(b=>b.id===S.selectedBait): null;
+  const boat = S.isOnBoat? currentBoat() : null;
+  const depthFactor = boat? clamp(nearestIslandGap(curWorld,player.x,player.y)/500,0,1) : 0;
   let entries = curWorld.fish.map(f=>{
     const rIdx = RARITY_INDEX[f.rarity];
     let w = 1/rarityOf(f.rarity).denom;
@@ -1125,6 +1368,10 @@ function weightedPickFish(){
       if(baitObj.tag==='todos') w*=baitObj.mult;
       else if(baitObj.tag===f.tag) w*=baitObj.mult;
       else if(baitObj.tag==='legendaria' && rIdx>=4) w*=baitObj.mult;
+    }
+    if(boat){
+      w *= 1 + (boat.luck-1) * (rIdx/9);
+      w *= 1 + depthFactor*0.7*(rIdx/9);
     }
     return {f,w};
   });
@@ -1437,9 +1684,11 @@ function openDialogue(npc){
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
-    box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openModal('mShop');">Ver Tienda</button>`;
+    box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openShopTab('rods');">Ver Tienda</button>`;
   } else if(npc.role==='quest'){
     box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openModal('mQuests');">Ver Misiones</button>`;
+  } else if(npc.role==='boatVendor'){
+    box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openShopTab('boats');">Ver Botes</button>`;
   }
   openModal('mDialogue');
 }
@@ -1463,19 +1712,6 @@ document.getElementById('biStartBtn').addEventListener('click', ()=>{
   Audio1.sfx('boss');
   startCast(true);
 });
-
-// override action press to route boss through intro
-const _origActionPress = onActionPress;
-onActionPress = function(){
-  if(!started) return;
-  if(fishing.state==='minigame'){ fishing.reelHeld = true; return; }
-  if(fishing.state==='biting'){ startMinigame(); return; }
-  if(fishing.state==='idle'){
-    if(nearNpc){ openDialogue(nearNpc); return; }
-    if(curWorld._nearBoss){ startCastWrapper(true); return; }
-    if(canFish){ startCastWrapper(false); return; }
-  }
-};
 
 /* ---------------------------- SHAPE DRAWING ---------------------------- */
 function shade(hex, amt){
@@ -1726,6 +1962,11 @@ function renderMinimap(){
   // boss
   mctx.fillStyle = S.bossDefeated[curWorld.boss.id]? '#64748b':'#ef4444';
   mctx.beginPath(); mctx.arc(curWorld.bossSpot.x*sx,curWorld.bossSpot.y*sy,3.2,0,Math.PI*2); mctx.fill();
+  // portal
+  if(WORLDS[curWorld.idx+1]){
+    mctx.fillStyle = S.unlockedWorlds.includes(WORLDS[curWorld.idx+1].id)? '#38d3c9':'#94a3b8';
+    mctx.beginPath(); mctx.arc(curWorld.portalSpot.x*sx,curWorld.portalSpot.y*sy,3,0,Math.PI*2); mctx.fill();
+  }
   // player
   mctx.fillStyle='#38d3c9';
   mctx.beginPath(); mctx.arc(player.x*sx,player.y*sy,3.4,0,Math.PI*2); mctx.fill();
@@ -2031,6 +2272,82 @@ function drawBossSpot(){
   ctx.restore();
 }
 
+function drawPortal(){
+  const nextWorld = WORLDS[curWorld.idx+1];
+  if(!nextWorld) return;
+  const ps = curWorld.portalSpot;
+  const screen = worldToScreen(ps.x,ps.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  const unlocked = S.unlockedWorlds.includes(nextWorld.id);
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,20,44,16,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  const grad = ctx.createRadialGradient(0,0,4,0,0,42);
+  if(unlocked){ grad.addColorStop(0,'#e0fbff'); grad.addColorStop(0.5,'#38d3c9'); grad.addColorStop(1,'rgba(56,211,201,0)'); }
+  else { grad.addColorStop(0,'#cbd5e1'); grad.addColorStop(0.5,'#64748b'); grad.addColorStop(1,'rgba(100,116,139,0)'); }
+  ctx.fillStyle=grad;
+  ctx.beginPath(); ctx.ellipse(0,0,40+Math.sin(t*1.6)*4,40+Math.sin(t*1.6)*4,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = unlocked? 'rgba(255,255,255,0.85)':'rgba(226,232,240,0.6)';
+  ctx.lineWidth=3;
+  for(let i=0;i<2;i++){
+    ctx.beginPath(); ctx.ellipse(0,0,26-i*8,34-i*10, t*1.4+i, 0, Math.PI*1.5); ctx.stroke();
+  }
+  ctx.fillStyle='#fff'; ctx.font='22px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(unlocked?'🌀':'🔒', 0, 2);
+  ctx.restore();
+  ctx.save();
+  ctx.font='11px system-ui'; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.textAlign='center';
+  ctx.fillText('Portal · '+nextWorld.name, screen.x, screen.y-56);
+  ctx.restore();
+}
+
+function drawBoat(x,y,angle,boatIdx,bob,trailType){
+  const screen = worldToScreen(x,y);
+  const boat = BOATS[boatIdx];
+  const size = 46+boatIdx*2.5;
+  const bobY = Math.sin(bob)*2.5;
+  ctx.save();
+  ctx.translate(screen.x,screen.y+bobY);
+  ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,size*0.32,size*0.55,size*0.2,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(size*0.62,0);
+  ctx.quadraticCurveTo(size*0.3,-size*0.34,-size*0.5,-size*0.3);
+  ctx.quadraticCurveTo(-size*0.64,0,-size*0.5,size*0.3);
+  ctx.quadraticCurveTo(size*0.3,size*0.34,size*0.62,0);
+  ctx.closePath();
+  const hullGrad = ctx.createLinearGradient(0,-size*0.3,0,size*0.3);
+  hullGrad.addColorStop(0, shade(boat.hullColor,30));
+  hullGrad.addColorStop(1, shade(boat.hullColor,-30));
+  ctx.fillStyle = hullGrad; ctx.fill();
+  ctx.strokeStyle = boat.accent; ctx.lineWidth=Math.max(1.5,size*0.035); ctx.stroke();
+  ctx.fillStyle = shade(boat.hullColor,-10);
+  roundRect(ctx,-size*0.16,-size*0.14,size*0.32,size*0.28,size*0.06); ctx.fill();
+  if(boat.sail){
+    ctx.fillStyle='#f8fafc'; ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.1); ctx.lineTo(-size*0.02,-size*0.85); ctx.lineTo(size*0.28,-size*0.14); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle=boat.accent; ctx.lineWidth=Math.max(1.5,size*0.03);
+    ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.9); ctx.lineTo(-size*0.02,-size*0.05); ctx.stroke();
+  }
+  ctx.restore();
+
+  const col = COLORS.find(c=>c.id===S.cosmetics.color);
+  ctx.save(); ctx.translate(screen.x,screen.y+bobY-size*0.06);
+  const pc = col?col.hex:'#38bdf8';
+  const pgrad = ctx.createLinearGradient(-11,-11,11,11);
+  pgrad.addColorStop(0, shade(pc,40)); pgrad.addColorStop(1, shade(pc,-20));
+  ctx.fillStyle=pgrad;
+  roundRect(ctx,-11,-11,22,22,6); ctx.fill();
+  if(S.cosmetics.hat && S.cosmetics.hat!=='none'){
+    const hatObj = HATS.find(h=>h.id===S.cosmetics.hat);
+    if(hatObj && hatObj.draw) drawHat(ctx,hatObj.draw,22);
+  }
+  ctx.restore();
+}
+
 function roundRect(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);
@@ -2051,11 +2368,17 @@ function render(){
   curWorld.islands.forEach(drawIsland);
   curWorld.decor.forEach(drawDecor);
   drawBossSpot();
+  drawPortal();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
-  const col = COLORS.find(c=>c.id===S.cosmetics.color);
-  drawCube(player.x,player.y,44,col?col.hex:'#38bdf8', player.bob, null, S.cosmetics.hat, S.cosmetics.aura, S.cosmetics.trail);
+  if(S.isOnBoat){
+    const angle = Math.atan2(player.facing.y, player.facing.x);
+    drawBoat(player.x, player.y, angle, S.boatIndex, player.bob, S.cosmetics.trail);
+  } else {
+    const col = COLORS.find(c=>c.id===S.cosmetics.color);
+    drawCube(player.x,player.y,44,col?col.hex:'#38bdf8', player.bob, null, S.cosmetics.hat, S.cosmetics.aura, S.cosmetics.trail);
+  }
 
   renderWeather();
   renderMinimap();
@@ -2068,6 +2391,7 @@ function refreshHud(){
   const needed = 100+(S.level-1)*60;
   document.getElementById('xpVal').textContent = Math.floor(S.xp)+'/'+needed+' XP';
   document.getElementById('xpBarFill').style.width = clamp(S.xp/needed*100,0,100)+'%';
+  updateHpUI();
 }
 
 function renderQuestTracker(){
@@ -2105,6 +2429,12 @@ document.querySelectorAll('#shopTabs .tabBtn').forEach(b=>{
     b.classList.add('active'); shopTab=b.dataset.shoptab; renderShop();
   });
 });
+function openShopTab(tab){
+  shopTab = tab;
+  document.querySelectorAll('#shopTabs .tabBtn').forEach(x=>x.classList.toggle('active', x.dataset.shoptab===tab));
+  renderShop();
+  openModal('mShop');
+}
 function renderShop(){
   const grid = document.getElementById('shopGrid');
   grid.innerHTML='';
@@ -2158,6 +2488,27 @@ function renderShop(){
         if(S.coins>=u.price){ S.coins-=u.price; S.backpackCap=u.cap; Audio1.sfx('buy'); toast('¡Mochila mejorada!'); refreshHud(); saveGame(); renderShop(); }
         else toast('No tienes suficientes monedas.');
       });
+      grid.appendChild(card);
+    });
+  } else if(shopTab==='boats'){
+    BOATS.forEach((b,i)=>{
+      const owned = i<=S.boatIndex;
+      const equipped = i===S.boatIndex;
+      const canBuy = i===S.boatIndex+1;
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = `<div style="font-size:30px;">${b.icon}</div><div class="cname">${b.name}</div>
+        <div class="cmeta">Velocidad ${b.speed} · Suerte de pesca x${b.luck}</div>
+        <button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
+          ${equipped?'En uso':(owned?'Obtenido':(canBuy?('🪙 '+fmtNum(b.price)):'Bloqueado'))}
+        </button>`;
+      if(canBuy){
+        card.querySelector('button').addEventListener('click', ()=>{
+          if(S.coins>=b.price){
+            S.coins-=b.price; S.boatIndex=i; Audio1.sfx('buy');
+            toast('⛵ ¡'+b.name+' listo para navegar!'); refreshHud(); checkAchievements(); saveGame(); renderShop();
+          } else toast('No tienes suficientes monedas.');
+        });
+      }
       grid.appendChild(card);
     });
   }
@@ -2304,21 +2655,29 @@ function renderWorldMap(){
   grid.innerHTML='';
   WORLDS.forEach((w,i)=>{
     const unlocked = S.unlockedWorlds.includes(w.id);
+    const visited = (S.visitedWorlds||[]).includes(w.id);
     const isCurrent = w.id===curWorld.id;
     const prevWorld = WORLDS[i-1];
     const hasKey = i===0 || (prevWorld && S.bossKeys[prevWorld.id]);
     const card = document.createElement('div');
     card.className = 'worldCard ' + (unlocked?'':'locked') + (isCurrent?' current':'');
     card.style.background = `linear-gradient(160deg, ${w.palette.water}, ${w.palette.waterDeep})`;
+    let sub;
+    if(isCurrent) sub='Estás aquí';
+    else if(unlocked && visited) sub='Viaje rápido disponible';
+    else if(unlocked) sub='Desbloqueado · navega hasta el portal';
+    else if(hasKey) sub='🪙 '+fmtNum(w.unlockCost);
+    else sub='Requiere llave del jefe anterior';
     card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}</div>
-      <div class="wSub">${unlocked? (isCurrent?'Estás aquí':'Desbloqueado') : (hasKey? ('🪙 '+fmtNum(w.unlockCost)) : 'Requiere llave del jefe anterior')}</div>
+      <div class="wSub">${sub}</div>
       ${!unlocked?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
     card.addEventListener('click', ()=>{
-      if(unlocked){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(unlocked && visited){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(unlocked && !visited){ toast('Primero debes llegar navegando por el portal desde '+(prevWorld?prevWorld.name:'tu mundo actual')+'.'); return; }
       if(!hasKey){ toast('Necesitas la llave del jefe de '+prevWorld.name); return; }
       if(S.coins>=w.unlockCost){
         S.coins-=w.unlockCost; S.unlockedWorlds.push(w.id);
-        Audio1.sfx('buy'); toast('¡'+w.name+' desbloqueado!');
+        Audio1.sfx('buy'); toast('¡'+w.name+' desbloqueado! Navega hasta el portal para llegar.');
         checkAchievements(); refreshHud(); saveGame(); renderWorldMap();
       } else toast('No tienes suficientes monedas.');
     });
@@ -2404,16 +2763,27 @@ document.getElementById('resetSaveBtn').addEventListener('click', ()=>{
 
 /* ---------------------------- MAIN LOOP ---------------------------- */
 function update(dt){
+  if(S._traveling) return;
   updatePlayer(dt);
   fishUpdate(dt);
   updateWeather(dt);
   updateActionUI();
+  updateHpUI();
   S.stats.totalPlaytimeSec += dt;
   progressQuests('playtime', dt);
   S._saveTimer = (S._saveTimer||0)+dt;
   S._hudTimer = (S._hudTimer||0)+dt;
   if(S._saveTimer>12){ S._saveTimer=0; saveGame(); }
   if(S._hudTimer>1){ S._hudTimer=0; renderQuestTracker(); checkAchievements(); }
+}
+
+function updateHpUI(){
+  const el = document.getElementById('hpBarFill');
+  const pct = clamp(S.hp/S.maxHp*100,0,100);
+  el.style.width = pct+'%';
+  el.style.backgroundPosition = (100-pct)+'% 0';
+  document.getElementById('hpVal').textContent = Math.ceil(S.hp)+'/'+S.maxHp;
+  document.getElementById('hurtFlash').classList.toggle('show', (S._hurtFlash||0)>0);
 }
 
 function loop(ts){
