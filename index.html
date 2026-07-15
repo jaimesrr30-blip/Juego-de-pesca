@@ -184,7 +184,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
 #catchResultBackdrop .modal{max-width:380px;text-align:center;}
 #catchResultBody{padding:22px 20px;display:flex;flex-direction:column;align-items:center;}
-#crCanvasWrap{width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+#crCanvasWrap{width:190px;height:190px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
 #crCanvasWrap canvas{position:static;}
 #crName{font-size:19px;font-weight:800;margin-top:6px;}
 #crRarity{margin:6px 0;}
@@ -284,7 +284,10 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div id="mgBarOuter"><div id="mgZone"></div><div id="mgFish">🐟</div></div>
         <div id="mgProgOuter"><div id="mgProgFill"></div></div>
       </div>
-      <button id="actionBtn">Pescar</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="boatToggleBtn" class="menuBtn" title="Bote (B)" style="display:none;">⛵</button>
+        <button id="actionBtn">Pescar</button>
+      </div>
     </div>
   </div>
 
@@ -319,6 +322,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     <div class="modal">
       <div class="modalHead"><h2>🎒 Mochila</h2><button class="modalClose" data-close="mBag">✕</button></div>
       <div class="modalBody">
+        <div id="boatBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;"></div>
         <div id="backpackMeta"></div>
         <button class="shopBtn" id="sellAllBtn" style="margin-bottom:10px;">Vender todo</button>
         <div class="grid bagList" id="bagGrid"></div>
@@ -395,7 +399,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     <div class="modal">
       <div class="modalHead"><h2 id="crHeader">¡Captura!</h2><button class="modalClose" data-close="catchResultBackdrop">✕</button></div>
       <div id="catchResultBody">
-        <div id="crCanvasWrap"><canvas id="crCanvas" width="140" height="140"></canvas></div>
+        <div id="crCanvasWrap"><canvas id="crCanvas" width="190" height="190"></canvas></div>
         <div id="crName"></div>
         <div id="crRarity"></div>
         <div id="crMeta"></div>
@@ -557,6 +561,8 @@ const RODS = [
   {id:'cristal',   name:'Caña de Cristal',  price:10000,  waitMin:950, waitMax:1750, luck:3.3, zoneBonus:12, maxTier:6, icon:'💎'},
   {id:'galactica', name:'Caña Galáctica',   price:50000,  waitMin:800, waitMax:1450, luck:5,   zoneBonus:16, maxTier:7, icon:'🌌'},
   {id:'omega',     name:'Caña Omega',       price:250000, waitMin:600, waitMax:1150, luck:9,   zoneBonus:22, maxTier:9, icon:'🔱'},
+  {id:'celestial', name:'Caña Celestial',   price:600000, waitMin:550, waitMax:1050, luck:12,  zoneBonus:26, maxTier:9, icon:'🌠'},
+  {id:'creador',   name:'Caña del Creador', price:2000000,waitMin:450, waitMax:900,  luck:18,  zoneBonus:32, maxTier:9, icon:'👑'},
 ];
 const BAITS = [
   {id:'lombriz',   name:'Lombriz',           price:5,   icon:'🪱', tag:'comun',      mult:1.6},
@@ -642,6 +648,8 @@ const WORLDS = [
     F('cangrejo_estanque','Cangrejo de Estanque','raro','crustaceo','crab','#e07856','#a3492e'),
     F('tortuga_verde','Tortuga Verde','epico','molusco','turtle','#4d8f5c','#2f5c39'),
     F('siluro_dorado','Siluro Dorado','legendario','comun','fish','#e8c34a','#a9871f'),
+    F('lucio_plateado','Lucio Plateado','pocoComun','comun','fish','#94a3b8','#475569'),
+    F('espiritu_lago','Espíritu del Lago','mitico','fantasma','ghost','#a5f3fc','#0891b2'),
   ],
   boss:{id:'siluro_ancestral',name:'Siluro Ancestral',shape:'fish',color:'#d9a441',accent:'#7a5c17',
     minKg:180,maxKg:340,minCm:280,maxCm:380,desc:'Un siluro colosal que ha dormido en el fondo del lago durante generaciones.'},
@@ -662,6 +670,8 @@ const WORLDS = [
     F('cangrejo_rio','Cangrejo de Río','raro','crustaceo','crab','#5a8f6b','#33553d'),
     F('anguila_electrica','Anguila Eléctrica','epico','crustaceo','dragon','#facc15','#7a5f0a'),
     F('espiritu_rio','Espíritu del Río','legendario','fantasma','ghost','#a5f3fc','#22d3ee'),
+    F('barbo_dorado','Barbo Dorado','pocoComun','comun','fish','#eab308','#854d0e'),
+    F('guardian_rapido','Guardián del Rápido','mitico','crustaceo','dragon','#16a34a','#14532d'),
   ],
   boss:{id:'serpiente_rio',name:'Serpiente del Río',shape:'dragon',color:'#3f8f5b',accent:'#204a30',
     minKg:90,maxKg:200,minCm:320,maxCm:420,desc:'Una serpiente acuática que domina la corriente principal.'},
@@ -682,6 +692,8 @@ const WORLDS = [
     F('pulpo_gigante','Pulpo Gigante','raro','molusco','octopus','#c026d3','#701a75'),
     F('tiburon_blanco','Tiburón Blanco','epico','crustaceo','shark','#94a3b8','#334155'),
     F('estrella_coral','Estrella de Coral','legendario','molusco','starfish','#fb7185','#9f1239'),
+    F('pez_angel','Pez Ángel','pocoComun','comun','tropical','#38bdf8','#f472b6'),
+    F('manta_gigante','Manta Gigante','mitico','molusco','shark','#1e3a8a','#0f172a'),
   ],
   boss:{id:'tiburon_alfa',name:'Tiburón Alfa',shape:'shark',color:'#475569',accent:'#1e293b',
     minKg:400,maxKg:900,minCm:380,maxCm:520,desc:'El depredador más temido del arrecife, cazador solitario y despiadado.'},
@@ -702,6 +714,8 @@ const WORLDS = [
     F('cangrejo_nieve','Cangrejo de Nieve','raro','crustaceo','crab','#f1f5f9','#94a3b8'),
     F('medusa_hielo','Medusa de Hielo','epico','molusco','jellyfish','#c7f9ff','#67e8f9'),
     F('dragon_hielo','Dragón de Hielo','legendario','cristal','dragon','#e0f2fe','#7dd3fc'),
+    F('pez_nieve','Pez Nieve','pocoComun','comun','fish','#dbeafe','#93c5fd'),
+    F('yeti_marino','Yeti Marino','mitico','fantasma','dragon','#f0f9ff','#38bdf8'),
   ],
   boss:{id:'serpiente_hielo',name:'Serpiente de Hielo',shape:'dragon',color:'#bae6fd','accent2':'#0369a1',accent:'#0369a1',
     minKg:200,maxKg:380,minCm:400,maxCm:500,desc:'Nace del hielo eterno y congela el agua a su paso.'},
@@ -722,6 +736,8 @@ const WORLDS = [
     F('langosta_obsidiana','Langosta de Obsidiana','raro','crustaceo','lobster','#1c1917','#57534e'),
     F('pufferfish_fuego','Pufferfish de Fuego','epico','crustaceo','pufferfish','#fb923c','#7c2d12'),
     F('fenix_marino','Fénix Marino','legendario','fantasma','dragon','#fbbf24','#dc2626'),
+    F('salamandra_fuego','Salamandra de Fuego','pocoComun','crustaceo','fish','#f97316','#7c2d12'),
+    F('titan_obsidiana','Titán de Obsidiana','mitico','cristal','crab','#292524','#dc2626'),
   ],
   boss:{id:'cangrejo_magma',name:'Cangrejo de Magma',shape:'crab',color:'#dc2626',accent:'#450a0a',
     minKg:250,maxKg:520,minCm:260,maxCm:340,desc:'Sus pinzas fluyen con lava líquida; toda la costa tiembla cuando emerge.'},
@@ -742,6 +758,8 @@ const WORLDS = [
     F('medusa_celeste','Medusa Celeste','raro','molusco','jellyfish','#bae6fd','#38bdf8'),
     F('calamar_volador','Calamar Volador','epico','molusco','squid','#c4b5fd','#7c3aed'),
     F('ballena_dorada','Ballena Dorada','mitico','comun','whale','#fde68a','#d97706'),
+    F('pez_pluma','Pez Pluma','pocoComun','comun','tropical','#fef3c7','#fcd34d'),
+    F('fenix_celeste','Fénix Celeste','omega','fantasma','dragon','#fde68a','#f97316'),
   ],
   boss:{id:'ballena_colosal',name:'Ballena Colosal',shape:'whale',color:'#c7d2fe',accent:'#4338ca',
     minKg:2000,maxKg:5200,minCm:900,maxCm:1400,desc:'Flota entre las nubes como si el cielo fuera un océano más.'},
@@ -762,6 +780,8 @@ const WORLDS = [
     F('calamar_nebulosa','Calamar Nebulosa','raro','espacial','squid','#a78bfa','#5b21b6'),
     F('dragon_marino','Dragón Marino','omega','espacial','dragon','#f472b6','#831843'),
     F('pez_vacio','Pez del Vacío','secreto','espacial','ghost','#0f0a1e','#a855f7'),
+    F('medusa_cuantica','Medusa Cuántica','epico','espacial','jellyfish','#a78bfa','#4c1d95'),
+    F('titan_nebular','Titán Nebular','mitico','espacial','whale','#818cf8','#1e1b4b'),
   ],
   boss:{id:'devorador_cosmico',name:'Devorador Cósmico',shape:'octopus',color:'#4c1d95',accent:'#a855f7',
     minKg:600,maxKg:1400,minCm:500,maxCm:700,desc:'Una masa de tentáculos nacida del vacío entre las estrellas.'},
@@ -782,6 +802,8 @@ const WORLDS = [
     F('cangrejo_podrido','Cangrejo Podrido','raro','crustaceo','crab','#556b2f','#2f3a1a'),
     F('espiritu_pantano','Espíritu del Pantano','epico','fantasma','ghost','#84cc16','#365314'),
     F('kraken','Kraken','legendario','molusco','octopus','#3f3a2f','#1a1712'),
+    F('vibora_fango','Víbora de Fango','pocoComun','fantasma','fish','#4d5b2a','#232b13'),
+    F('amo_pantano','Amo del Pantano','mitico','fantasma','octopus','#1a2e05','#65a30d'),
   ],
   boss:{id:'hidra_pantano',name:'Hidra del Pantano',shape:'dragon',color:'#4d7c0f',accent:'#1a2e05',
     minKg:300,maxKg:650,minCm:420,maxCm:560,desc:'Múltiples cabezas emergen del lodo, cada una más hambrienta que la anterior.'},
@@ -802,6 +824,8 @@ const WORLDS = [
     F('cangrejo_cuarzo','Cangrejo de Cuarzo','raro','cristal','crab','#f0abfc','#a21caf'),
     F('medusa_diamante','Medusa de Diamante','epico','cristal','jellyfish','#f8fafc','#cbd5e1'),
     F('serpiente_cristal','Serpiente de Cristal','legendario','cristal','dragon','#e0f2fe','#0891b2'),
+    F('pez_prisma','Pez Prisma','pocoComun','cristal','tropical','#fbcfe8','#f0abfc'),
+    F('fenix_cuarzo','Fénix de Cuarzo','mitico','cristal','dragon','#f5f3ff','#c4b5fd'),
   ],
   boss:{id:'golem_cristal',name:'Golem de Cristal',shape:'crab',color:'#67e8f9',accent:'#0e7490',
     minKg:500,maxKg:1100,minCm:340,maxCm:460,desc:'Una criatura formada enteramente de cuarzo viviente, dura como la roca.'},
@@ -823,6 +847,8 @@ const WORLDS = [
     F('tiburon_fantasma','Tiburón Fantasma','epico','fantasma','shark','#e2e8f0','#94a3b8'),
     F('leviatan','Leviatán','prohibido','fantasma','dragon','#7f1d1d','#1c0505'),
     F('entidad_divina','Entidad Divina','divino','fantasma','space','#fef9c3','#ffffff'),
+    F('calamar_sombrio','Calamar Sombrío','legendario','fantasma','squid','#312e81','#1e1b4b'),
+    F('susurro_eterno','Susurro Eterno','omega','fantasma','ghost','#4c1d95','#a78bfa'),
   ],
   boss:{id:'leviatan_sombras',name:'Leviatán de las Sombras',shape:'shark',color:'#111827',accent:'#7f1d1d',
     minKg:1500,maxKg:3200,minCm:700,maxCm:950,desc:'La criatura más antigua del mar nocturno; sus ojos brillan como brasas.'},
@@ -913,6 +939,27 @@ function isLand(world,x,y){
   return false;
 }
 
+// finds the nearest point to (x,y) whose isLand() matches wantLand, searching outward in rings.
+// used so the boat can always be launched/stowed from the backpack even if you're stranded somewhere awkward.
+function findNearestSpot(world,x,y,wantLand){
+  if(isLand(world,x,y)===wantLand) return {x,y};
+  for(let r=24; r<=900; r+=24){
+    for(let a=0; a<Math.PI*2; a+=Math.PI/12){
+      const px = clamp(x+Math.cos(a)*r, 12, world.width-12);
+      const py = clamp(y+Math.sin(a)*r, 12, world.height-12);
+      if(isLand(world,px,py)===wantLand){
+        // step a bit further along the same ray so we land solidly inside the
+        // target terrain rather than right on the shoreline seam
+        const px2 = clamp(x+Math.cos(a)*(r+26), 12, world.width-12);
+        const py2 = clamp(y+Math.sin(a)*(r+26), 12, world.height-12);
+        if(isLand(world,px2,py2)===wantLand) return {x:px2,y:py2};
+        return {x:px,y:py};
+      }
+    }
+  }
+  return {x,y};
+}
+
 function econ(fish, worldIdx){
   const idx = RARITY_INDEX[fish.rarity];
   const mult = 1+worldIdx*0.12;
@@ -991,7 +1038,7 @@ function defaultState(){
     visitedWorlds:['lago_inicial'],
     bossKeys:{}, bossDefeated:{},
     rodIndex:0, baits, selectedBait:null,
-    boatIndex:-1, isOnBoat:false,
+    boatIndex:0, isOnBoat:false,
     backpackCap:15, keepnet:[],
     dex:{},
     quests,
@@ -1160,6 +1207,7 @@ window.addEventListener('keydown', e=>{
   keys[e.key.toLowerCase()]=true;
   if(e.key===' '){ e.preventDefault(); onActionPress(); }
   if(e.key.toLowerCase()==='e'){ onActionPress(); }
+  if(e.key.toLowerCase()==='b'){ toggleBoat(); }
   if(e.key==='Escape'){ closeAllModals(); }
 });
 window.addEventListener('keyup', e=>{
@@ -1170,6 +1218,26 @@ const actionBtn = document.getElementById('actionBtn');
 actionBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onActionPress(); });
 actionBtn.addEventListener('pointerup', e=>{ onActionRelease(); });
 actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
+document.getElementById('boatToggleBtn').addEventListener('click', ()=>toggleBoat());
+
+// always-available boat launch/stow: finds the nearest usable water/land spot itself,
+// so it works reliably from any shoreline (or if you're stuck somewhere awkward).
+function toggleBoat(){
+  if(!started || S.boatIndex<0) return;
+  if(fishing.state!=='idle') return;
+  if(!S.isOnBoat){
+    const target = findNearestSpot(curWorld, player.x, player.y, false);
+    player.x = target.x; player.y = target.y;
+    S.isOnBoat = true;
+    toast('⛵ Subes a bordo de tu '+currentBoat().name+'.');
+  } else {
+    const target = findNearestSpot(curWorld, player.x, player.y, true);
+    player.x = target.x; player.y = target.y;
+    S.isOnBoat = false;
+    toast('🏝️ Bajas del bote.');
+  }
+  saveGame();
+}
 
 function currentBoat(){ return S.boatIndex>=0? BOATS[S.boatIndex] : null; }
 
@@ -1256,18 +1324,19 @@ function updatePlayer(dt){
 
   const fx = player.x+player.facing.x*46, fy=player.y+player.facing.y*46;
   canBoard=false; canDisembark=false; boardTargetPoint=null;
-  if(!nearNpc && !nearChest && fishing.state==='idle'){
-    if(!S.isOnBoat && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
-      canBoard = true; boardTargetPoint = {x:fx,y:fy};
-    } else if(S.isOnBoat && isLand(curWorld,fx,fy)){
-      canDisembark = true; boardTargetPoint = {x:fx,y:fy};
-    }
-  }
 
   if(S.isOnBoat){
+    if(!nearNpc && !nearChest && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+      canDisembark = true; boardTargetPoint = {x:fx,y:fy};
+    }
     canFish = fishing.state==='idle' && !nearNpc && !nearChest && !canDisembark && !isBoatMoving;
   } else {
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !canBoard && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    // fishing from shore always takes priority; boarding here is just a convenience fallback
+    // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+      canBoard = true; boardTargetPoint = {x:fx,y:fy};
+    }
   }
   curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<80 && fishing.state==='idle' && !nearNpc && !nearChest;
 
@@ -1289,6 +1358,16 @@ function updateActionUI(){
   const promptEl = document.getElementById('promptText');
   const btn = actionBtn;
   btn.classList.remove('hot');
+
+  const boatBtn = document.getElementById('boatToggleBtn');
+  if(S.boatIndex>=0){
+    boatBtn.style.display = 'flex';
+    boatBtn.textContent = S.isOnBoat? '🎒' : '⛵';
+    boatBtn.title = S.isOnBoat? 'Guardar bote (B)' : 'Botar bote (B)';
+    boatBtn.disabled = fishing.state!=='idle';
+  } else {
+    boatBtn.style.display = 'none';
+  }
   if(fishing.state==='minigame'){
     promptEl.classList.remove('show');
     btn.textContent = '¡Mantén!';
@@ -1361,7 +1440,7 @@ function weightedPickFish(){
   let entries = curWorld.fish.map(f=>{
     const rIdx = RARITY_INDEX[f.rarity];
     let w = 1/rarityOf(f.rarity).denom;
-    w *= rod.luck;
+    w *= 1 + (rod.luck-1) * (rIdx/9);
     if(rIdx>maxTierIdx) w=0;
     if(weatherBoost.includes(f.rarity)) w*=2.4;
     if(baitObj){
@@ -1420,11 +1499,19 @@ function fishUpdate(dt){
 }
 
 function difficultyFor(fish, isBoss, stage){
+  const rod = currentRod();
+  if(isBoss){
+    // eases new players in: early worlds' bosses are quite forgiving, later worlds ramp up
+    let speed = 0.42 + curWorld.idx*0.11 + stage*0.2;
+    let zone = 36 - curWorld.idx*1.3 - stage*2.2;
+    zone += rod.zoneBonus*0.6;
+    zone = clamp(zone, 16, 44);
+    speed = clamp(speed, 0.35, 2.4);
+    return {speed, zone};
+  }
   const rIdx = RARITY_INDEX[fish.rarity]!==undefined? RARITY_INDEX[fish.rarity] : 4;
   let speed = 0.55 + rIdx*0.16;
   let zone = 34 - rIdx*1.6;
-  if(isBoss){ speed += 0.5+stage*0.35; zone -= 6+stage*3; }
-  const rod = currentRod();
   zone += rod.zoneBonus*0.6;
   zone = clamp(zone, 10, 42);
   speed = clamp(speed, 0.4, 3.2);
@@ -1438,9 +1525,12 @@ function startMinigame(){
   fishing.fishPos = 50; fishing.fishTargetPos = 50; fishing.fishRetarget=0;
   fishing.zonePos = 50; fishing.zoneVel = 0; fishing.zoneSize = diff.zone;
   fishing.diffSpeed = diff.speed;
-  fishing.progress = fishing.isBoss? 8 : 18;
+  fishing.progress = fishing.isBoss? 22 : 18;
   document.getElementById('minigame').classList.add('show');
-  document.getElementById('mgFish').textContent = shapeEmoji(fishing.target.shape);
+  const mgFish = document.getElementById('mgFish');
+  mgFish.textContent = shapeEmoji(fishing.target.shape);
+  const rIdxGlow = RARITY_INDEX[fishing.target.rarity];
+  mgFish.style.filter = (rIdxGlow>=4)? `drop-shadow(0 0 9px ${rarityOf(fishing.target.rarity).glow})` : 'none';
   if(fishing.isBoss){ openBossIntroIfNeeded(); }
 }
 
@@ -1471,10 +1561,10 @@ function minigameUpdate(dt){
   const half = fishing.zoneSize/2;
   const inZone = fishing.fishPos > fishing.zonePos-half && fishing.fishPos < fishing.zonePos+half;
   if(inZone){
-    fishing.progress += dt*(fishing.isBoss?16:26);
+    fishing.progress += dt*(fishing.isBoss?24:26);
     if(Math.random()<dt*3) Audio1.sfx('reelTick');
   } else {
-    fishing.progress -= dt*(fishing.isBoss?14:16);
+    fishing.progress -= dt*(fishing.isBoss?10:16);
   }
   fishing.progress = clamp(fishing.progress,0,100);
 
@@ -1489,7 +1579,7 @@ function minigameUpdate(dt){
       toast('¡Etapa '+(fishing.bossStage+1)+' de 3!');
       const diff = difficultyFor(fishing.target, true, fishing.bossStage);
       fishing.zoneSize = diff.zone; fishing.diffSpeed = diff.speed;
-      fishing.progress = 15; fishing.zoneVel=0;
+      fishing.progress = 25; fishing.zoneVel=0;
     } else {
       minigameEnd(true);
     }
@@ -1576,14 +1666,12 @@ function addXp(xp){
   refreshHud();
 }
 
+let crCardEntry = null;
 function showCatchResult(fish, weightKg, sizeCm, value, isBoss, autoSold, isNew){
   document.getElementById('crHeader').textContent = isBoss? '¡Jefe Derrotado!' : '¡Captura!';
   const c = document.getElementById('crCanvas');
-  const cctx = c.getContext('2d');
-  cctx.clearRect(0,0,c.width,c.height);
-  cctx.save(); cctx.translate(c.width/2,c.height/2);
-  drawCreatureShape(cctx, fish.shape, 90, fish.color, fish.accent, false, performance.now()/300);
-  cctx.restore();
+  crCardEntry = {canvas:c, fish, discovered:true, size:85};
+  drawCreatureCard(c, fish, true, 85);
   document.getElementById('crName').textContent = fish.name + (isNew? '  🆕':'');
   const r = rarityOf(fish.rarity);
   document.getElementById('crRarity').innerHTML = `<span class="rbadge" style="background:${r.color}">${r.name} · ${fmtProb(r.denom)}</span>`;
@@ -1723,6 +1811,63 @@ function shade(hex, amt){
     r=clamp(r,0,255); g=clamp(g,0,255); b=clamp(b,0,255);
     return `rgb(${r},${g},${b})`;
   }catch(e){ return hex; }
+}
+
+function hexToRgba(hex, alpha){
+  try{
+    let c = hex.replace('#','');
+    if(c.length===3) c=c.split('').map(x=>x+x).join('');
+    const num = parseInt(c,16);
+    const r=(num>>16)&0xff, g=(num>>8)&0xff, b=num&0xff;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }catch(e){ return hex; }
+}
+
+// rarity-based glow/sparkle worn by legendario+ creatures: soft halo from legendario,
+// orbiting sparkles from omega, and a stronger pulsing shimmer for secreto/divino.
+function drawRarityGlow(ctx, rarityIdx, glowColor, radius, t){
+  if(rarityIdx==null || rarityIdx<4) return;
+  ctx.save();
+  const pulse = 0.65+0.35*Math.sin(t*2.2);
+  const outer = radius*(1.15 + (rarityIdx>=8?0.4:rarityIdx>=6?0.28:0.15));
+  const grad = ctx.createRadialGradient(0,0,radius*0.15,0,0,outer);
+  grad.addColorStop(0, hexToRgba(glowColor, 0.5*pulse));
+  grad.addColorStop(1, hexToRgba(glowColor, 0));
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0,0,outer,0,Math.PI*2); ctx.fill();
+  if(rarityIdx>=6){
+    const n = rarityIdx>=8? 9 : 5;
+    for(let i=0;i<n;i++){
+      const ang = t*1.1 + i*(Math.PI*2/n);
+      const r = radius*0.98;
+      const sx = Math.cos(ang)*r, sy = Math.sin(ang)*r;
+      const tw = 0.4+0.6*Math.sin(t*4+i*2.1);
+      ctx.globalAlpha = tw;
+      ctx.fillStyle = rarityIdx>=8? '#ffffff' : glowColor;
+      ctx.beginPath(); ctx.arc(sx,sy, rarityIdx>=8?3.2:2.4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+  if(rarityIdx>=8){
+    ctx.strokeStyle = hexToRgba('#ffffff', 0.35*pulse);
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,radius*1.05,0,Math.PI*2*pulse); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// draws a creature (with its rarity glow, if discovered) centered in a small preview canvas
+function drawCreatureCard(canvas, fish, discovered, size){
+  const cctx = canvas.getContext('2d');
+  cctx.clearRect(0,0,canvas.width,canvas.height);
+  cctx.save();
+  cctx.translate(canvas.width/2, canvas.height/2);
+  const t = performance.now()/300;
+  if(discovered){
+    drawRarityGlow(cctx, RARITY_INDEX[fish.rarity], rarityOf(fish.rarity).glow, size*0.9, t);
+  }
+  drawCreatureShape(cctx, fish.shape, size, fish.color, fish.accent, !discovered, t);
+  cctx.restore();
 }
 
 function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t){
@@ -2516,10 +2661,51 @@ function renderShop(){
 
 /* ---------------------------- BACKPACK ---------------------------- */
 document.getElementById('btnBag').addEventListener('click', ()=>{ renderBag(); openModal('mBag'); });
+function deployBoatFromBag(){
+  if(S.boatIndex<0) return;
+  const target = findNearestSpot(curWorld, player.x, player.y, false);
+  player.x = target.x; player.y = target.y;
+  S.isOnBoat = true;
+  toast('⛵ Botas tu '+currentBoat().name+' al agua.');
+  closeModal('mBag');
+  saveGame();
+}
+function stowBoatToBag(){
+  if(!S.isOnBoat) return;
+  const target = findNearestSpot(curWorld, player.x, player.y, true);
+  player.x = target.x; player.y = target.y;
+  S.isOnBoat = false;
+  toast('🎒 Guardas el bote en la mochila.');
+  closeModal('mBag');
+  saveGame();
+}
+function renderBoatBagSection(){
+  const box = document.getElementById('boatBagSection');
+  if(S.boatIndex<0){
+    box.innerHTML = `<div class="cname">Sin bote</div><div class="cmeta">Cómpralo en la Tienda o con un vendedor de botes.</div>`;
+    return;
+  }
+  const b = currentBoat();
+  box.innerHTML = `<div style="font-size:30px;">${b.icon}</div><div class="cname">${b.name}</div>
+    <div class="cmeta">Velocidad ${b.speed} · Suerte de pesca x${b.luck}</div>
+    <button class="shopBtn" id="boatDeployBtn">${S.isOnBoat? 'Ya estás navegando':'⛵ Botar aquí'}</button>
+    ${S.isOnBoat? `<button class="shopBtn" id="boatStowBtn" style="margin-top:6px;background:var(--danger);">🎒 Guardar bote</button>`:''}
+    <div class="cmeta" style="margin-top:6px;">Si te quedas varado en una isla sin salida, usa esto para lanzar tu bote al agua más cercana.</div>`;
+  if(!S.isOnBoat){
+    document.getElementById('boatDeployBtn').addEventListener('click', deployBoatFromBag);
+  } else {
+    document.getElementById('boatDeployBtn').disabled = true;
+    document.getElementById('boatStowBtn').addEventListener('click', stowBoatToBag);
+  }
+}
+
+let bagCardEntries = [];
 function renderBag(){
+  renderBoatBagSection();
   document.getElementById('backpackMeta').textContent = `Capacidad: ${S.keepnet.length}/${S.backpackCap}`;
   const grid = document.getElementById('bagGrid');
   grid.innerHTML='';
+  bagCardEntries = [];
   S.keepnet.forEach(item=>{
     const sp = ALL_SPECIES[item.speciesId]; if(!sp) return;
     const r = rarityOf(sp.fish.rarity);
@@ -2533,7 +2719,8 @@ function renderBag(){
       <button class="shopBtn">Vender</button>`;
     card.appendChild(info);
     grid.appendChild(card);
-    const cctx=c.getContext('2d'); cctx.save(); cctx.translate(35,35); drawCreatureShape(cctx,sp.fish.shape,50,sp.fish.color,sp.fish.accent,false,performance.now()/300); cctx.restore();
+    drawCreatureCard(c, sp.fish, true, 32);
+    bagCardEntries.push({canvas:c, fish:sp.fish, discovered:true, size:32});
     info.querySelector('button').addEventListener('click', ()=>{
       S.coins+=item.value; S.stats.totalSold++; S.keepnet = S.keepnet.filter(x=>x.uid!==item.uid);
       Audio1.sfx('coin'); progressQuests('sell',1); checkAchievements(); refreshHud(); saveGame(); renderBag();
@@ -2568,12 +2755,14 @@ function renderAquariumTabs(){
     WORLDS.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
 }
+let aqCardEntries = [];
 function renderAquarium(){
   const all = Object.values(ALL_SPECIES).filter(s=> aqTab==='all' || s.world.id===aqTab);
   const discoveredCount = all.filter(s=>S.dex[s.fish.id]&&S.dex[s.fish.id].discovered).length;
   document.getElementById('aqProgress').textContent = `${discoveredCount}/${all.length}`;
   const grid = document.getElementById('aqGrid');
   grid.innerHTML='';
+  aqCardEntries = [];
   all.forEach(sp=>{
     const f = sp.fish;
     const d = S.dex[f.id];
@@ -2597,9 +2786,8 @@ function renderAquarium(){
     }
     card.appendChild(info);
     grid.appendChild(card);
-    const cctx = c.getContext('2d'); cctx.save(); cctx.translate(45,45);
-    drawCreatureShape(cctx, f.shape, 60, f.color, f.accent, !discovered, performance.now()/300);
-    cctx.restore();
+    drawCreatureCard(c, f, discovered, 42);
+    aqCardEntries.push({canvas:c, fish:f, discovered, size:42});
   });
 }
 
@@ -2786,10 +2974,22 @@ function updateHpUI(){
   document.getElementById('hurtFlash').classList.toggle('show', (S._hurtFlash||0)>0);
 }
 
+function tickCreatureCanvases(){
+  if(document.getElementById('mAquarium').classList.contains('show')){
+    aqCardEntries.forEach(e=>drawCreatureCard(e.canvas, e.fish, e.discovered, e.size));
+  }
+  if(document.getElementById('mBag').classList.contains('show')){
+    bagCardEntries.forEach(e=>drawCreatureCard(e.canvas, e.fish, e.discovered, e.size));
+  }
+  if(crCardEntry && document.getElementById('catchResultBackdrop').classList.contains('show')){
+    drawCreatureCard(crCardEntry.canvas, crCardEntry.fish, crCardEntry.discovered, crCardEntry.size);
+  }
+}
+
 function loop(ts){
   const dt = Math.min(0.05, (ts-lastTs)/1000 || 0);
   lastTs = ts;
-  if(started){ update(dt); render(); }
+  if(started){ update(dt); render(); tickCreatureCanvases(); }
   requestAnimationFrame(loop);
 }
 
