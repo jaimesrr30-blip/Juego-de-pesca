@@ -1,0 +1,2446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cube Fishing Adventure</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='10' y='10' width='80' height='80' rx='20' fill='%2338d3c9'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#061a2b; --panel:rgba(10,26,42,0.82); --panel-light:rgba(255,255,255,0.06);
+  --accent:#38d3c9; --accent2:#ffd166; --text:#eaf6ff; --text-dim:#9fb8c9;
+  --danger:#ef4444; --good:#4ade80; --radius:16px;
+  --comun:#9ca3af; --pocoComun:#34d399; --raro:#38bdf8; --epico:#a78bfa; --legendario:#fbbf24;
+  --mitico:#f472b6; --omega:#fb7185; --prohibido:#ef4444; --secreto:#8b5cf6; --divino:#fde047;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text);}
+#app{position:relative;width:100vw;height:100vh;overflow:hidden;user-select:none;}
+canvas{display:block;position:absolute;top:0;left:0;}
+#weatherCanvas{pointer-events:none;}
+#fxCanvas{pointer-events:none;}
+
+/* ---------- Scrollbars ---------- */
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:8px;}
+
+/* ---------- Start Screen ---------- */
+#startScreen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 20%, #123c52 0%, #061a2b 60%, #030d16 100%);
+  z-index:200;text-align:center;padding:20px;}
+#startScreen h1{font-size:clamp(28px,6vw,52px);margin:0 0 6px;letter-spacing:1px;
+  background:linear-gradient(90deg,#38d3c9,#ffd166);-webkit-background-clip:text;background-clip:text;color:transparent;}
+#startScreen p{color:var(--text-dim);max-width:480px;margin:4px 0 26px;font-size:14px;line-height:1.5;}
+.cubePreview{width:70px;height:70px;border-radius:14px;background:linear-gradient(135deg,#38d3c9,#1f8f88);
+  box-shadow:0 10px 30px rgba(56,211,201,0.45),inset 0 -6px 10px rgba(0,0,0,0.25),inset 0 6px 10px rgba(255,255,255,0.35);
+  margin-bottom:22px;animation:floaty 3s ease-in-out infinite;}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-12px) rotate(4deg);}}
+.bigBtn{padding:14px 38px;font-size:17px;font-weight:600;border:none;border-radius:30px;cursor:pointer;
+  background:linear-gradient(135deg,#38d3c9,#2596be);color:#04202a;box-shadow:0 8px 24px rgba(56,211,201,0.35);
+  transition:transform .15s, box-shadow .15s;}
+.bigBtn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 12px 30px rgba(56,211,201,0.5);}
+.bigBtn:active{transform:translateY(0) scale(0.98);}
+#startScreen .hint{margin-top:16px;font-size:12px;color:#5f7d8f;}
+
+/* ---------- HUD ---------- */
+.hud{position:absolute;z-index:10;pointer-events:none;}
+.hud.interactive{pointer-events:auto;}
+#topBar{top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.panel{background:var(--panel);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.35);}
+#worldInfo{padding:8px 14px;display:flex;align-items:center;gap:10px;pointer-events:auto;cursor:pointer;}
+#worldInfo .icon{font-size:22px;}
+#worldInfo .names{display:flex;flex-direction:column;line-height:1.2;}
+#worldInfo .wname{font-weight:700;font-size:14px;}
+#worldInfo .wweather{font-size:11px;color:var(--text-dim);}
+#statsCol{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:108px;}
+#coinsRow{padding:6px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;pointer-events:auto;}
+#coinsRow .c-icon{color:var(--accent2);}
+#levelWrap{width:190px;padding:6px 12px;pointer-events:auto;}
+#levelWrap .lvRow{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;}
+#xpBarBg{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
+#xpBarFill{height:100%;width:0%;background:linear-gradient(90deg,#38d3c9,#7ee8e0);transition:width .3s;}
+
+#minimapWrap{position:absolute;top:12px;right:12px;width:142px;height:102px;pointer-events:auto;}
+#minimap{position:static;border-radius:12px;display:block;border:1px solid rgba(255,255,255,0.15);}
+
+#bottomBar{bottom:14px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;}
+#promptText{background:rgba(0,0,0,0.55);padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;
+  opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;}
+#promptText.show{opacity:1;transform:translateY(0);}
+
+#actionWrap{display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:auto;}
+#minigame{display:none;align-items:flex-end;gap:10px;}
+#minigame.show{display:flex;}
+#mgBarOuter{width:56px;height:220px;background:rgba(0,0,0,0.4);border-radius:14px;position:relative;overflow:hidden;
+  border:2px solid rgba(255,255,255,0.15);}
+#mgZone{position:absolute;left:0;right:0;background:rgba(74,222,128,0.35);border-top:2px solid #4ade80;border-bottom:2px solid #4ade80;}
+#mgFish{position:absolute;left:50%;transform:translate(-50%,-50%);font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));}
+#mgProgOuter{width:14px;height:220px;background:rgba(0,0,0,0.4);border-radius:10px;overflow:hidden;position:relative;
+  border:2px solid rgba(255,255,255,0.15);}
+#mgProgFill{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,#ffd166,#38d3c9);height:0%;}
+#actionBtn{width:88px;height:88px;border-radius:50%;border:none;cursor:pointer;font-size:13px;font-weight:700;
+  background:radial-gradient(circle at 35% 30%, #4fe3d8, #1c8f86);color:#04252a;
+  box-shadow:0 10px 26px rgba(56,211,201,0.4), inset 0 -6px 10px rgba(0,0,0,0.25);
+  transition:transform .12s;}
+#actionBtn:active{transform:scale(0.92);}
+#actionBtn:disabled{opacity:0.4;cursor:default;}
+#actionBtn.hot{animation:pulseBtn .6s ease-in-out infinite;}
+@keyframes pulseBtn{0%,100%{box-shadow:0 10px 26px rgba(255,209,102,0.5), inset 0 -6px 10px rgba(0,0,0,0.25);}
+  50%{box-shadow:0 10px 40px rgba(255,209,102,0.9), inset 0 -6px 10px rgba(0,0,0,0.25);}}
+
+#questTracker{position:absolute;bottom:14px;left:14px;width:230px;padding:10px 12px;pointer-events:auto;font-size:11px;}
+#questTracker h4{margin:0 0 6px;font-size:11px;letter-spacing:.5px;color:var(--accent2);text-transform:uppercase;}
+.qItem{margin-bottom:7px;}
+.qItem .qDesc{display:flex;justify-content:space-between;margin-bottom:2px;color:var(--text-dim);}
+.qBarBg{height:5px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+.qBarFill{height:100%;background:var(--accent);}
+.qClaim{margin-top:3px;font-size:10px;padding:3px 8px;border-radius:10px;border:none;background:var(--accent2);
+  color:#3a2a00;font-weight:700;cursor:pointer;}
+
+#menuBar{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
+.menuBtn{width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,0.12);cursor:pointer;
+  background:var(--panel);backdrop-filter:blur(8px);color:var(--text);font-size:19px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,0.3);transition:transform .12s;}
+.menuBtn:hover{transform:scale(1.08);}
+.menuBtn:active{transform:scale(0.95);}
+
+#toasts{position:absolute;top:70px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;
+  z-index:50;pointer-events:none;align-items:center;}
+.toast{background:rgba(8,20,32,0.92);border:1px solid rgba(255,255,255,0.12);padding:8px 18px;border-radius:20px;
+  font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.4);animation:toastIn .3s ease, toastOut .4s ease 2.6s forwards;
+  white-space:nowrap;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(0.9);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-10px) scale(0.9);}}
+
+/* ---------- Modals ---------- */
+.modalBackdrop{position:absolute;inset:0;background:rgba(2,10,18,0.72);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;z-index:100;padding:16px;}
+.modalBackdrop.show{display:flex;}
+.modal{background:linear-gradient(160deg,#0d2536,#081a29);border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px;width:100%;max-width:720px;max-height:86vh;display:flex;flex-direction:column;
+  box-shadow:0 30px 80px rgba(0,0,0,0.6);}
+.modalHead{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.modalHead h2{margin:0;font-size:18px;display:flex;align-items:center;gap:8px;}
+.modalClose{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;
+  cursor:pointer;font-size:16px;}
+.modalClose:hover{background:rgba(255,255,255,0.18);}
+.modalBody{padding:16px 20px;overflow-y:auto;}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 10px;}
+.tabBtn{padding:6px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);
+  color:var(--text-dim);font-size:12px;cursor:pointer;}
+.tabBtn.active{background:var(--accent);color:#04252a;font-weight:700;border-color:var(--accent);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;align-items:start;}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px;
+  text-align:center;position:relative;}
+.card canvas{position:static;background:radial-gradient(circle,rgba(56,211,201,0.12),transparent 70%);border-radius:10px;display:block;margin:0 auto 4px;}
+.card .cname{font-size:12px;font-weight:700;margin-top:2px;}
+.card .cmeta{font-size:10px;color:var(--text-dim);margin-top:2px;}
+.rbadge{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;color:#04141a;letter-spacing:.3px;margin-top:2px;}
+.shopBtn{display:block;margin:6px auto 0;padding:5px 14px;border-radius:12px;border:none;font-size:11px;font-weight:700;cursor:pointer;
+  background:var(--accent);color:#04252a;}
+.shopBtn:disabled{background:#3a4b52;color:#7d939c;cursor:default;}
+.shopBtn.equipped{background:var(--good);}
+
+#dlgBox .dlgName{font-weight:800;font-size:15px;margin-bottom:8px;}
+#dlgBox .dlgLine{font-size:13px;color:var(--text-dim);line-height:1.5;margin-bottom:14px;}
+
+.achRow{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;background:rgba(255,255,255,0.03);margin-bottom:8px;}
+.achRow.done{background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.25);}
+.achIcon{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.achText{flex:1;}
+.achText .an{font-size:13px;font-weight:700;}
+.achText .ad{font-size:11px;color:var(--text-dim);}
+.achReward{font-size:11px;color:var(--accent2);font-weight:700;white-space:nowrap;}
+
+#worldMapGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.worldCard{border-radius:16px;padding:14px;position:relative;overflow:hidden;cursor:pointer;border:2px solid transparent;}
+.worldCard.locked{filter:grayscale(0.8) brightness(0.5);cursor:default;}
+.worldCard.current{border-color:var(--accent);}
+.worldCard .wIcon{font-size:26px;}
+.worldCard .wName{font-weight:800;font-size:14px;margin:4px 0 2px;}
+.worldCard .wSub{font-size:10.5px;color:rgba(255,255,255,0.85);}
+.lockTag{position:absolute;top:8px;right:8px;font-size:16px;}
+
+.settingsRow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+.toggle{width:44px;height:24px;border-radius:14px;background:rgba(255,255,255,0.12);position:relative;cursor:pointer;transition:background .2s;}
+.toggle.on{background:var(--good);}
+.toggle .dot{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;}
+.toggle.on .dot{left:22px;}
+.dangerBtn{padding:8px 16px;border-radius:12px;border:none;background:var(--danger);color:#fff;font-weight:700;cursor:pointer;font-size:12px;}
+
+.bagList .card{width:100%;}
+#backpackMeta{font-size:12px;color:var(--text-dim);margin-bottom:10px;}
+
+#catchResultBackdrop .modal{max-width:380px;text-align:center;}
+#catchResultBody{padding:22px 20px;display:flex;flex-direction:column;align-items:center;}
+#crCanvasWrap{width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+#crCanvasWrap canvas{position:static;}
+#crName{font-size:19px;font-weight:800;margin-top:6px;}
+#crRarity{margin:6px 0;}
+#crMeta{font-size:12px;color:var(--text-dim);line-height:1.6;}
+#crCoins{font-size:14px;color:var(--accent2);font-weight:700;margin-top:8px;}
+
+.bossIntro{text-align:center;padding:26px 20px;}
+.bossIntro .bname{font-size:22px;font-weight:900;margin:10px 0 4px;color:#ff8a8a;}
+.bossIntro .bdesc{font-size:12.5px;color:var(--text-dim);margin-bottom:16px;}
+
+@media (max-width:640px){
+  #minimapWrap{transform:scale(0.8);transform-origin:top right;}
+  #questTracker{width:170px;font-size:10px;}
+  #topBar{gap:4px;}
+  #levelWrap{width:120px;}
+  .modal{max-width:96vw;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gameCanvas"></canvas>
+  <canvas id="weatherCanvas"></canvas>
+
+  <!-- START SCREEN -->
+  <div id="startScreen">
+    <div class="cubePreview"></div>
+    <h1>Cube Fishing Adventure</h1>
+    <p>Explora diez mundos, lanza tu caña y descubre criaturas legendarias en un archipiélago relajante hecho de cubos y agua. Tu progreso se guarda automáticamente.</p>
+    <button class="bigBtn" id="startBtn">🎣 Jugar</button>
+    <div class="hint">WASD / Flechas para moverte · Espacio o toca el botón para pescar</div>
+  </div>
+
+  <!-- HUD -->
+  <div class="hud interactive" id="topBar">
+    <div class="panel" id="worldInfo">
+      <span class="icon" id="worldIcon">🌱</span>
+      <div class="names">
+        <span class="wname" id="worldName">Lago Inicial</span>
+        <span class="wweather" id="worldWeather">☀️ Soleado</span>
+      </div>
+    </div>
+    <div id="statsCol">
+      <div class="panel" id="coinsRow"><span class="c-icon">🪙</span><span id="coinsVal">0</span></div>
+      <div class="panel" id="levelWrap">
+        <div class="lvRow"><span id="lvlVal">Nivel 1</span><span id="xpVal">0/100 XP</span></div>
+        <div id="xpBarBg"><div id="xpBarFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud interactive" id="minimapWrap">
+    <canvas id="minimap" width="140" height="100"></canvas>
+  </div>
+
+  <div class="hud interactive" id="questTracker">
+    <h4>📜 Misiones · <span id="qtWorldName"></span></h4>
+    <div id="qtList"></div>
+  </div>
+
+  <div class="hud interactive" id="bottomBar">
+    <div id="promptText"></div>
+    <div id="actionWrap">
+      <div id="minigame">
+        <div id="mgBarOuter"><div id="mgZone"></div><div id="mgFish">🐟</div></div>
+        <div id="mgProgOuter"><div id="mgProgFill"></div></div>
+      </div>
+      <button id="actionBtn">Pescar</button>
+    </div>
+  </div>
+
+  <div class="hud interactive" id="menuBar">
+    <button class="menuBtn" id="btnShop" title="Tienda">🛒</button>
+    <button class="menuBtn" id="btnBag" title="Mochila">🎒</button>
+    <button class="menuBtn" id="btnAquarium" title="Acuario">🐠</button>
+    <button class="menuBtn" id="btnQuests" title="Misiones">📜</button>
+    <button class="menuBtn" id="btnAch" title="Logros">🏆</button>
+    <button class="menuBtn" id="btnMap" title="Mundos">🗺️</button>
+    <button class="menuBtn" id="btnCustom" title="Personalizar">✨</button>
+    <button class="menuBtn" id="btnSettings" title="Ajustes">⚙️</button>
+  </div>
+
+  <div id="toasts"></div>
+
+  <!-- MODALS -->
+  <div class="modalBackdrop" id="mShop">
+    <div class="modal">
+      <div class="modalHead"><h2>🛒 Tienda</h2><button class="modalClose" data-close="mShop">✕</button></div>
+      <div class="tabs" id="shopTabs">
+        <button class="tabBtn active" data-shoptab="rods">Cañas</button>
+        <button class="tabBtn" data-shoptab="bait">Carnadas</button>
+        <button class="tabBtn" data-shoptab="bag">Mochilas</button>
+      </div>
+      <div class="modalBody"><div class="grid" id="shopGrid"></div></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mBag">
+    <div class="modal">
+      <div class="modalHead"><h2>🎒 Mochila</h2><button class="modalClose" data-close="mBag">✕</button></div>
+      <div class="modalBody">
+        <div id="backpackMeta"></div>
+        <button class="shopBtn" id="sellAllBtn" style="margin-bottom:10px;">Vender todo</button>
+        <div class="grid bagList" id="bagGrid"></div>
+        <h3 style="font-size:13px;color:var(--text-dim);margin-top:18px;">Carnadas</h3>
+        <div class="grid" id="baitInvGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mAquarium">
+    <div class="modal">
+      <div class="modalHead"><h2>🐠 Acuario · <span id="aqProgress"></span></h2><button class="modalClose" data-close="mAquarium">✕</button></div>
+      <div class="tabs" id="aqTabs"></div>
+      <div class="modalBody"><div class="grid" id="aqGrid"></div></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mQuests">
+    <div class="modal">
+      <div class="modalHead"><h2>📜 Misiones</h2><button class="modalClose" data-close="mQuests">✕</button></div>
+      <div class="modalBody" id="questsBody"></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mAch">
+    <div class="modal">
+      <div class="modalHead"><h2>🏆 Logros · <span id="achProgress"></span></h2><button class="modalClose" data-close="mAch">✕</button></div>
+      <div class="modalBody" id="achBody"></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mMap">
+    <div class="modal">
+      <div class="modalHead"><h2>🗺️ Mundos</h2><button class="modalClose" data-close="mMap">✕</button></div>
+      <div class="modalBody"><div id="worldMapGrid"></div></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mCustom">
+    <div class="modal">
+      <div class="modalHead"><h2>✨ Personalizar</h2><button class="modalClose" data-close="mCustom">✕</button></div>
+      <div class="tabs" id="customTabs">
+        <button class="tabBtn active" data-ctab="color">Color</button>
+        <button class="tabBtn" data-ctab="hat">Sombreros</button>
+        <button class="tabBtn" data-ctab="aura">Auras</button>
+        <button class="tabBtn" data-ctab="trail">Trails</button>
+      </div>
+      <div class="modalBody"><div class="grid" id="customGrid"></div></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mSettings">
+    <div class="modal">
+      <div class="modalHead"><h2>⚙️ Ajustes</h2><button class="modalClose" data-close="mSettings">✕</button></div>
+      <div class="modalBody">
+        <div class="settingsRow"><span>🎵 Música</span><div class="toggle" id="toggleMusic"><div class="dot"></div></div></div>
+        <div class="settingsRow"><span>🔊 Sonido</span><div class="toggle" id="toggleSfx"><div class="dot"></div></div></div>
+        <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <span style="color:var(--text-dim);font-size:12px;">Partida guardada automáticamente en este navegador.</span>
+          <button class="dangerBtn" id="resetSaveBtn">Reiniciar partida</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mDialogue">
+    <div class="modal" style="max-width:420px;">
+      <div class="modalHead"><h2 id="dlgTitle">💬 NPC</h2><button class="modalClose" data-close="mDialogue">✕</button></div>
+      <div class="modalBody" id="dlgBox"></div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="catchResultBackdrop">
+    <div class="modal">
+      <div class="modalHead"><h2 id="crHeader">¡Captura!</h2><button class="modalClose" data-close="catchResultBackdrop">✕</button></div>
+      <div id="catchResultBody">
+        <div id="crCanvasWrap"><canvas id="crCanvas" width="140" height="140"></canvas></div>
+        <div id="crName"></div>
+        <div id="crRarity"></div>
+        <div id="crMeta"></div>
+        <div id="crCoins"></div>
+        <button class="bigBtn" style="margin-top:16px;padding:10px 26px;font-size:14px;" data-close="catchResultBackdrop">Continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mBossIntro">
+    <div class="modal" style="max-width:420px;">
+      <div class="bossIntro">
+        <div style="font-size:44px;" id="biIcon">🐙</div>
+        <div class="bname" id="biName">Jefe</div>
+        <div class="bdesc" id="biDesc"></div>
+        <button class="bigBtn" style="padding:10px 26px;font-size:14px;" id="biStartBtn">Comenzar Desafío</button>
+        <div><button class="modalClose" style="margin-top:12px;" data-close="mBossIntro">Cancelar</button></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+'use strict';
+/* =====================================================================
+   CUBE FISHING ADVENTURE
+   ===================================================================== */
+
+/* ---------------------------- UTILS ---------------------------- */
+function mulberry32(seed){return function(){seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^(seed>>>15),1|seed);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+function hashStr(s){let h=1779033703;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=(h<<13)|(h>>>19);}return (h^(h>>>16))>>>0;}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function lerp(a,b,t){return a+(b-a)*t;}
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function randRange(min,max){return Math.random()*(max-min)+min;}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function fmtNum(n){
+  if(n>=1e12)return (n/1e12).toFixed(2)+'T';
+  if(n>=1e9)return (n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return (n/1e6).toFixed(2)+'M';
+  if(n>=1e3)return Math.floor(n).toLocaleString('es-ES');
+  return Math.floor(n).toString();
+}
+function fmtProb(denom){
+  if(denom<1000)return '1 entre '+denom;
+  return '1 entre '+denom.toLocaleString('es-ES');
+}
+function uid(){return Math.random().toString(36).slice(2,10);}
+
+/* ---------------------------- AUDIO ---------------------------- */
+const Audio1 = {
+  ctx:null, master:null, musicOn:true, sfxOn:true, musicNodes:[], musicTimer:null,
+  init(){
+    if(this.ctx) return;
+    try{
+      this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.5;
+      this.master.connect(this.ctx.destination);
+    }catch(e){ this.ctx=null; }
+  },
+  tone(freq,dur,type,vol,delay){
+    if(!this.ctx || !this.sfxOn) return;
+    const t0 = this.ctx.currentTime + (delay||0);
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type||'sine';
+    osc.frequency.setValueAtTime(freq,t0);
+    g.gain.setValueAtTime(0,t0);
+    g.gain.linearRampToValueAtTime((vol||0.2),t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+    osc.connect(g); g.connect(this.master);
+    osc.start(t0); osc.stop(t0+dur+0.05);
+  },
+  sfx(name){
+    if(!this.ctx) return;
+    switch(name){
+      case 'cast': this.tone(320,0.18,'sine',0.15); this.tone(500,0.12,'sine',0.1,0.05); break;
+      case 'bite': this.tone(780,0.12,'square',0.12); this.tone(880,0.12,'square',0.12,0.08); break;
+      case 'reelTick': this.tone(500+Math.random()*200,0.05,'sine',0.05); break;
+      case 'success': this.tone(523,0.15,'triangle',0.2); this.tone(659,0.15,'triangle',0.2,0.1); this.tone(784,0.25,'triangle',0.22,0.2); break;
+      case 'fail': this.tone(220,0.3,'sawtooth',0.12); this.tone(160,0.35,'sawtooth',0.1,0.1); break;
+      case 'coin': this.tone(900,0.08,'square',0.08); this.tone(1200,0.1,'square',0.08,0.06); break;
+      case 'buy': this.tone(400,0.1,'sine',0.15); this.tone(600,0.15,'sine',0.15,0.08); break;
+      case 'levelup': [523,659,784,1047].forEach((f,i)=>this.tone(f,0.2,'triangle',0.2,i*0.09)); break;
+      case 'chest': this.tone(300,0.1,'square',0.12); this.tone(500,0.1,'square',0.12,0.1); this.tone(700,0.2,'square',0.15,0.2); break;
+      case 'achievement': [660,880,1100].forEach((f,i)=>this.tone(f,0.25,'sine',0.18,i*0.1)); break;
+      case 'click': this.tone(600,0.05,'sine',0.06); break;
+      case 'boss': this.tone(120,0.5,'sawtooth',0.2); this.tone(90,0.6,'sawtooth',0.18,0.15); break;
+    }
+  },
+  startMusic(){
+    if(!this.ctx || !this.musicOn || this.musicTimer) return;
+    const scale=[220,247,262,294,330,370,392,440];
+    const filt = this.ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=1400; filt.connect(this.master);
+    const play=()=>{
+      if(!this.musicOn) return;
+      const f = pick(scale) * pick([0.5,1,1,2]);
+      const osc=this.ctx.createOscillator(); const g=this.ctx.createGain();
+      osc.type='sine'; osc.frequency.value=f;
+      const t0=this.ctx.currentTime;
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(0.06,t0+1.2);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+4.5);
+      osc.connect(g); g.connect(filt);
+      osc.start(t0); osc.stop(t0+4.6);
+    };
+    play();
+    this.musicTimer = setInterval(play, 2600);
+  },
+  stopMusic(){
+    if(this.musicTimer){clearInterval(this.musicTimer); this.musicTimer=null;}
+  },
+  setMusic(on){ this.musicOn=on; if(on){this.startMusic();} else {this.stopMusic();} }
+};
+
+/* ---------------------------- DATA: RARITIES ---------------------------- */
+const RARITIES = [
+  {id:'comun',       name:'Común',       denom:2,        color:'#9ca3af', glow:'#e5e7eb'},
+  {id:'pocoComun',   name:'Poco Común',  denom:5,        color:'#34d399', glow:'#a7f3d0'},
+  {id:'raro',        name:'Raro',        denom:20,       color:'#38bdf8', glow:'#bae6fd'},
+  {id:'epico',       name:'Épico',       denom:80,       color:'#a78bfa', glow:'#ddd6fe'},
+  {id:'legendario',  name:'Legendario',  denom:500,      color:'#fbbf24', glow:'#fde68a'},
+  {id:'mitico',      name:'Mítico',      denom:2000,     color:'#f472b6', glow:'#fbcfe8'},
+  {id:'omega',       name:'Omega',       denom:20000,    color:'#fb7185', glow:'#fecdd3'},
+  {id:'prohibido',   name:'Prohibido',   denom:250000,   color:'#ef4444', glow:'#fca5a5'},
+  {id:'secreto',     name:'Secreto',     denom:1000000,  color:'#8b5cf6', glow:'#c4b5fd'},
+  {id:'divino',      name:'Divino',      denom:5000000,  color:'#fde047', glow:'#ffffff'},
+];
+const RARITY_INDEX = {}; RARITIES.forEach((r,i)=>RARITY_INDEX[r.id]=i);
+const RARITY_VALUE = [8,20,60,200,800,3000,12000,60000,300000,1500000];
+const RARITY_XP    = [2,5,12,30,80,200,500,1500,5000,15000];
+const RARITY_SIZE_CM  = [8,15,25,40,70,110,160,220,300,400];
+const RARITY_WEIGHT_KG= [0.3,0.8,2,6,15,40,90,200,500,1200];
+
+function rarityOf(id){ return RARITIES[RARITY_INDEX[id]]; }
+
+/* ---------------------------- DATA: RODS / BAIT / COSMETICS ---------------------------- */
+const RODS = [
+  {id:'madera',    name:'Caña de Madera',   price:0,      waitMin:1700,waitMax:3200, luck:1,   zoneBonus:0,  maxTier:2, icon:'🪵'},
+  {id:'bambu',     name:'Caña de Bambú',    price:150,    waitMin:1500,waitMax:2900, luck:1.35,zoneBonus:3,  maxTier:3, icon:'🎋'},
+  {id:'hierro',    name:'Caña de Hierro',   price:600,    waitMin:1300,waitMax:2500, luck:1.8, zoneBonus:6,  maxTier:4, icon:'⚙️'},
+  {id:'dorada',    name:'Caña Dorada',      price:2500,   waitMin:1100,waitMax:2100, luck:2.4, zoneBonus:9,  maxTier:5, icon:'✨'},
+  {id:'cristal',   name:'Caña de Cristal',  price:10000,  waitMin:950, waitMax:1750, luck:3.3, zoneBonus:12, maxTier:6, icon:'💎'},
+  {id:'galactica', name:'Caña Galáctica',   price:50000,  waitMin:800, waitMax:1450, luck:5,   zoneBonus:16, maxTier:7, icon:'🌌'},
+  {id:'omega',     name:'Caña Omega',       price:250000, waitMin:600, waitMax:1150, luck:9,   zoneBonus:22, maxTier:9, icon:'🔱'},
+];
+const BAITS = [
+  {id:'lombriz',   name:'Lombriz',           price:5,   icon:'🪱', tag:'comun',      mult:1.6},
+  {id:'carne',     name:'Carne',             price:15,  icon:'🍖', tag:'crustaceo',  mult:2.1},
+  {id:'cristalb',  name:'Carnada de Cristal',price:60,  icon:'💠', tag:'cristal',    mult:2.6},
+  {id:'alga',      name:'Alga',              price:20,  icon:'🌿', tag:'molusco',    mult:1.9},
+  {id:'caramelo',  name:'Caramelo',          price:40,  icon:'🍬', tag:'todos',      mult:1.35},
+  {id:'luz',       name:'Carnada de Luz',    price:80,  icon:'💡', tag:'fantasma',   mult:3.0},
+  {id:'legendaria',name:'Carne Legendaria',  price:500, icon:'🥩', tag:'legendaria', mult:4.0},
+];
+const BAG_UPGRADES = [
+  {id:'mochila1', name:'Mochila Mediana', price:1000,  cap:30, icon:'🎒'},
+  {id:'mochila2', name:'Mochila Grande',  price:8000,  cap:50, icon:'🎒'},
+  {id:'mochila3', name:'Mochila Legendaria',price:40000,cap:99, icon:'🎒'},
+];
+const COLORS = [
+  {id:'celeste',name:'Celeste',price:0,hex:'#38bdf8'},
+  {id:'coral',name:'Coral',price:100,hex:'#f87171'},
+  {id:'menta',name:'Menta',price:100,hex:'#34d399'},
+  {id:'ambar',name:'Ámbar',price:100,hex:'#fbbf24'},
+  {id:'lavanda',name:'Lavanda',price:150,hex:'#a78bfa'},
+  {id:'rosa',name:'Rosa',price:150,hex:'#f472b6'},
+  {id:'dorado',name:'Dorado',price:500,hex:'#facc15'},
+  {id:'plata',name:'Plata',price:500,hex:'#94a3b8'},
+  {id:'obsidiana',name:'Obsidiana',price:800,hex:'#1e293b'},
+  {id:'perla',name:'Perla',price:1200,hex:'#f8fafc'},
+];
+const HATS = [
+  {id:'none',name:'Sin Sombrero',price:0,draw:null},
+  {id:'gorra',name:'Gorra',price:80,draw:'cap'},
+  {id:'paja',name:'Sombrero de Paja',price:150,draw:'straw'},
+  {id:'pirata',name:'Sombrero Pirata',price:400,draw:'pirate'},
+  {id:'casco',name:'Casco Espacial',price:1200,draw:'helmet'},
+  {id:'corona',name:'Corona',price:3000,draw:'crown'},
+  {id:'halo',name:'Halo',price:8000,draw:'halo'},
+];
+const AURAS = [
+  {id:'none',name:'Sin Aura',price:0,color:null},
+  {id:'azul',name:'Aura Azul',price:300,color:'#38bdf8'},
+  {id:'dorada',name:'Aura Dorada',price:2000,color:'#fbbf24'},
+  {id:'arcoiris',name:'Aura Arcoíris',price:6000,color:'rainbow'},
+  {id:'oscura',name:'Aura Oscura',price:10000,color:'#8b5cf6'},
+];
+const TRAILS = [
+  {id:'none',name:'Sin Trail',price:0},
+  {id:'burbujas',name:'Burbujas',price:250},
+  {id:'estrellas',name:'Estrellas',price:1500},
+  {id:'fuego',name:'Fuego',price:4000},
+  {id:'sombra',name:'Sombra',price:9000},
+];
+
+/* ---------------------------- WEATHER ---------------------------- */
+const WEATHER_TYPES = {
+  soleado:   {name:'Soleado',icon:'☀️',tint:null,particles:null,boost:[]},
+  lluvia:    {name:'Lluvia',icon:'🌧️',tint:'rgba(30,40,60,0.15)',particles:'rain',boost:['pocoComun','raro']},
+  tormenta:  {name:'Tormenta',icon:'⛈️',tint:'rgba(20,25,40,0.35)',particles:'storm',boost:['epico','legendario']},
+  niebla:    {name:'Niebla',icon:'🌫️',tint:'rgba(200,210,220,0.32)',particles:'fog',boost:['raro']},
+  aurora:    {name:'Aurora',icon:'🌌',tint:null,particles:'aurora',boost:['mitico','omega']},
+  eclipse:   {name:'Eclipse',icon:'🌑',tint:'rgba(10,10,25,0.45)',particles:'eclipse',boost:['prohibido','secreto']},
+  meteoros:  {name:'Lluvia de Meteoritos',icon:'☄️',tint:'rgba(15,10,35,0.3)',particles:'meteor',boost:['omega','secreto']},
+  lunaLlena: {name:'Luna Llena',icon:'🌕',tint:'rgba(30,30,60,0.22)',particles:'moon',boost:['pocoComun','epico']},
+};
+
+/* ---------------------------- WORLDS & CREATURES ---------------------------- */
+function F(id,name,rarity,tag,shape,color,accent){ return {id,name,rarity,tag,shape,color,accent}; }
+
+const WORLDS = [
+{
+  id:'lago_inicial', idx:0, name:'Lago Inicial', icon:'🌱', unlockCost:0,
+  palette:{water:'#2f9e91',waterDeep:'#1c6f66',land:'#7fc27a',landDetail:'#5da456',fog:'#dff3e0'},
+  weatherPool:['soleado','soleado','lluvia','niebla','lunaLlena'], decorType:'trees',
+  fish:[
+    F('pez_azul','Pez Azul','comun','comun','fish','#3b82f6','#1d4ed8'),
+    F('trucha','Trucha','pocoComun','comun','fish','#c2703d','#8a4a22'),
+    F('cangrejo_estanque','Cangrejo de Estanque','raro','crustaceo','crab','#e07856','#a3492e'),
+    F('tortuga_verde','Tortuga Verde','epico','molusco','turtle','#4d8f5c','#2f5c39'),
+    F('siluro_dorado','Siluro Dorado','legendario','comun','fish','#e8c34a','#a9871f'),
+  ],
+  boss:{id:'siluro_ancestral',name:'Siluro Ancestral',shape:'fish',color:'#d9a441',accent:'#7a5c17',
+    minKg:180,maxKg:340,minCm:280,maxCm:380,desc:'Un siluro colosal que ha dormido en el fondo del lago durante generaciones.'},
+  npcs:[
+    {id:'n_li_1',name:'Old Mott',color:'#8b5e3c',x:420,y:300,role:'story',
+      lines:['Este lago fue mi hogar durante 40 años.','Dicen que en el fondo vive algo enorme...','La paciencia es el secreto de todo buen pescador.']},
+    {id:'n_li_2',name:'Nia',color:'#38bdf8',x:1650,y:1200,role:'merchant',
+      lines:['¡Bienvenido! Aquí tienes cañas y carnadas frescas.','Prueba con una caña mejor si quieres peces más grandes.']},
+  ],
+},
+{
+  id:'rio', idx:1, name:'Río', icon:'🌊', unlockCost:300,
+  palette:{water:'#3fa7c9',waterDeep:'#22738f',land:'#8bb86a',landDetail:'#6b9950',fog:'#e4f2ee'},
+  weatherPool:['soleado','lluvia','lluvia','tormenta','niebla'], decorType:'reeds',
+  fish:[
+    F('pez_plateado','Pez Plateado','comun','comun','fish','#cbd5e1','#94a3b8'),
+    F('perca_rayada','Perca Rayada','pocoComun','comun','tropical','#f0b429','#8a5f10'),
+    F('cangrejo_rio','Cangrejo de Río','raro','crustaceo','crab','#5a8f6b','#33553d'),
+    F('anguila_electrica','Anguila Eléctrica','epico','crustaceo','dragon','#facc15','#7a5f0a'),
+    F('espiritu_rio','Espíritu del Río','legendario','fantasma','ghost','#a5f3fc','#22d3ee'),
+  ],
+  boss:{id:'serpiente_rio',name:'Serpiente del Río',shape:'dragon',color:'#3f8f5b',accent:'#204a30',
+    minKg:90,maxKg:200,minCm:320,maxCm:420,desc:'Una serpiente acuática que domina la corriente principal.'},
+  npcs:[
+    {id:'n_rio_1',name:'Farin',color:'#22c55e',x:380,y:1150,role:'quest',
+      lines:['Las crecidas traen peces nuevos cada semana.','¿Has probado a pescar durante una tormenta? Vale la pena.']},
+    {id:'n_rio_2',name:'Deka',color:'#f59e0b',x:1700,y:400,role:'merchant',
+      lines:['Compro y vendo cañas de todo tipo.','Una Anguila Eléctrica se paga muy bien en el mercado.']},
+  ],
+},
+{
+  id:'isla_tropical', idx:2, name:'Isla Tropical', icon:'🏝️', unlockCost:1500,
+  palette:{water:'#1fb6c9',waterDeep:'#0f7f8f',land:'#e8d488',landDetail:'#d4b95e',fog:'#fff3d6'},
+  weatherPool:['soleado','soleado','tormenta','lunaLlena'], decorType:'palms',
+  fish:[
+    F('pez_payaso','Pez Payaso','comun','comun','tropical','#f97316','#7c2d12'),
+    F('pez_loro','Pez Loro','pocoComun','comun','tropical','#22d3ee','#0e7490'),
+    F('pulpo_gigante','Pulpo Gigante','raro','molusco','octopus','#c026d3','#701a75'),
+    F('tiburon_blanco','Tiburón Blanco','epico','crustaceo','shark','#94a3b8','#334155'),
+    F('estrella_coral','Estrella de Coral','legendario','molusco','starfish','#fb7185','#9f1239'),
+  ],
+  boss:{id:'tiburon_alfa',name:'Tiburón Alfa',shape:'shark',color:'#475569',accent:'#1e293b',
+    minKg:400,maxKg:900,minCm:380,maxCm:520,desc:'El depredador más temido del arrecife, cazador solitario y despiadado.'},
+  npcs:[
+    {id:'n_it_1',name:'Kailo',color:'#f97316',x:1750,y:1300,role:'story',
+      lines:['El arrecife tiene mil colores, uno por cada criatura.','Cuidado con el Tiburón Alfa cerca de la corriente profunda.']},
+    {id:'n_it_2',name:'Sami',color:'#22d3ee',x:350,y:350,role:'merchant',
+      lines:['Carnadas de alga fresca, recién cortadas.','¿Buscas algo especial? Prueba la Carnada de Cristal.']},
+  ],
+},
+{
+  id:'lago_helado', idx:3, name:'Lago Helado', icon:'❄️', unlockCost:5000,
+  palette:{water:'#7dd3e0',waterDeep:'#3f8a9c',land:'#e7f3f9',landDetail:'#c3dde8',fog:'#ffffff'},
+  weatherPool:['soleado','niebla','niebla','tormenta','lunaLlena'], decorType:'ice',
+  fish:[
+    F('pez_hielo','Pez Hielo','comun','comun','fish','#93c5fd','#3b82f6'),
+    F('trucha_artica','Trucha Ártica','pocoComun','comun','fish','#bfdbfe','#60a5fa'),
+    F('cangrejo_nieve','Cangrejo de Nieve','raro','crustaceo','crab','#f1f5f9','#94a3b8'),
+    F('medusa_hielo','Medusa de Hielo','epico','molusco','jellyfish','#c7f9ff','#67e8f9'),
+    F('dragon_hielo','Dragón de Hielo','legendario','cristal','dragon','#e0f2fe','#7dd3fc'),
+  ],
+  boss:{id:'serpiente_hielo',name:'Serpiente de Hielo',shape:'dragon',color:'#bae6fd','accent2':'#0369a1',accent:'#0369a1',
+    minKg:200,maxKg:380,minCm:400,maxCm:500,desc:'Nace del hielo eterno y congela el agua a su paso.'},
+  npcs:[
+    {id:'n_lh_1',name:'Yorin',color:'#93c5fd',x:1650,y:1150,role:'quest',
+      lines:['El hielo esconde tesoros congelados hace siglos.','Abrígate bien, aquí el clima cambia de golpe.']},
+    {id:'n_lh_2',name:'Tami',color:'#e2e8f0',x:400,y:400,role:'merchant',
+      lines:['Vendo las mejores cañas para clima frío.','Con niebla, los peces raros muerden más.']},
+  ],
+},
+{
+  id:'costa_volcanica', idx:4, name:'Costa Volcánica', icon:'🌋', unlockCost:15000,
+  palette:{water:'#b45f3d',waterDeep:'#7a3620',land:'#4b4045',landDetail:'#332a2d',fog:'#3d2418'},
+  weatherPool:['soleado','tormenta','eclipse','meteoros'], decorType:'rocks',
+  fish:[
+    F('pez_ceniza','Pez Ceniza','comun','comun','fish','#78716c','#44403c'),
+    F('pez_lava','Pez Lava','pocoComun','crustaceo','fish','#f97316','#9a3412'),
+    F('langosta_obsidiana','Langosta de Obsidiana','raro','crustaceo','lobster','#1c1917','#57534e'),
+    F('pufferfish_fuego','Pufferfish de Fuego','epico','crustaceo','pufferfish','#fb923c','#7c2d12'),
+    F('fenix_marino','Fénix Marino','legendario','fantasma','dragon','#fbbf24','#dc2626'),
+  ],
+  boss:{id:'cangrejo_magma',name:'Cangrejo de Magma',shape:'crab',color:'#dc2626',accent:'#450a0a',
+    minKg:250,maxKg:520,minCm:260,maxCm:340,desc:'Sus pinzas fluyen con lava líquida; toda la costa tiembla cuando emerge.'},
+  npcs:[
+    {id:'n_cv_1',name:'Ruk',color:'#f97316',x:1700,y:350,role:'story',
+      lines:['El agua aquí hierve de vez en cuando, ten cuidado.','Dicen que el Cangrejo de Magma solo duerme al amanecer.']},
+    {id:'n_cv_2',name:'Bren',color:'#78716c',x:380,y:1250,role:'merchant',
+      lines:['Aquí las carnadas de carne rinden el doble.','¿Preparado para algo más caliente que de costumbre?']},
+  ],
+},
+{
+  id:'islas_cielo', idx:5, name:'Islas del Cielo', icon:'☁️', unlockCost:40000,
+  palette:{water:'#a5b4fc',waterDeep:'#6366f1',land:'#f5f3ff',landDetail:'#ddd6fe',fog:'#ffffff'},
+  weatherPool:['soleado','aurora','aurora','lunaLlena','meteoros'], decorType:'clouds',
+  fish:[
+    F('pez_nube','Pez Nube','comun','comun','fish','#e0e7ff','#a5b4fc'),
+    F('pez_arcoiris','Pez Arcoíris','pocoComun','comun','tropical','#f472b6','#818cf8'),
+    F('medusa_celeste','Medusa Celeste','raro','molusco','jellyfish','#bae6fd','#38bdf8'),
+    F('calamar_volador','Calamar Volador','epico','molusco','squid','#c4b5fd','#7c3aed'),
+    F('ballena_dorada','Ballena Dorada','mitico','comun','whale','#fde68a','#d97706'),
+  ],
+  boss:{id:'ballena_colosal',name:'Ballena Colosal',shape:'whale',color:'#c7d2fe',accent:'#4338ca',
+    minKg:2000,maxKg:5200,minCm:900,maxCm:1400,desc:'Flota entre las nubes como si el cielo fuera un océano más.'},
+  npcs:[
+    {id:'n_ic_1',name:'Elu',color:'#a5b4fc',x:1650,y:1200,role:'quest',
+      lines:['Las auroras aquí son casi constantes.','Una Ballena Dorada cruzó el cielo la semana pasada.']},
+    {id:'n_ic_2',name:'Vann',color:'#f472b6',x:380,y:380,role:'merchant',
+      lines:['Cañas ligeras, perfectas para las alturas.','El Caramelo funciona sorprendentemente bien aquí.']},
+  ],
+},
+{
+  id:'oceano_espacial', idx:6, name:'Océano Espacial', icon:'🌌', unlockCost:100000,
+  palette:{water:'#312e81',waterDeep:'#1e1b4b',land:'#4c1d95',landDetail:'#2e1065',fog:'#1e1b4b'},
+  weatherPool:['eclipse','meteoros','meteoros','aurora'], decorType:'stars',
+  fish:[
+    F('pez_estelar','Pez Estelar','comun','espacial','space','#818cf8','#4338ca'),
+    F('pez_cosmico','Pez Cósmico','pocoComun','espacial','space','#c4b5fd','#7c3aed'),
+    F('calamar_nebulosa','Calamar Nebulosa','raro','espacial','squid','#a78bfa','#5b21b6'),
+    F('dragon_marino','Dragón Marino','omega','espacial','dragon','#f472b6','#831843'),
+    F('pez_vacio','Pez del Vacío','secreto','espacial','ghost','#0f0a1e','#a855f7'),
+  ],
+  boss:{id:'devorador_cosmico',name:'Devorador Cósmico',shape:'octopus',color:'#4c1d95',accent:'#a855f7',
+    minKg:600,maxKg:1400,minCm:500,maxCm:700,desc:'Una masa de tentáculos nacida del vacío entre las estrellas.'},
+  npcs:[
+    {id:'n_oe_1',name:'Zeph',color:'#818cf8',x:1700,y:1250,role:'story',
+      lines:['Nadie sabe dónde termina este océano.','Se dice que el Pez del Vacío ni siquiera proyecta sombra.']},
+    {id:'n_oe_2',name:'Ori',color:'#c4b5fd',x:400,y:400,role:'merchant',
+      lines:['Carnada de Luz, ideal para lo que acecha en la oscuridad.','Solo las mejores cañas resisten aquí.']},
+  ],
+},
+{
+  id:'pantano', idx:7, name:'Pantano', icon:'☠️', unlockCost:250000,
+  palette:{water:'#4d5b3a',waterDeep:'#2e3620',land:'#5b6b3f',landDetail:'#3d4a29',fog:'#2f3a22'},
+  weatherPool:['niebla','niebla','lluvia','eclipse'], decorType:'swamp',
+  fish:[
+    F('pez_fango','Pez Fango','comun','comun','fish','#6b7c4a','#3f4a2a'),
+    F('sanguijuela_gigante','Sanguijuela Gigante','pocoComun','fantasma','fish','#52524a','#27271f'),
+    F('cangrejo_podrido','Cangrejo Podrido','raro','crustaceo','crab','#556b2f','#2f3a1a'),
+    F('espiritu_pantano','Espíritu del Pantano','epico','fantasma','ghost','#84cc16','#365314'),
+    F('kraken','Kraken','legendario','molusco','octopus','#3f3a2f','#1a1712'),
+  ],
+  boss:{id:'hidra_pantano',name:'Hidra del Pantano',shape:'dragon',color:'#4d7c0f',accent:'#1a2e05',
+    minKg:300,maxKg:650,minCm:420,maxCm:560,desc:'Múltiples cabezas emergen del lodo, cada una más hambrienta que la anterior.'},
+  npcs:[
+    {id:'n_pa_1',name:'Grott',color:'#84cc16',x:1650,y:400,role:'quest',
+      lines:['Este pantano guarda secretos que prefieren no ser encontrados.','El Kraken duerme cerca de las raíces más profundas.']},
+    {id:'n_pa_2',name:'Mora',color:'#65a30d',x:400,y:1200,role:'merchant',
+      lines:['Aquí la Carnada de Luz espanta a lo que no debería salir.','Cuidado con la niebla, esconde más de lo que muestra.']},
+  ],
+},
+{
+  id:'lago_cristal', idx:8, name:'Lago de Cristal', icon:'💎', unlockCost:600000,
+  palette:{water:'#67e8f9',waterDeep:'#0e7490',land:'#f0fdfa',landDetail:'#a7f3d0',fog:'#ecfeff'},
+  weatherPool:['soleado','aurora','meteoros','lunaLlena'], decorType:'crystal',
+  fish:[
+    F('pez_cristal','Pez de Cristal','comun','cristal','fish','#a5f3fc','#22d3ee'),
+    F('concha_viva','Concha Viva','pocoComun','molusco','shell','#fde68a','#d97706'),
+    F('cangrejo_cuarzo','Cangrejo de Cuarzo','raro','cristal','crab','#f0abfc','#a21caf'),
+    F('medusa_diamante','Medusa de Diamante','epico','cristal','jellyfish','#f8fafc','#cbd5e1'),
+    F('serpiente_cristal','Serpiente de Cristal','legendario','cristal','dragon','#e0f2fe','#0891b2'),
+  ],
+  boss:{id:'golem_cristal',name:'Golem de Cristal',shape:'crab',color:'#67e8f9',accent:'#0e7490',
+    minKg:500,maxKg:1100,minCm:340,maxCm:460,desc:'Una criatura formada enteramente de cuarzo viviente, dura como la roca.'},
+  npcs:[
+    {id:'n_lc_1',name:'Ilse',color:'#67e8f9',x:380,y:350,role:'story',
+      lines:['Cada faceta de este lago refleja un mundo distinto.','El Golem de Cristal despierta solo con la luz correcta.']},
+    {id:'n_lc_2',name:'Robi',color:'#f0abfc',x:1700,y:1200,role:'merchant',
+      lines:['Carnada de Cristal, hecha a mano.','Con la Caña de Cristal notarás la diferencia enseguida.']},
+  ],
+},
+{
+  id:'mar_nocturno', idx:9, name:'Mar Nocturno', icon:'🌙', unlockCost:1500000,
+  palette:{water:'#1e293b',waterDeep:'#0f172a',land:'#334155',landDetail:'#1e293b',fog:'#0f172a'},
+  weatherPool:['lunaLlena','lunaLlena','eclipse','aurora','meteoros'], decorType:'night',
+  fish:[
+    F('pez_luna','Pez Luna','comun','comun','fish','#cbd5e1','#64748b'),
+    F('pez_sombra','Pez Sombra','pocoComun','fantasma','fish','#4c1d95','#1e1033'),
+    F('medusa_nocturna','Medusa Nocturna','raro','fantasma','jellyfish','#a78bfa','#4c1d95'),
+    F('tiburon_fantasma','Tiburón Fantasma','epico','fantasma','shark','#e2e8f0','#94a3b8'),
+    F('leviatan','Leviatán','prohibido','fantasma','dragon','#7f1d1d','#1c0505'),
+    F('entidad_divina','Entidad Divina','divino','fantasma','space','#fef9c3','#ffffff'),
+  ],
+  boss:{id:'leviatan_sombras',name:'Leviatán de las Sombras',shape:'shark',color:'#111827',accent:'#7f1d1d',
+    minKg:1500,maxKg:3200,minCm:700,maxCm:950,desc:'La criatura más antigua del mar nocturno; sus ojos brillan como brasas.'},
+  npcs:[
+    {id:'n_mn_1',name:'Nyx',color:'#a78bfa',x:1650,y:1250,role:'quest',
+      lines:['Bajo la luna llena, hasta el agua parece respirar.','Pocos han visto al Leviatán y vivido para contarlo.']},
+    {id:'n_mn_2',name:'Suri',color:'#cbd5e1',x:400,y:400,role:'merchant',
+      lines:['La última tienda antes de la oscuridad total.','Buena suerte ahí fuera, la vas a necesitar.']},
+  ],
+},
+];
+
+WORLDS.forEach(w=>{
+  w.width=2200; w.height=1600;
+  const rnd = mulberry32(hashStr(w.id));
+  w.islands=[];
+  const nIslands = 3+Math.floor(rnd()*3);
+  for(let i=0;i<nIslands;i++){
+    w.islands.push({x:300+rnd()*(w.width-600), y:300+rnd()*(w.height-600), rx:140+rnd()*160, ry:110+rnd()*140});
+  }
+  w.decor=[];
+  for(let i=0;i<70;i++){
+    const isl = w.islands[Math.floor(rnd()*w.islands.length)];
+    const ang = rnd()*Math.PI*2, rad = rnd();
+    const x = isl.x + Math.cos(ang)*isl.rx*rad*0.85;
+    const y = isl.y + Math.sin(ang)*isl.ry*rad*0.85;
+    w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
+  }
+  // border decor
+  for(let i=0;i<40;i++){
+    const edge = Math.floor(rnd()*4); let x,y;
+    if(edge===0){x=rnd()*w.width;y=20+rnd()*30;}
+    else if(edge===1){x=rnd()*w.width;y=w.height-20-rnd()*30;}
+    else if(edge===2){x=20+rnd()*30;y=rnd()*w.height;}
+    else{x=w.width-20-rnd()*30;y=rnd()*w.height;}
+    w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
+  }
+  w.chests=[];
+  for(let i=0;i<4;i++){
+    const isl = w.islands[i % w.islands.length];
+    const ang = rnd()*Math.PI*2, rad=rnd()*0.5;
+    w.chests.push({idx:i, x:isl.x+Math.cos(ang)*isl.rx*rad, y:isl.y+Math.sin(ang)*isl.ry*rad});
+  }
+  const bossIsl = w.islands[Math.floor(rnd()*w.islands.length)];
+  w.bossSpot = {x:bossIsl.x + (rnd()-0.5)*bossIsl.rx*1.6, y:bossIsl.y + (rnd()-0.5)*bossIsl.ry*1.6+isLandSafeOffset()};
+  function isLandSafeOffset(){ return 0; }
+  const startIsl = w.islands[0];
+  w.spawn = {x:startIsl.x, y:startIsl.y - startIsl.ry - 40};
+});
+
+function isLand(world,x,y){
+  const m=70;
+  if(x<m||y<m||x>world.width-m||y>world.height-m) return true;
+  for(const isl of world.islands){
+    const dx=x-isl.x, dy=y-isl.y;
+    if((dx*dx)/(isl.rx*isl.rx)+(dy*dy)/(isl.ry*isl.ry)<=1) return true;
+  }
+  return false;
+}
+
+function econ(fish, worldIdx){
+  const idx = RARITY_INDEX[fish.rarity];
+  const mult = 1+worldIdx*0.12;
+  return { value: Math.max(1,Math.round(RARITY_VALUE[idx]*mult)), xp: Math.max(1,Math.round(RARITY_XP[idx]*mult)) };
+}
+function sizeStatsFor(fish, worldIdx, isBossOverride){
+  if(isBossOverride) return isBossOverride;
+  const idx = RARITY_INDEX[fish.rarity];
+  const baseCm = RARITY_SIZE_CM[idx], baseKg = RARITY_WEIGHT_KG[idx];
+  return {minCm:Math.round(baseCm*0.7),maxCm:Math.round(baseCm*1.3),minKg:+(baseKg*0.6).toFixed(2),maxKg:+(baseKg*1.6).toFixed(2)};
+}
+
+/*全 species index for dex/lookup */
+const ALL_SPECIES = {}; // id -> {fish, world, isBoss}
+WORLDS.forEach(w=>{
+  w.fish.forEach(f=>{ ALL_SPECIES[f.id] = {fish:f, world:w, isBoss:false}; });
+  const b = w.boss;
+  ALL_SPECIES[b.id] = {fish:{id:b.id,name:b.name,rarity:'legendario',tag:'jefe',shape:b.shape,color:b.color,accent:b.accent,isBoss:true,
+    minKg:b.minKg,maxKg:b.maxKg,minCm:b.minCm,maxCm:b.maxCm}, world:w, isBoss:true};
+});
+
+/* ---------------------------- ACHIEVEMENTS ---------------------------- */
+const ACHIEVEMENTS = [
+  {id:'primer_pez',name:'Primer Pez',desc:'Captura tu primera criatura',icon:'🐟',reward:50,check:s=>s.stats.totalCatches>=1},
+  {id:'diez_capturas',name:'Pescador Novato',desc:'Captura 10 criaturas',icon:'🎣',reward:100,check:s=>s.stats.totalCatches>=10},
+  {id:'cien_capturas',name:'Pescador Experto',desc:'Captura 100 criaturas',icon:'🏅',reward:500,check:s=>s.stats.totalCatches>=100},
+  {id:'quinientas_capturas',name:'Maestro Pescador',desc:'Captura 500 criaturas',icon:'👑',reward:2500,check:s=>s.stats.totalCatches>=500},
+  {id:'primer_raro',name:'Un Golpe de Suerte',desc:'Captura tu primer Raro',icon:'🔷',reward:150,check:s=>(s.stats.rarityCaught.raro||0)>=1},
+  {id:'primer_epico',name:'Brillo Especial',desc:'Captura tu primer Épico',icon:'🟣',reward:400,check:s=>(s.stats.rarityCaught.epico||0)>=1},
+  {id:'primer_legendario',name:'Leyenda Viva',desc:'Captura tu primer Legendario',icon:'🟡',reward:1000,check:s=>(s.stats.rarityCaught.legendario||0)>=1},
+  {id:'primer_mitico',name:'Mito Hecho Realidad',desc:'Captura tu primer Mítico',icon:'💗',reward:3000,check:s=>(s.stats.rarityCaught.mitico||0)>=1},
+  {id:'primer_prohibido',name:'Territorio Prohibido',desc:'Captura tu primer Prohibido',icon:'🔺',reward:20000,check:s=>(s.stats.rarityCaught.prohibido||0)>=1},
+  {id:'primer_secreto',name:'Secreto Revelado',desc:'Captura tu primer Secreto',icon:'🟪',reward:100000,check:s=>(s.stats.rarityCaught.secreto||0)>=1},
+  {id:'divino_capturado',name:'Toque Divino',desc:'Captura una criatura Divina',icon:'✨',reward:500000,check:s=>(s.stats.rarityCaught.divino||0)>=1},
+  {id:'primer_tiburon',name:'Cazatiburones',desc:'Captura tu primer tiburón',icon:'🦈',reward:300,check:s=>(s.stats.shapeCaught.shark||0)>=1},
+  {id:'primer_pulpo',name:'Tinta y Tentáculos',desc:'Captura tu primer pulpo',icon:'🐙',reward:300,check:s=>(s.stats.shapeCaught.octopus||0)>=1},
+  {id:'primer_jefe',name:'Cazador de Jefes',desc:'Derrota tu primer jefe marino',icon:'⚔️',reward:5000,check:s=>Object.keys(s.bossDefeated).length>=1},
+  {id:'todos_jefes',name:'Azote de los Mares',desc:'Derrota a todos los jefes marinos',icon:'🏆',reward:100000,check:s=>Object.keys(s.bossDefeated).length>=WORLDS.length},
+  {id:'todos_mundos',name:'Explorador Total',desc:'Desbloquea todos los mundos',icon:'🗺️',reward:50000,check:s=>s.unlockedWorlds.length>=WORLDS.length},
+  {id:'diez_cofres',name:'Cazatesoros',desc:'Abre 10 cofres',icon:'🧰',reward:800,check:s=>s.stats.chestsOpened>=10},
+  {id:'media_hora',name:'Pescador Dedicado',desc:'Pesca durante 30 minutos acumulados',icon:'⏱️',reward:1000,check:s=>s.stats.totalPlaytimeSec>=1800},
+  {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
+  {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
+];
+
+/* ---------------------------- QUEST TEMPLATES ---------------------------- */
+const QUEST_TEMPLATES = [
+  {type:'catch_any', build:()=>{const t=randInt(5,12);return{target:t,desc:`Captura ${t} criaturas en este mundo`,coins:t*15,xp:t*8};}},
+  {type:'catch_rarity', build:()=>{const r=pick(['pocoComun','raro','epico']);return{rarity:r,target:1,desc:`Consigue una criatura ${rarityOf(r).name} o mejor`,coins:250,xp:120};}},
+  {type:'playtime', build:()=>{const t=randInt(3,7)*60;return{target:t,desc:`Pesca durante ${Math.round(t/60)} minutos`,coins:t,xp:Math.round(t/2)};}},
+  {type:'discover', build:()=>{return{target:1,desc:`Descubre una criatura nueva`,coins:300,xp:150};}},
+  {type:'sell', build:()=>{const t=randInt(5,15);return{target:t,desc:`Vende ${t} criaturas`,coins:t*12,xp:t*6};}},
+  {type:'catch_boss', build:()=>{return{target:1,desc:`Vence al jefe de este mundo`,coins:2000,xp:800};}},
+  {type:'open_chest', build:()=>{const t=randInt(1,3);return{target:t,desc:`Abre ${t} cofre(s) en este mundo`,coins:t*100,xp:t*40};}},
+];
+function makeQuest(){
+  const tpl = pick(QUEST_TEMPLATES);
+  const b = tpl.build();
+  return {id:uid(),type:tpl.type,rarity:b.rarity,target:b.target,progress:0,desc:b.desc,coins:b.coins,xp:b.xp,claimed:false};
+}
+
+/* ---------------------------- SAVE / STATE ---------------------------- */
+const SAVE_KEY = 'cubeFishingAdventureSave_v1';
+function defaultState(){
+  const quests={};
+  WORLDS.forEach(w=>{ quests[w.id]=[makeQuest(),makeQuest(),makeQuest()]; });
+  const baits={}; BAITS.forEach(b=>baits[b.id]=b.id==='lombriz'?5:0);
+  return {
+    coins:50, xp:0, level:1,
+    currentWorld:'lago_inicial',
+    unlockedWorlds:['lago_inicial'],
+    bossKeys:{}, bossDefeated:{},
+    rodIndex:0, baits, selectedBait:null,
+    backpackCap:15, keepnet:[],
+    dex:{},
+    quests,
+    achievements:{},
+    cosmetics:{owned:['celeste','none_hat','none_aura','none_trail'],color:'celeste',hat:'none',aura:'none',trail:'none'},
+    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0},
+    npcMet:{},
+    settings:{musicOn:true,sfxOn:true},
+    playerPos:{},
+  };
+}
+let S = defaultState();
+
+function saveGame(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      const def = defaultState();
+      S = Object.assign(def, parsed);
+      S.stats = Object.assign(def.stats, parsed.stats||{});
+      S.baits = Object.assign(def.baits, parsed.baits||{});
+      S.cosmetics = Object.assign(def.cosmetics, parsed.cosmetics||{});
+      S.settings = Object.assign(def.settings, parsed.settings||{});
+      S.quests = parsed.quests && Object.keys(parsed.quests).length? parsed.quests : def.quests;
+      WORLDS.forEach(w=>{ if(!S.quests[w.id] || !S.quests[w.id].length) S.quests[w.id]=[makeQuest(),makeQuest(),makeQuest()]; });
+    }
+  }catch(e){ S = defaultState(); }
+}
+
+/* ---------------------------- GAME / RENDER STATE ---------------------------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const wcanvas = document.getElementById('weatherCanvas');
+const wctx = wcanvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mctx = minimap.getContext('2d');
+
+function resize(){
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  wcanvas.width = window.innerWidth; wcanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const player = {x:400,y:400,vx:0,vy:0,facing:{x:0,y:1},speed:230,trail:[],bob:0};
+let curWorld = WORLDS[0];
+let curWeather = 'soleado';
+let weatherTimer = 0;
+let weatherParticles = [];
+let camera={x:0,y:0};
+let keys = {};
+let lastTs = 0;
+let toastQueue = [];
+let nearNpc = null, nearChest = null, canFish = false;
+let started = false;
+
+const fishing = {
+  state:'idle', // idle, casting, waiting, biting, minigame, result
+  timer:0, waitTarget:0,
+  target:null, isBoss:false, bossStage:0,
+  fishPos:50, fishVel:0, fishTargetPos:50, fishRetarget:0,
+  zonePos:50, zoneVel:0, zoneSize:32,
+  progress:0, reelHeld:false,
+  bitePromptTimer:0,
+};
+
+/* ---------------------------- WORLD SWITCH ---------------------------- */
+function setWorld(worldId, keepPos){
+  const w = WORLDS.find(x=>x.id===worldId); if(!w) return;
+  curWorld = w;
+  S.currentWorld = worldId;
+  if(!keepPos){
+    const p = S.playerPos[worldId];
+    if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
+  }
+  curWeather = pick(w.weatherPool);
+  weatherTimer = 0;
+  weatherParticles = [];
+  document.getElementById('worldIcon').textContent = w.icon;
+  document.getElementById('worldName').textContent = w.name;
+  updateWeatherLabel();
+  fishing.state='idle';
+  if(typeof renderQuestTracker==='function') renderQuestTracker();
+}
+
+function updateWeatherLabel(){
+  const wt = WEATHER_TYPES[curWeather];
+  document.getElementById('worldWeather').textContent = wt.icon+' '+wt.name;
+}
+
+/* ---------------------------- TOASTS ---------------------------- */
+function toast(msg){
+  const el = document.createElement('div');
+  el.className='toast'; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(), 3100);
+}
+
+/* ---------------------------- INPUT ---------------------------- */
+window.addEventListener('keydown', e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key===' '){ e.preventDefault(); onActionPress(); }
+  if(e.key.toLowerCase()==='e'){ onActionPress(); }
+  if(e.key==='Escape'){ closeAllModals(); }
+});
+window.addEventListener('keyup', e=>{
+  keys[e.key.toLowerCase()]=false;
+  if(e.key===' '){ onActionRelease(); }
+});
+const actionBtn = document.getElementById('actionBtn');
+actionBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onActionPress(); });
+actionBtn.addEventListener('pointerup', e=>{ onActionRelease(); });
+actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
+
+function onActionPress(){
+  if(!started) return;
+  if(fishing.state==='minigame'){ fishing.reelHeld = true; return; }
+  if(fishing.state==='biting'){ startMinigame(); return; }
+  if(fishing.state==='idle'){
+    if(nearNpc){ openDialogue(nearNpc); return; }
+    if(canFish || curWorld._nearBoss){ startCast(curWorld._nearBoss); return; }
+  }
+}
+function onActionRelease(){ fishing.reelHeld = false; }
+
+/* ---------------------------- MOVEMENT / PROXIMITY ---------------------------- */
+function updatePlayer(dt){
+  let mx=0,my=0;
+  if(keys['w']||keys['arrowup']) my-=1;
+  if(keys['s']||keys['arrowdown']) my+=1;
+  if(keys['a']||keys['arrowleft']) mx-=1;
+  if(keys['d']||keys['arrowright']) mx+=1;
+  const moving = (mx!==0||my!==0) && fishing.state==='idle';
+  if(moving){
+    const len = Math.hypot(mx,my)||1;
+    mx/=len; my/=len;
+    player.x += mx*player.speed*dt;
+    player.y += my*player.speed*dt;
+    player.x = clamp(player.x, 20, curWorld.width-20);
+    player.y = clamp(player.y, 20, curWorld.height-20);
+    player.facing.x=mx; player.facing.y=my;
+    player.bob += dt*10;
+    if(S.cosmetics.trail!=='none' && Math.random()<0.4){
+      player.trail.push({x:player.x,y:player.y,life:0.6,type:S.cosmetics.trail});
+    }
+  }
+  player.trail.forEach(t=>t.life-=dt);
+  player.trail = player.trail.filter(t=>t.life>0);
+
+  S.playerPos[curWorld.id] = {x:player.x,y:player.y};
+
+  // proximity checks
+  nearNpc = null;
+  for(const npc of curWorld.npcs){
+    if(Math.hypot(npc.x-player.x, npc.y-player.y)<55){ nearNpc = npc; break; }
+  }
+  nearChest = null;
+  for(const ch of curWorld.chests){
+    const key = curWorld.id+'_'+ch.idx;
+    const cooldownUntil = S._chestCooldown && S._chestCooldown[key];
+    const avail = !cooldownUntil || Date.now()>cooldownUntil;
+    if(avail && Math.hypot(ch.x-player.x, ch.y-player.y)<45){ nearChest = ch; break; }
+  }
+  const fx = player.x+player.facing.x*46, fy=player.y+player.facing.y*46;
+  canFish = fishing.state==='idle' && !nearNpc && !nearChest && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+  curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<70 && fishing.state==='idle' && !nearNpc && !nearChest;
+
+  if(nearChest){ tryOpenChest(nearChest); }
+}
+
+/* ---------------------------- ACTION PROMPT / BUTTON ---------------------------- */
+function updateActionUI(){
+  const promptEl = document.getElementById('promptText');
+  const btn = actionBtn;
+  btn.classList.remove('hot');
+  if(fishing.state==='minigame'){
+    promptEl.classList.remove('show');
+    btn.textContent = '¡Mantén!';
+    btn.disabled = false;
+    btn.classList.add('hot');
+    return;
+  }
+  if(fishing.state==='biting'){
+    promptEl.textContent = '¡Está picando!'; promptEl.classList.add('show');
+    btn.textContent='¡PESCAR!'; btn.disabled=false; btn.classList.add('hot');
+    return;
+  }
+  if(fishing.state==='casting'||fishing.state==='waiting'){
+    promptEl.textContent = fishing.isBoss? 'Enfrentando al jefe...' : 'Esperando picada...';
+    promptEl.classList.add('show');
+    btn.textContent='...'; btn.disabled=true;
+    return;
+  }
+  if(nearNpc){
+    promptEl.textContent = 'Hablar con '+nearNpc.name; promptEl.classList.add('show');
+    btn.textContent='Hablar'; btn.disabled=false; return;
+  }
+  if(curWorld._nearBoss){
+    const hasDefeated = S.bossDefeated[curWorld.boss.id];
+    promptEl.textContent = hasDefeated? 'Zona del Jefe (ya derrotado)':'¡Zona del Jefe! Desafíalo';
+    promptEl.classList.add('show');
+    btn.textContent='Desafiar'; btn.disabled=false; return;
+  }
+  if(canFish){
+    promptEl.classList.remove('show');
+    btn.textContent='Pescar'; btn.disabled=false; return;
+  }
+  promptEl.classList.remove('show');
+  btn.textContent='Pescar'; btn.disabled=true;
+}
+
+/* ---------------------------- FISHING FLOW ---------------------------- */
+function currentRod(){ return RODS[S.rodIndex]; }
+
+function weightedPickFish(){
+  const rod = currentRod();
+  const maxTierIdx = rod.maxTier;
+  const weatherBoost = WEATHER_TYPES[curWeather].boost;
+  const baitObj = S.selectedBait? BAITS.find(b=>b.id===S.selectedBait): null;
+  let entries = curWorld.fish.map(f=>{
+    const rIdx = RARITY_INDEX[f.rarity];
+    let w = 1/rarityOf(f.rarity).denom;
+    w *= rod.luck;
+    if(rIdx>maxTierIdx) w=0;
+    if(weatherBoost.includes(f.rarity)) w*=2.4;
+    if(baitObj){
+      if(baitObj.tag==='todos') w*=baitObj.mult;
+      else if(baitObj.tag===f.tag) w*=baitObj.mult;
+      else if(baitObj.tag==='legendaria' && rIdx>=4) w*=baitObj.mult;
+    }
+    return {f,w};
+  });
+  let total = entries.reduce((a,e)=>a+e.w,0);
+  if(total<=0){ return curWorld.fish[0]; }
+  let r = Math.random()*total;
+  for(const e of entries){ r-=e.w; if(r<=0) return e.f; }
+  return entries[entries.length-1].f;
+}
+
+function startCast(isBoss){
+  if(fishing.state!=='idle') return;
+  fishing.isBoss = !!isBoss;
+  fishing.state='casting';
+  fishing.timer=0;
+  Audio1.sfx('cast');
+  setTimeout(()=>{
+    if(fishing.state!=='casting') return;
+    fishing.state='waiting';
+    const rod = currentRod();
+    let wMin=rod.waitMin, wMax=rod.waitMax;
+    if(isBoss){ wMin*=1.2; wMax*=1.2; }
+    fishing.waitTarget = randRange(wMin,wMax)/1000;
+    fishing.timer=0;
+  }, 450);
+}
+
+function fishUpdate(dt){
+  if(fishing.state==='waiting'){
+    fishing.timer+=dt;
+    if(fishing.timer>=fishing.waitTarget){
+      fishing.state='biting';
+      fishing.bitePromptTimer=0;
+      fishing.target = fishing.isBoss? ALL_SPECIES[curWorld.boss.id].fish : weightedPickFish();
+      Audio1.sfx('bite');
+    }
+  } else if(fishing.state==='biting'){
+    fishing.bitePromptTimer+=dt;
+    if(fishing.bitePromptTimer>2.2){
+      fishing.state='idle';
+      toast('El pez escapó antes de que reaccionaras.');
+    }
+  } else if(fishing.state==='minigame'){
+    minigameUpdate(dt);
+  }
+}
+
+function difficultyFor(fish, isBoss, stage){
+  const rIdx = RARITY_INDEX[fish.rarity]!==undefined? RARITY_INDEX[fish.rarity] : 4;
+  let speed = 0.55 + rIdx*0.16;
+  let zone = 34 - rIdx*1.6;
+  if(isBoss){ speed += 0.5+stage*0.35; zone -= 6+stage*3; }
+  const rod = currentRod();
+  zone += rod.zoneBonus*0.6;
+  zone = clamp(zone, 10, 42);
+  speed = clamp(speed, 0.4, 3.2);
+  return {speed, zone};
+}
+
+function startMinigame(){
+  fishing.state='minigame';
+  fishing.bossStage = 0;
+  const diff = difficultyFor(fishing.target, fishing.isBoss, fishing.bossStage);
+  fishing.fishPos = 50; fishing.fishTargetPos = 50; fishing.fishRetarget=0;
+  fishing.zonePos = 50; fishing.zoneVel = 0; fishing.zoneSize = diff.zone;
+  fishing.diffSpeed = diff.speed;
+  fishing.progress = fishing.isBoss? 8 : 18;
+  document.getElementById('minigame').classList.add('show');
+  document.getElementById('mgFish').textContent = shapeEmoji(fishing.target.shape);
+  if(fishing.isBoss){ openBossIntroIfNeeded(); }
+}
+
+function shapeEmoji(shape){
+  const map = {fish:'🐟',tropical:'🐠',shark:'🦈',octopus:'🐙',squid:'🦑',crab:'🦀',lobster:'🦞',
+    turtle:'🐢',starfish:'⭐',jellyfish:'🪼',shell:'🐚',pufferfish:'🐡',dragon:'🐉',ghost:'👻',space:'🌌',whale:'🐋'};
+  return map[shape]||'🐟';
+}
+
+function minigameUpdate(dt){
+  // fish AI wander
+  fishing.fishRetarget -= dt;
+  if(fishing.fishRetarget<=0){
+    fishing.fishTargetPos = clamp(fishing.fishPos + randRange(-45,45), 6, 94);
+    fishing.fishRetarget = randRange(0.4,1.1)/Math.max(0.4,fishing.diffSpeed*0.7);
+  }
+  fishing.fishPos = lerp(fishing.fishPos, fishing.fishTargetPos, clamp(dt*fishing.diffSpeed*2.2,0,1));
+  fishing.fishPos += Math.sin(performance.now()/180)*dt*6*fishing.diffSpeed;
+  fishing.fishPos = clamp(fishing.fishPos,3,97);
+
+  // zone physics (hold = rise, release = fall)
+  if(fishing.reelHeld){ fishing.zoneVel += dt*260; } else { fishing.zoneVel -= dt*230; }
+  fishing.zoneVel = clamp(fishing.zoneVel,-320,320);
+  fishing.zonePos += fishing.zoneVel*dt;
+  if(fishing.zonePos<0){fishing.zonePos=0; fishing.zoneVel=0;}
+  if(fishing.zonePos>100){fishing.zonePos=100; fishing.zoneVel=0;}
+
+  const half = fishing.zoneSize/2;
+  const inZone = fishing.fishPos > fishing.zonePos-half && fishing.fishPos < fishing.zonePos+half;
+  if(inZone){
+    fishing.progress += dt*(fishing.isBoss?16:26);
+    if(Math.random()<dt*3) Audio1.sfx('reelTick');
+  } else {
+    fishing.progress -= dt*(fishing.isBoss?14:16);
+  }
+  fishing.progress = clamp(fishing.progress,0,100);
+
+  document.getElementById('mgZone').style.height = fishing.zoneSize+'%';
+  document.getElementById('mgZone').style.bottom = (fishing.zonePos-half)+'%';
+  document.getElementById('mgFish').style.bottom = fishing.fishPos+'%';
+  document.getElementById('mgProgFill').style.height = fishing.progress+'%';
+
+  if(fishing.progress>=100){
+    if(fishing.isBoss && fishing.bossStage<2){
+      fishing.bossStage++;
+      toast('¡Etapa '+(fishing.bossStage+1)+' de 3!');
+      const diff = difficultyFor(fishing.target, true, fishing.bossStage);
+      fishing.zoneSize = diff.zone; fishing.diffSpeed = diff.speed;
+      fishing.progress = 15; fishing.zoneVel=0;
+    } else {
+      minigameEnd(true);
+    }
+  } else if(fishing.progress<=0){
+    minigameEnd(false);
+  }
+}
+
+function minigameEnd(success){
+  document.getElementById('minigame').classList.remove('show');
+  fishing.state='idle';
+  fishing.reelHeld=false;
+  if(success){
+    Audio1.sfx('success');
+    resolveCatch(fishing.target, fishing.isBoss);
+  } else {
+    Audio1.sfx('fail');
+    toast(fishing.isBoss? '¡El jefe escapó! Vuelve a intentarlo.' : '¡La criatura escapó!');
+  }
+  fishing.target=null;
+}
+
+/* ---------------------------- CATCH RESOLUTION ---------------------------- */
+function resolveCatch(fish, isBoss){
+  const worldIdx = curWorld.idx;
+  let sizeStats;
+  if(isBoss){ sizeStats = {minCm:fish.minCm,maxCm:fish.maxCm,minKg:fish.minKg,maxKg:fish.maxKg}; }
+  else { sizeStats = sizeStatsFor(fish, worldIdx); }
+  const weightKg = +randRange(sizeStats.minKg, sizeStats.maxKg).toFixed(2);
+  const sizeCm = Math.round(randRange(sizeStats.minCm, sizeStats.maxCm));
+  const e = isBoss? {value: Math.round(RARITY_VALUE[4]*(6+worldIdx*1.5)), xp: Math.round(RARITY_XP[4]*(6+worldIdx*1.5))} : econ(fish, worldIdx);
+
+  const wasDiscovered = !!S.dex[fish.id];
+  if(!S.dex[fish.id]){
+    S.dex[fish.id] = {discovered:true, timesCaught:0, recordWeight:0, recordSize:0};
+  }
+  const d = S.dex[fish.id];
+  d.timesCaught++;
+  d.recordWeight = Math.max(d.recordWeight, weightKg);
+  d.recordSize = Math.max(d.recordSize, sizeCm);
+
+  S.stats.totalCatches++;
+  S.stats.rarityCaught[fish.rarity] = (S.stats.rarityCaught[fish.rarity]||0)+1;
+  S.stats.shapeCaught[fish.shape] = (S.stats.shapeCaught[fish.shape]||0)+1;
+
+  if(isBoss){
+    S.bossDefeated[fish.id]=true;
+    S.bossKeys[curWorld.id]=true;
+    toast('🔑 Has obtenido la llave de '+curWorld.name+'!');
+  }
+
+  // backpack
+  const item = {uid:uid(), speciesId:fish.id, weightKg, sizeCm, value:e.value, worldId:curWorld.id, isBoss};
+  let autoSold=false;
+  if(S.keepnet.length>=S.backpackCap){
+    S.coins += e.value; autoSold=true;
+  } else {
+    S.keepnet.push(item);
+  }
+
+  // xp / level
+  addXp(e.xp);
+
+  // quests
+  progressQuests('catch_any',1);
+  progressQuests('catch_rarity',1,fish.rarity);
+  if(!wasDiscovered) progressQuests('discover',1);
+  if(isBoss) progressQuests('catch_boss',1);
+
+  checkAchievements();
+  saveGame();
+  showCatchResult(fish, weightKg, sizeCm, e.value, isBoss, autoSold, !wasDiscovered);
+}
+
+function addXp(xp){
+  S.xp += xp;
+  let needed = 100 + (S.level-1)*60;
+  let leveled=false;
+  while(S.xp>=needed){
+    S.xp -= needed; S.level++; leveled=true;
+    needed = 100 + (S.level-1)*60;
+  }
+  if(leveled){ Audio1.sfx('levelup'); toast('⭐ ¡Subiste a nivel '+S.level+'!'); }
+  refreshHud();
+}
+
+function showCatchResult(fish, weightKg, sizeCm, value, isBoss, autoSold, isNew){
+  document.getElementById('crHeader').textContent = isBoss? '¡Jefe Derrotado!' : '¡Captura!';
+  const c = document.getElementById('crCanvas');
+  const cctx = c.getContext('2d');
+  cctx.clearRect(0,0,c.width,c.height);
+  cctx.save(); cctx.translate(c.width/2,c.height/2);
+  drawCreatureShape(cctx, fish.shape, 90, fish.color, fish.accent, false, performance.now()/300);
+  cctx.restore();
+  document.getElementById('crName').textContent = fish.name + (isNew? '  🆕':'');
+  const r = rarityOf(fish.rarity);
+  document.getElementById('crRarity').innerHTML = `<span class="rbadge" style="background:${r.color}">${r.name} · ${fmtProb(r.denom)}</span>`;
+  document.getElementById('crMeta').innerHTML = `Peso: ${weightKg} kg &nbsp;·&nbsp; Tamaño: ${sizeCm} cm`;
+  document.getElementById('crCoins').textContent = autoSold? `🪙 +${fmtNum(value)} (mochila llena, vendido automáticamente)` : `Añadido a tu mochila`;
+  document.getElementById('catchResultBackdrop').classList.add('show');
+}
+
+/* ---------------------------- CHESTS ---------------------------- */
+function tryOpenChest(chest){
+  const key = curWorld.id+'_'+chest.idx;
+  if(!S._chestCooldown) S._chestCooldown={};
+  const now = Date.now();
+  if(S._chestCooldown[key] && now<S._chestCooldown[key]) return;
+  S._chestCooldown[key] = now + 5*60*1000;
+  S.stats.chestsOpened++;
+  const roll = Math.random();
+  let msg;
+  if(roll<0.55){
+    const coins = randInt(30,120)*(1+curWorld.idx*0.4)|0;
+    S.coins += coins; msg = `🧰 Cofre: +${fmtNum(coins)} monedas`;
+  } else if(roll<0.85){
+    const b = pick(BAITS.slice(0,5));
+    S.baits[b.id] = (S.baits[b.id]||0)+randInt(2,5);
+    msg = `🧰 Cofre: +carnadas (${b.name})`;
+  } else {
+    const coins = randInt(200,500);
+    S.coins += coins; msg = `🧰 ¡Cofre raro! +${fmtNum(coins)} monedas`;
+  }
+  toast(msg);
+  Audio1.sfx('chest');
+  progressQuests('open_chest',1);
+  checkAchievements();
+  saveGame();
+  refreshHud();
+}
+
+/* ---------------------------- QUESTS ---------------------------- */
+function progressQuests(type, amount, rarity){
+  const list = S.quests[curWorld.id]; if(!list) return;
+  let changed=false;
+  for(const q of list){
+    if(q.claimed) continue;
+    if(q.type!==type) continue;
+    if(type==='catch_rarity'){
+      if(RARITY_INDEX[rarity] < RARITY_INDEX[q.rarity]) continue;
+      q.progress = q.target;
+    } else {
+      q.progress = Math.min(q.target, q.progress+amount);
+    }
+    changed=true;
+  }
+  if(changed) renderQuestTracker();
+}
+function claimQuest(qid){
+  const list = S.quests[curWorld.id];
+  const q = list.find(x=>x.id===qid);
+  if(!q || q.claimed || q.progress<q.target) return;
+  q.claimed=true;
+  S.coins += q.coins; addXp(q.xp);
+  Audio1.sfx('coin');
+  toast(`📜 Misión completada: +${fmtNum(q.coins)} monedas`);
+  const idx = list.indexOf(q);
+  list[idx] = makeQuest();
+  checkAchievements();
+  saveGame();
+  refreshHud(); renderQuestTracker(); renderQuestsModal();
+}
+
+/* ---------------------------- ACHIEVEMENTS LOGIC ---------------------------- */
+function checkAchievements(){
+  let unlocked=false;
+  for(const a of ACHIEVEMENTS){
+    if(S.achievements[a.id]) continue;
+    let ok=false;
+    if(a.id==='mundo_completo'){
+      ok = WORLDS.some(w=> w.fish.every(f=>S.dex[f.id]&&S.dex[f.id].discovered) );
+    } else if(a.id==='acuario_completo'){
+      ok = Object.keys(ALL_SPECIES).every(id=>S.dex[id]&&S.dex[id].discovered);
+    } else if(a.check){
+      ok = a.check(S);
+    }
+    if(ok){ S.achievements[a.id]=true; S.coins+=a.reward; unlocked=true; Audio1.sfx('achievement'); toast('🏆 Logro: '+a.name+' (+'+fmtNum(a.reward)+')'); }
+  }
+  if(unlocked){ refreshHud(); }
+}
+
+/* ---------------------------- NPC DIALOGUE ---------------------------- */
+function openDialogue(npc){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  let bonus='';
+  if(!S.npcMet[npc.id]){
+    S.npcMet[npc.id]=true; S.coins+=20;
+    bonus = `<div style="color:var(--accent2);font-weight:700;margin-bottom:10px;">¡${npc.name} te regala 20 monedas por conocerte!</div>`;
+    saveGame(); refreshHud();
+  }
+  const line = pick(npc.lines);
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
+  if(npc.role==='merchant'){
+    box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openModal('mShop');">Ver Tienda</button>`;
+  } else if(npc.role==='quest'){
+    box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openModal('mQuests');">Ver Misiones</button>`;
+  }
+  openModal('mDialogue');
+}
+
+/* ---------------------------- BOSS INTRO ---------------------------- */
+let pendingBossStart=false;
+function openBossIntroIfNeeded(){ /* used only if triggered externally; direct-start path below handles it */ }
+function startCastWrapper(isBoss){
+  if(isBoss && !S.bossDefeated[curWorld.boss.id] && fishing.state==='idle'){
+    document.getElementById('biIcon').textContent = shapeEmoji(curWorld.boss.shape);
+    document.getElementById('biName').textContent = curWorld.boss.name;
+    document.getElementById('biDesc').textContent = curWorld.boss.desc + ' Necesitarás mantener el ritmo durante 3 rondas para vencerlo.';
+    openModal('mBossIntro');
+    return;
+  }
+  startCast(isBoss);
+}
+
+document.getElementById('biStartBtn').addEventListener('click', ()=>{
+  closeModal('mBossIntro');
+  Audio1.sfx('boss');
+  startCast(true);
+});
+
+// override action press to route boss through intro
+const _origActionPress = onActionPress;
+onActionPress = function(){
+  if(!started) return;
+  if(fishing.state==='minigame'){ fishing.reelHeld = true; return; }
+  if(fishing.state==='biting'){ startMinigame(); return; }
+  if(fishing.state==='idle'){
+    if(nearNpc){ openDialogue(nearNpc); return; }
+    if(curWorld._nearBoss){ startCastWrapper(true); return; }
+    if(canFish){ startCastWrapper(false); return; }
+  }
+};
+
+/* ---------------------------- SHAPE DRAWING ---------------------------- */
+function shade(hex, amt){
+  try{
+    let c = hex.replace('#','');
+    if(c.length===3) c=c.split('').map(x=>x+x).join('');
+    const num = parseInt(c,16);
+    let r=(num>>16)+amt, g=((num>>8)&0xff)+amt, b=(num&0xff)+amt;
+    r=clamp(r,0,255); g=clamp(g,0,255); b=clamp(b,0,255);
+    return `rgb(${r},${g},${b})`;
+  }catch(e){ return hex; }
+}
+
+function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t){
+  t = t||0;
+  const c = silhouette? '#243146' : color;
+  const a = silhouette? '#182236' : (accent||shade(color,-40));
+  ctx.save();
+  ctx.fillStyle=c; ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.4,size*0.025);
+  const s = size;
+  switch(shape){
+    case 'tropical':
+    case 'fish': {
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.5,s*0.3,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.46,0); ctx.lineTo(-s*0.82,-s*0.26); ctx.lineTo(-s*0.82,s*0.26); ctx.closePath();
+      ctx.fillStyle=a; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.02,-s*0.27); ctx.lineTo(s*0.08,-s*0.5); ctx.lineTo(s*0.22,-s*0.24); ctx.closePath();
+      ctx.fill();
+      if(shape==='tropical'){
+        ctx.fillStyle='rgba(255,255,255,0.35)';
+        for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.ellipse(i*s*0.14,0,s*0.05,s*0.26,0,0,Math.PI*2); ctx.fill(); }
+      }
+      ctx.beginPath(); ctx.fillStyle=c; ctx.arc(s*0.28,-s*0.06,s*0.045,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.fill();
+      break;
+    }
+    case 'shark': {
+      ctx.beginPath();
+      ctx.moveTo(s*0.7,0); ctx.quadraticCurveTo(s*0.2,-s*0.32,-s*0.6,-s*0.14);
+      ctx.quadraticCurveTo(-s*0.85,0,-s*0.6,s*0.14);
+      ctx.quadraticCurveTo(s*0.2,s*0.32,s*0.7,0);
+      ctx.fill();
+      ctx.fillStyle=a;
+      ctx.beginPath(); ctx.moveTo(-s*0.05,-s*0.28); ctx.lineTo(s*0.05,-s*0.62); ctx.lineTo(s*0.2,-s*0.24); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.62,-s*0.1); ctx.lineTo(-s*0.95,-s*0.34); ctx.lineTo(-s*0.72,s*0.02); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'whale': {
+      ctx.beginPath();
+      ctx.ellipse(0,0,s*0.62,s*0.4,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=a;
+      ctx.beginPath(); ctx.moveTo(-s*0.55,-s*0.05); ctx.quadraticCurveTo(-s*0.95,-s*0.35,-s*1.05,-s*0.02);
+      ctx.quadraticCurveTo(-s*0.95,s*0.3,-s*0.55,s*0.08); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s*0.15,-s*0.3,s*0.07,s*0.16,0.4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.beginPath();
+      ctx.moveTo(-s*0.1,s*0.02); ctx.quadraticCurveTo(s*0.05,s*0.14,s*0.28,s*0.08); ctx.stroke();
+      break;
+    }
+    case 'octopus': {
+      ctx.beginPath(); ctx.arc(0,-s*0.08,s*0.42,Math.PI,0); ctx.quadraticCurveTo(s*0.42,s*0.18,0,s*0.1); ctx.quadraticCurveTo(-s*0.42,s*0.18,-s*0.42,-s*0.08); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(2,s*0.06); ctx.lineCap='round';
+      for(let i=0;i<6;i++){
+        const bx = -s*0.34+ (i/5)*s*0.68;
+        const wave = Math.sin(t*3+i)*s*0.12;
+        ctx.beginPath(); ctx.moveTo(bx,s*0.05);
+        ctx.quadraticCurveTo(bx+wave,s*0.35, bx*0.6+wave*1.3, s*0.55+Math.abs(Math.sin(t*2+i))*s*0.06);
+        ctx.stroke();
+      }
+      ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(-s*0.13,-s*0.14,s*0.05,s*0.06,0,0,Math.PI*2); ctx.ellipse(s*0.13,-s*0.14,s*0.05,s*0.06,0,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fill();
+      break;
+    }
+    case 'squid': {
+      ctx.beginPath(); ctx.moveTo(0,-s*0.55); ctx.quadraticCurveTo(s*0.34,-s*0.1,s*0.2,s*0.15); ctx.quadraticCurveTo(0,s*0.28,-s*0.2,s*0.15); ctx.quadraticCurveTo(-s*0.34,-s*0.1,0,-s*0.55); ctx.fill();
+      ctx.fillStyle=a;
+      ctx.beginPath(); ctx.moveTo(-s*0.2,s*0.02); ctx.lineTo(-s*0.4,-s*0.12); ctx.lineTo(-s*0.16,s*0.16); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s*0.2,s*0.02); ctx.lineTo(s*0.4,-s*0.12); ctx.lineTo(s*0.16,s*0.16); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.5,s*0.035); ctx.lineCap='round';
+      for(let i=0;i<5;i++){
+        const bx=-s*0.16+(i/4)*s*0.32; const wave=Math.sin(t*3+i)*s*0.08;
+        ctx.beginPath(); ctx.moveTo(bx,s*0.22); ctx.quadraticCurveTo(bx+wave,s*0.45,bx*0.5,s*0.6); ctx.stroke();
+      }
+      break;
+    }
+    case 'crab': {
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.42,s*0.28,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.5,s*0.035);
+      for(let i=0;i<3;i++){
+        const ly=-s*0.06+i*s*0.12;
+        ctx.beginPath(); ctx.moveTo(-s*0.3,ly); ctx.lineTo(-s*0.5,ly+s*0.14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s*0.3,ly); ctx.lineTo(s*0.5,ly+s*0.14); ctx.stroke();
+      }
+      ctx.fillStyle=a;
+      ctx.beginPath(); ctx.arc(-s*0.52,-s*0.22,s*0.14,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s*0.52,-s*0.22,s*0.14,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.62,-s*0.32); ctx.lineTo(-s*0.78,-s*0.4); ctx.lineTo(-s*0.66,-s*0.16); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s*0.62,-s*0.32); ctx.lineTo(s*0.78,-s*0.4); ctx.lineTo(s*0.66,-s*0.16); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'lobster': {
+      ctx.beginPath(); ctx.ellipse(-s*0.05,0,s*0.42,s*0.2,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=a;
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.ellipse(-s*0.4-i*s*0.14,0,s*0.13,s*0.15,0,0,Math.PI*2); ctx.fill(); }
+      ctx.beginPath(); ctx.moveTo(s*0.34,-s*0.16); ctx.lineTo(s*0.6,-s*0.05); ctx.lineTo(s*0.32,s*0.05); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(s*0.34,s*0.16); ctx.lineTo(s*0.6,s*0.05); ctx.lineTo(s*0.32,-s*0.05); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.2,s*0.02);
+      ctx.beginPath(); ctx.moveTo(-s*0.6,-s*0.05); ctx.lineTo(-s*0.9,-s*0.2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s*0.6,s*0.05); ctx.lineTo(-s*0.9,s*0.2); ctx.stroke();
+      break;
+    }
+    case 'turtle': {
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.44,s*0.36,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.4,s*0.03);
+      ctx.beginPath(); ctx.moveTo(-s*0.2,-s*0.28); ctx.lineTo(0,-s*0.05); ctx.lineTo(-s*0.2,s*0.28); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*0.2,-s*0.28); ctx.lineTo(0,-s*0.05); ctx.lineTo(s*0.2,s*0.28); ctx.stroke();
+      ctx.fillStyle=a;
+      ctx.beginPath(); ctx.arc(s*0.5,0,s*0.13,0,Math.PI*2); ctx.fill();
+      [[-0.34,-0.34],[-0.34,0.34],[0.1,-0.42],[0.1,0.42]].forEach(([dx,dy])=>{
+        ctx.beginPath(); ctx.ellipse(s*dx,s*dy,s*0.12,s*0.08,dx*dy>0?0.6:-0.6,0,Math.PI*2); ctx.fill();
+      });
+      break;
+    }
+    case 'starfish': {
+      ctx.beginPath();
+      for(let i=0;i<10;i++){
+        const ang = -Math.PI/2 + i*Math.PI/5;
+        const r = i%2===0? s*0.55 : s*0.22;
+        const x = Math.cos(ang)*r, y=Math.sin(ang)*r;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle=a;
+      for(let i=0;i<10;i+=2){
+        const ang=-Math.PI/2+i*Math.PI/5;
+        ctx.beginPath(); ctx.arc(Math.cos(ang)*s*0.35,Math.sin(ang)*s*0.35,s*0.035,0,Math.PI*2); ctx.fill();
+      }
+      break;
+    }
+    case 'jellyfish': {
+      ctx.globalAlpha = silhouette? 1 : 0.85;
+      ctx.beginPath(); ctx.arc(0,-s*0.05,s*0.42,Math.PI,0); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.5,s*0.03); ctx.lineCap='round';
+      for(let i=0;i<5;i++){
+        const bx=-s*0.32+(i/4)*s*0.64; const wave = Math.sin(t*3+i*1.3)*s*0.1;
+        ctx.beginPath(); ctx.moveTo(bx,-s*0.03);
+        ctx.quadraticCurveTo(bx+wave,s*0.3,bx*0.7+wave,s*0.6);
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      break;
+    }
+    case 'shell': {
+      ctx.beginPath();
+      let r = s*0.5;
+      ctx.moveTo(r,0);
+      for(let ang=0; ang<Math.PI*3.4; ang+=0.15){
+        r = s*0.5 * (1-ang/(Math.PI*3.6));
+        ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
+      }
+      ctx.strokeStyle=c; ctx.lineWidth=Math.max(2,s*0.09); ctx.lineJoin='round'; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.5,s*0.42,0,0,Math.PI*2); ctx.globalAlpha=0.18; ctx.fillStyle=c; ctx.fill(); ctx.globalAlpha=1;
+      break;
+    }
+    case 'pufferfish': {
+      ctx.beginPath(); ctx.arc(0,0,s*0.4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(1.5,s*0.03); ctx.lineCap='round';
+      for(let i=0;i<12;i++){
+        const ang = i/12*Math.PI*2;
+        ctx.beginPath(); ctx.moveTo(Math.cos(ang)*s*0.38,Math.sin(ang)*s*0.38);
+        ctx.lineTo(Math.cos(ang)*s*0.56,Math.sin(ang)*s*0.56); ctx.stroke();
+      }
+      ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(s*0.15,-s*0.08,s*0.05,0,Math.PI*2); ctx.fill();
+      break;
+    }
+    case 'dragon': {
+      ctx.strokeStyle=c; ctx.lineWidth=s*0.22; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(-s*0.7,Math.sin(t*2)*s*0.08);
+      for(let i=1;i<=6;i++){
+        const px=-s*0.7+ i*s*0.24;
+        const py = Math.sin(t*2+i*0.9)*s*0.14;
+        ctx.lineTo(px,py);
+      }
+      ctx.stroke();
+      ctx.fillStyle=a;
+      const headX = -s*0.7 + 6*s*0.24, headY = Math.sin(t*2+6*0.9)*s*0.14;
+      ctx.beginPath(); ctx.arc(headX,headY,s*0.16,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(headX+s*0.06,headY-s*0.14); ctx.lineTo(headX+s*0.18,headY-s*0.3); ctx.lineTo(headX+s*0.02,headY-s*0.2); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'ghost': {
+      ctx.globalAlpha = silhouette? 1 : 0.78;
+      ctx.beginPath(); ctx.arc(0,-s*0.02,s*0.4,Math.PI,0);
+      ctx.lineTo(s*0.4,s*0.28);
+      for(let i=0;i<4;i++){
+        const x1 = s*0.4 - (i+0.5)*(s*0.8/4);
+        const x2 = s*0.4 - (i+1)*(s*0.8/4);
+        ctx.quadraticCurveTo(x1, s*0.4, x2, s*0.28);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+      break;
+    }
+    case 'space': {
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.48,s*0.28,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.44,0); ctx.lineTo(-s*0.78,-s*0.24); ctx.lineTo(-s*0.78,s*0.24); ctx.closePath();
+      ctx.fillStyle=a; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
+      ctx.fillStyle='#fff';
+      for(let i=0;i<6;i++){
+        const ang = (i/6)*Math.PI*2 + t;
+        const rr = s*(0.55+0.15*Math.sin(t+i));
+        ctx.globalAlpha = 0.5+0.4*Math.sin(t*2+i);
+        ctx.beginPath(); ctx.arc(Math.cos(ang)*rr,Math.sin(ang)*rr*0.6,s*0.02,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      break;
+    }
+    default: {
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.4,s*0.3,0,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/* ---------------------------- MINIMAP ---------------------------- */
+function renderMinimap(){
+  mctx.clearRect(0,0,minimap.width,minimap.height);
+  const sx = minimap.width/curWorld.width, sy = minimap.height/curWorld.height;
+  mctx.fillStyle = curWorld.palette.waterDeep;
+  mctx.fillRect(0,0,minimap.width,minimap.height);
+  mctx.fillStyle = curWorld.palette.land;
+  curWorld.islands.forEach(isl=>{
+    mctx.beginPath(); mctx.ellipse(isl.x*sx,isl.y*sy,isl.rx*sx,isl.ry*sy,0,0,Math.PI*2); mctx.fill();
+  });
+  mctx.fillStyle = curWorld.palette.land;
+  mctx.fillRect(0,0,minimap.width,6); mctx.fillRect(0,minimap.height-6,minimap.width,6);
+  mctx.fillRect(0,0,6,minimap.height); mctx.fillRect(minimap.width-6,0,6,minimap.height);
+  // npcs
+  mctx.fillStyle='#ffd166';
+  curWorld.npcs.forEach(n=>{ mctx.beginPath(); mctx.arc(n.x*sx,n.y*sy,2.4,0,Math.PI*2); mctx.fill(); });
+  // chests
+  mctx.fillStyle='#f97316';
+  curWorld.chests.forEach(c=>{
+    const key=curWorld.id+'_'+c.idx;
+    const cd = S._chestCooldown && S._chestCooldown[key];
+    if(cd && Date.now()<cd) return;
+    mctx.beginPath(); mctx.arc(c.x*sx,c.y*sy,2.4,0,Math.PI*2); mctx.fill();
+  });
+  // boss
+  mctx.fillStyle = S.bossDefeated[curWorld.boss.id]? '#64748b':'#ef4444';
+  mctx.beginPath(); mctx.arc(curWorld.bossSpot.x*sx,curWorld.bossSpot.y*sy,3.2,0,Math.PI*2); mctx.fill();
+  // player
+  mctx.fillStyle='#38d3c9';
+  mctx.beginPath(); mctx.arc(player.x*sx,player.y*sy,3.4,0,Math.PI*2); mctx.fill();
+}
+
+/* ---------------------------- WEATHER PARTICLES ---------------------------- */
+function ensureWeatherParticles(){
+  const wt = WEATHER_TYPES[curWeather];
+  if(!wt.particles){ weatherParticles=[]; return; }
+  const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0}[wt.particles]||0;
+  if(weatherParticles.length!==targetCount || weatherParticles._type!==wt.particles){
+    weatherParticles=[];
+    weatherParticles._type = wt.particles;
+    for(let i=0;i<targetCount;i++){
+      if(wt.particles==='meteor'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height*0.5, vx:-260,vy:340, len:randRange(40,90)});
+      } else {
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:wt.particles==='storm'?-180:-60, vy:wt.particles==='storm'?620:420, len: wt.particles==='storm'?22:14});
+      }
+    }
+  }
+}
+function updateWeather(dt){
+  weatherTimer += dt;
+  const cycle = 130;
+  if(weatherTimer>cycle){
+    weatherTimer=0;
+    let next = curWeather;
+    const pool = curWorld.weatherPool;
+    let tries=0;
+    while(next===curWeather && tries<6){ next=pick(pool); tries++; }
+    curWeather = next;
+    updateWeatherLabel();
+    toast(WEATHER_TYPES[curWeather].icon+' '+WEATHER_TYPES[curWeather].name+' en '+curWorld.name);
+  }
+  ensureWeatherParticles();
+  const wt = WEATHER_TYPES[curWeather];
+  if(wt.particles==='rain'||wt.particles==='storm'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.y>wcanvas.height){ p.y=-10; p.x=Math.random()*wcanvas.width; }
+    });
+  } else if(wt.particles==='meteor'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.y>wcanvas.height||p.x<-100){ p.y=-20-Math.random()*100; p.x=wcanvas.width*Math.random()+200; }
+    });
+  }
+}
+function renderWeather(){
+  wctx.clearRect(0,0,wcanvas.width,wcanvas.height);
+  const wt = WEATHER_TYPES[curWeather];
+  if(wt.tint){ wctx.fillStyle=wt.tint; wctx.fillRect(0,0,wcanvas.width,wcanvas.height); }
+  if(wt.particles==='rain'||wt.particles==='storm'){
+    wctx.strokeStyle = wt.particles==='storm'? 'rgba(200,220,255,0.5)':'rgba(200,220,255,0.35)';
+    wctx.lineWidth=1.4;
+    weatherParticles.forEach(p=>{
+      wctx.beginPath(); wctx.moveTo(p.x,p.y); wctx.lineTo(p.x+p.vx*0.02,p.y+p.len); wctx.stroke();
+    });
+  } else if(wt.particles==='fog'){
+    const g = wctx.createLinearGradient(0,0,0,wcanvas.height);
+    g.addColorStop(0,'rgba(220,225,230,0.05)'); g.addColorStop(0.5,'rgba(220,225,230,0.28)'); g.addColorStop(1,'rgba(220,225,230,0.08)');
+    wctx.fillStyle=g; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  } else if(wt.particles==='aurora'){
+    const time=performance.now()/1000;
+    for(let i=0;i<3;i++){
+      wctx.save();
+      wctx.globalAlpha=0.12;
+      const grad = wctx.createLinearGradient(0,0,wcanvas.width,0);
+      grad.addColorStop(0,'#38d3c9'); grad.addColorStop(0.5,'#a78bfa'); grad.addColorStop(1,'#f472b6');
+      wctx.fillStyle=grad;
+      wctx.beginPath();
+      wctx.moveTo(0, 60+i*40+Math.sin(time+i)*20);
+      for(let x=0;x<=wcanvas.width;x+=40){ wctx.lineTo(x, 60+i*40+Math.sin(time+i+x*0.01)*24); }
+      wctx.lineTo(wcanvas.width,0); wctx.lineTo(0,0); wctx.closePath(); wctx.fill();
+      wctx.restore();
+    }
+  } else if(wt.particles==='meteor'){
+    wctx.strokeStyle='rgba(255,220,150,0.85)'; wctx.lineWidth=2;
+    weatherParticles.forEach(p=>{
+      wctx.beginPath(); wctx.moveTo(p.x,p.y);
+      const len=p.len;
+      wctx.lineTo(p.x - p.vx*0.12, p.y - p.vy*0.12);
+      wctx.stroke();
+    });
+  } else if(wt.particles==='moon'){
+    wctx.save(); wctx.globalAlpha=0.5;
+    const g = wctx.createRadialGradient(wcanvas.width-90,90,10,wcanvas.width-90,90,120);
+    g.addColorStop(0,'rgba(255,255,240,0.9)'); g.addColorStop(1,'rgba(255,255,240,0)');
+    wctx.fillStyle=g; wctx.fillRect(wcanvas.width-220,-30,240,240);
+    wctx.restore();
+  }
+}
+
+/* ---------------------------- MAIN RENDER ---------------------------- */
+function worldToScreen(x,y){ return {x: x-camera.x+canvas.width/2, y: y-camera.y+canvas.height/2}; }
+
+function drawWater(){
+  const p = curWorld.palette;
+  ctx.fillStyle = p.waterDeep;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const t = performance.now()/1000;
+  ctx.save();
+  ctx.globalAlpha=0.5;
+  ctx.strokeStyle = p.water;
+  ctx.lineWidth=2;
+  const spacing=46;
+  const offX = -(camera.x)%spacing, offY=-(camera.y)%spacing;
+  for(let y=offY-spacing; y<canvas.height+spacing; y+=spacing){
+    ctx.beginPath();
+    for(let x=-spacing; x<canvas.width+spacing; x+=14){
+      const wave = Math.sin((x+camera.x)*0.02 + t*1.4 + y*0.05)*4;
+      if(x===-spacing) ctx.moveTo(x,y+wave); else ctx.lineTo(x,y+wave);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawIsland(isl){
+  const screen = worldToScreen(isl.x,isl.y);
+  const p = curWorld.palette;
+  ctx.save();
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(screen.x+6,screen.y+10,isl.rx,isl.ry*0.9,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = p.land;
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx,isl.ry,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = p.landDetail;
+  ctx.globalAlpha=0.5;
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx*0.72,isl.ry*0.72,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+function drawDecor(d){
+  const screen = worldToScreen(d.x,d.y);
+  if(screen.x<-60||screen.x>canvas.width+60||screen.y<-60||screen.y>canvas.height+60) return;
+  const type = curWorld.decorType;
+  const s = d.s*22;
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  ctx.globalAlpha=0.22; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(2,s*0.55,s*0.7,s*0.28,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+  switch(type){
+    case 'trees': case 'reeds': case 'palms': case 'swamp':
+      ctx.fillStyle = type==='palms'? '#8a6a3a' : '#6b4a2a';
+      ctx.fillRect(-s*0.06,-s*0.1,s*0.12,s*0.65);
+      ctx.fillStyle = type==='swamp'?'#4a5a2f': type==='palms'?'#2f9e5c':'#3f8f52';
+      ctx.beginPath(); ctx.arc(0,-s*0.35,s*0.5,0,Math.PI*2); ctx.fill();
+      break;
+    case 'ice': case 'crystal':
+      ctx.fillStyle = type==='crystal'? '#8ee8f5':'#dff3fb';
+      ctx.beginPath(); ctx.moveTo(0,-s*0.7); ctx.lineTo(s*0.32,s*0.2); ctx.lineTo(-s*0.32,s*0.2); ctx.closePath(); ctx.fill();
+      break;
+    case 'rocks':
+      ctx.fillStyle='#57504c';
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.42,s*0.32,0,0,Math.PI*2); ctx.fill();
+      break;
+    case 'clouds':
+      ctx.fillStyle='rgba(255,255,255,0.75)';
+      ctx.beginPath(); ctx.arc(-s*0.2,0,s*0.28,0,Math.PI*2); ctx.arc(s*0.15,-s*0.08,s*0.32,0,Math.PI*2); ctx.arc(s*0.35,0.05*s,s*0.22,0,Math.PI*2); ctx.fill();
+      break;
+    case 'stars':
+      ctx.fillStyle='#c4b5fd';
+      ctx.beginPath(); ctx.arc(0,0,s*0.18,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(0,0,s*0.34,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+      break;
+    case 'night':
+      ctx.fillStyle='#334155'; ctx.fillRect(-s*0.06,-s*0.1,s*0.12,s*0.6);
+      ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(0,-s*0.35,s*0.42,0,Math.PI*2); ctx.fill();
+      break;
+    default:
+      ctx.fillStyle='#5da456'; ctx.beginPath(); ctx.arc(0,0,s*0.3,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawCube(x,y,size,color,bob,label,hat,aura,trail){
+  const screen = worldToScreen(x,y);
+  const bobY = Math.sin(bob)*3;
+  ctx.save();
+  ctx.translate(screen.x,screen.y+bobY);
+
+  if(aura && aura!=='none'){
+    const auraObj = AURAS.find(a=>a.id===aura);
+    const t = performance.now()/500;
+    ctx.save();
+    ctx.globalAlpha = 0.35+0.15*Math.sin(t*2);
+    if(auraObj.color==='rainbow'){
+      const grad = ctx.createConicGradient? ctx.createConicGradient(t, 0,0) : null;
+      ctx.fillStyle = grad || '#f472b6';
+      if(grad){ ['#f87171','#fbbf24','#4ade80','#38bdf8','#a78bfa','#f87171'].forEach((c,i)=>grad.addColorStop(i/5,c)); }
+    } else { ctx.fillStyle = auraObj.color; }
+    ctx.beginPath(); ctx.arc(0,4,size*0.95,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // shadow
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,size*0.62,size*0.55,size*0.22,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+
+  // cube body
+  const grad = ctx.createLinearGradient(-size/2,-size/2,size/2,size/2);
+  grad.addColorStop(0, shade(color,40));
+  grad.addColorStop(1, shade(color,-30));
+  ctx.fillStyle = grad;
+  roundRect(ctx,-size/2,-size/2,size,size,size*0.22);
+  ctx.fill();
+  ctx.globalAlpha=0.5; ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2;
+  roundRect(ctx,-size/2,-size/2,size,size,size*0.22); ctx.stroke();
+  ctx.globalAlpha=1;
+  // top highlight
+  ctx.fillStyle='rgba(255,255,255,0.28)';
+  roundRect(ctx,-size*0.36,-size*0.42,size*0.72,size*0.22,size*0.1); ctx.fill();
+
+  // hat
+  if(hat && hat!=='none') drawHat(ctx,hat,size);
+
+  ctx.restore();
+
+  if(label){
+    ctx.save();
+    ctx.font='11px system-ui'; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.textAlign='center';
+    ctx.fillText(label, screen.x, screen.y - size*0.85);
+    ctx.restore();
+  }
+}
+
+function drawHat(ctx,hat,size){
+  ctx.save();
+  ctx.translate(0,-size*0.5);
+  switch(hat){
+    case 'cap':
+      ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(0,0,size*0.32,Math.PI,0); ctx.fill();
+      ctx.fillRect(0,-size*0.02,size*0.4,size*0.08);
+      break;
+    case 'straw':
+      ctx.fillStyle='#d9b45a'; ctx.beginPath(); ctx.ellipse(0,size*0.05,size*0.5,size*0.12,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0,-size*0.05,size*0.28,Math.PI,0); ctx.fill();
+      break;
+    case 'pirate':
+      ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.moveTo(-size*0.4,0); ctx.quadraticCurveTo(0,-size*0.5,size*0.4,0); ctx.quadraticCurveTo(0,-size*0.18,-size*0.4,0); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,-size*0.2,size*0.05,0,Math.PI*2); ctx.fill();
+      break;
+    case 'helmet':
+      ctx.fillStyle='rgba(180,220,255,0.55)'; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,size*0.4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      break;
+    case 'crown':
+      ctx.fillStyle='#fbbf24';
+      ctx.beginPath(); ctx.moveTo(-size*0.32,0); ctx.lineTo(-size*0.32,-size*0.22); ctx.lineTo(-size*0.14,-size*0.05);
+      ctx.lineTo(0,-size*0.3); ctx.lineTo(size*0.14,-size*0.05); ctx.lineTo(size*0.32,-size*0.22); ctx.lineTo(size*0.32,0); ctx.closePath(); ctx.fill();
+      break;
+    case 'halo':
+      ctx.strokeStyle='#fde68a'; ctx.lineWidth=4; ctx.globalAlpha=0.9;
+      ctx.beginPath(); ctx.ellipse(0,-size*0.18,size*0.28,size*0.08,0,0,Math.PI*2); ctx.stroke();
+      break;
+  }
+  ctx.restore();
+}
+
+function drawTrailParticles(){
+  player.trail.forEach(t=>{
+    const screen = worldToScreen(t.x,t.y);
+    ctx.save();
+    ctx.globalAlpha = clamp(t.life/0.6,0,1)*0.7;
+    if(t.type==='burbujas'){ ctx.fillStyle='#a5f3fc'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,4,0,Math.PI*2); ctx.fill(); }
+    else if(t.type==='estrellas'){ ctx.fillStyle='#fde68a'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,3,0,Math.PI*2); ctx.fill(); }
+    else if(t.type==='fuego'){ ctx.fillStyle='#fb923c'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,5,0,Math.PI*2); ctx.fill(); }
+    else if(t.type==='sombra'){ ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.ellipse(screen.x,screen.y+16,8,4,0,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  });
+}
+
+function drawChestIcon(chest){
+  const key = curWorld.id+'_'+chest.idx;
+  const cd = S._chestCooldown && S._chestCooldown[key];
+  if(cd && Date.now()<cd) return;
+  const screen = worldToScreen(chest.x,chest.y);
+  const t=performance.now()/400;
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(0,14,16,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#a0672c'; roundRect(ctx,-16,-6,32,18,4); ctx.fill();
+  ctx.fillStyle='#7a4a1e'; ctx.fillRect(-16,-6,32,5);
+  ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.arc(0,-6,3,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 0.4+0.4*Math.sin(t);
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(10,-16,2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawBossSpot(){
+  const bs = curWorld.bossSpot;
+  const screen = worldToScreen(bs.x,bs.y);
+  const t = performance.now()/1000;
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  const defeated = S.bossDefeated[curWorld.boss.id];
+  ctx.strokeStyle = defeated? 'rgba(148,163,184,0.5)':'rgba(239,68,68,0.6)';
+  for(let i=0;i<3;i++){
+    ctx.globalAlpha = 0.5-i*0.15;
+    ctx.beginPath(); ctx.arc(0,0,26+i*10+Math.sin(t*2+i)*4, t*2+i, t*2+i+Math.PI*1.3); ctx.lineWidth=3; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function render(){
+  camera.x = clamp(player.x, canvas.width/2, curWorld.width-canvas.width/2);
+  camera.y = clamp(player.y, canvas.height/2, curWorld.height-canvas.height/2);
+  if(curWorld.width<canvas.width) camera.x=curWorld.width/2;
+  if(curWorld.height<canvas.height) camera.y=curWorld.height/2;
+
+  drawWater();
+  curWorld.islands.forEach(drawIsland);
+  curWorld.decor.forEach(drawDecor);
+  drawBossSpot();
+  curWorld.chests.forEach(drawChestIcon);
+  curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
+  drawTrailParticles();
+  const col = COLORS.find(c=>c.id===S.cosmetics.color);
+  drawCube(player.x,player.y,44,col?col.hex:'#38bdf8', player.bob, null, S.cosmetics.hat, S.cosmetics.aura, S.cosmetics.trail);
+
+  renderWeather();
+  renderMinimap();
+}
+
+/* ---------------------------- HUD REFRESH ---------------------------- */
+function refreshHud(){
+  document.getElementById('coinsVal').textContent = fmtNum(S.coins);
+  document.getElementById('lvlVal').textContent = 'Nivel '+S.level;
+  const needed = 100+(S.level-1)*60;
+  document.getElementById('xpVal').textContent = Math.floor(S.xp)+'/'+needed+' XP';
+  document.getElementById('xpBarFill').style.width = clamp(S.xp/needed*100,0,100)+'%';
+}
+
+function renderQuestTracker(){
+  document.getElementById('qtWorldName').textContent = curWorld.name;
+  const list = S.quests[curWorld.id]||[];
+  const el = document.getElementById('qtList');
+  el.innerHTML = list.map(q=>{
+    const pct = clamp(q.progress/q.target*100,0,100);
+    const done = q.progress>=q.target;
+    return `<div class="qItem">
+      <div class="qDesc"><span>${q.desc}</span><span>${Math.floor(Math.min(q.progress,q.target))}/${q.target}</span></div>
+      <div class="qBarBg"><div class="qBarFill" style="width:${pct}%"></div></div>
+      ${done?`<button class="qClaim" onclick="claimQuest('${q.id}')">Reclamar +${fmtNum(q.coins)}🪙</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ---------------------------- MODALS: GENERIC ---------------------------- */
+function openModal(id){ document.getElementById(id).classList.add('show'); Audio1.sfx('click'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function closeAllModals(){ document.querySelectorAll('.modalBackdrop').forEach(m=>m.classList.remove('show')); }
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=>closeModal(btn.getAttribute('data-close')));
+});
+document.querySelectorAll('.modalBackdrop').forEach(m=>{
+  m.addEventListener('click', e=>{ if(e.target===m) closeModal(m.id); });
+});
+
+/* ---------------------------- SHOP ---------------------------- */
+let shopTab='rods';
+document.getElementById('btnShop').addEventListener('click', ()=>{ renderShop(); openModal('mShop'); });
+document.querySelectorAll('#shopTabs .tabBtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#shopTabs .tabBtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); shopTab=b.dataset.shoptab; renderShop();
+  });
+});
+function renderShop(){
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML='';
+  if(shopTab==='rods'){
+    RODS.forEach((r,i)=>{
+      const owned = i<=S.rodIndex;
+      const equipped = i===S.rodIndex;
+      const canBuy = i===S.rodIndex+1;
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = `<div style="font-size:30px;">${r.icon}</div><div class="cname">${r.name}</div>
+        <div class="cmeta">Suerte x${r.luck} · Precisión +${r.zoneBonus}</div>
+        <div class="cmeta">Hasta: ${rarityOf(RARITIES[Math.min(r.maxTier,9)].id).name}</div>
+        <button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
+          ${equipped?'Equipada':(owned?'Obtenida':(canBuy?('🪙 '+fmtNum(r.price)):'Bloqueada'))}
+        </button>`;
+      if(canBuy){
+        card.querySelector('button').addEventListener('click', ()=>{
+          if(S.coins>=r.price){ S.coins-=r.price; S.rodIndex=i; Audio1.sfx('buy'); toast('¡Nueva caña equipada: '+r.name+'!'); refreshHud(); saveGame(); renderShop(); }
+          else toast('No tienes suficientes monedas.');
+        });
+      }
+      grid.appendChild(card);
+    });
+  } else if(shopTab==='bait'){
+    BAITS.forEach(b=>{
+      const owned = S.baits[b.id]||0;
+      const selected = S.selectedBait===b.id;
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = `<div style="font-size:30px;">${b.icon}</div><div class="cname">${b.name}</div>
+        <div class="cmeta">Tienes: ${owned}</div>
+        <button class="shopBtn">🪙 ${fmtNum(b.price)} (+3)</button>
+        <button class="shopBtn ${selected?'equipped':''}" style="margin-top:4px;">${selected?'Seleccionada':'Usar'}</button>`;
+      const buttons = card.querySelectorAll('button');
+      buttons[0].addEventListener('click', ()=>{
+        if(S.coins>=b.price){ S.coins-=b.price; S.baits[b.id]=(S.baits[b.id]||0)+3; Audio1.sfx('buy'); refreshHud(); saveGame(); renderShop(); }
+        else toast('No tienes suficientes monedas.');
+      });
+      buttons[1].addEventListener('click', ()=>{
+        S.selectedBait = selected? null : b.id; saveGame(); renderShop();
+      });
+      grid.appendChild(card);
+    });
+  } else if(shopTab==='bag'){
+    BAG_UPGRADES.forEach(u=>{
+      const owned = S.backpackCap>=u.cap;
+      const card=document.createElement('div'); card.className='card';
+      card.innerHTML = `<div style="font-size:30px;">${u.icon}</div><div class="cname">${u.name}</div>
+        <div class="cmeta">Capacidad: ${u.cap}</div>
+        <button class="shopBtn ${owned?'equipped':''}" ${owned?'disabled':''}>${owned?'Obtenida':('🪙 '+fmtNum(u.price))}</button>`;
+      if(!owned) card.querySelector('button').addEventListener('click', ()=>{
+        if(S.coins>=u.price){ S.coins-=u.price; S.backpackCap=u.cap; Audio1.sfx('buy'); toast('¡Mochila mejorada!'); refreshHud(); saveGame(); renderShop(); }
+        else toast('No tienes suficientes monedas.');
+      });
+      grid.appendChild(card);
+    });
+  }
+}
+
+/* ---------------------------- BACKPACK ---------------------------- */
+document.getElementById('btnBag').addEventListener('click', ()=>{ renderBag(); openModal('mBag'); });
+function renderBag(){
+  document.getElementById('backpackMeta').textContent = `Capacidad: ${S.keepnet.length}/${S.backpackCap}`;
+  const grid = document.getElementById('bagGrid');
+  grid.innerHTML='';
+  S.keepnet.forEach(item=>{
+    const sp = ALL_SPECIES[item.speciesId]; if(!sp) return;
+    const r = rarityOf(sp.fish.rarity);
+    const card = document.createElement('div'); card.className='card';
+    const c = document.createElement('canvas'); c.width=70; c.height=70;
+    card.appendChild(c);
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="cname">${sp.fish.name}</div><div class="cmeta">${item.weightKg}kg · ${item.sizeCm}cm</div>
+      <span class="rbadge" style="background:${r.color}">${r.name}</span>
+      <div class="cmeta" style="margin-top:4px;">Valor: 🪙${fmtNum(item.value)}</div>
+      <button class="shopBtn">Vender</button>`;
+    card.appendChild(info);
+    grid.appendChild(card);
+    const cctx=c.getContext('2d'); cctx.save(); cctx.translate(35,35); drawCreatureShape(cctx,sp.fish.shape,50,sp.fish.color,sp.fish.accent,false,performance.now()/300); cctx.restore();
+    info.querySelector('button').addEventListener('click', ()=>{
+      S.coins+=item.value; S.stats.totalSold++; S.keepnet = S.keepnet.filter(x=>x.uid!==item.uid);
+      Audio1.sfx('coin'); progressQuests('sell',1); checkAchievements(); refreshHud(); saveGame(); renderBag();
+    });
+  });
+  document.getElementById('sellAllBtn').onclick = ()=>{
+    if(!S.keepnet.length) return;
+    let total=0; S.stats.totalSold += S.keepnet.length;
+    S.keepnet.forEach(i=>total+=i.value);
+    S.coins+=total; S.keepnet=[];
+    progressQuests('sell', 1);
+    Audio1.sfx('coin'); toast('Vendido todo por 🪙'+fmtNum(total));
+    checkAchievements(); refreshHud(); saveGame(); renderBag();
+  };
+  const baitGrid = document.getElementById('baitInvGrid');
+  baitGrid.innerHTML='';
+  BAITS.forEach(b=>{
+    const owned = S.baits[b.id]||0;
+    if(owned<=0) return;
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<div style="font-size:26px;">${b.icon}</div><div class="cname">${b.name}</div><div class="cmeta">x${owned}</div>`;
+    baitGrid.appendChild(card);
+  });
+}
+
+/* ---------------------------- AQUARIUM ---------------------------- */
+let aqTab='all';
+document.getElementById('btnAquarium').addEventListener('click', ()=>{ renderAquariumTabs(); renderAquarium(); openModal('mAquarium'); });
+function renderAquariumTabs(){
+  const tabs = document.getElementById('aqTabs');
+  tabs.innerHTML = `<button class="tabBtn ${aqTab==='all'?'active':''}" data-aq="all">Todos</button>` +
+    WORLDS.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
+}
+function renderAquarium(){
+  const all = Object.values(ALL_SPECIES).filter(s=> aqTab==='all' || s.world.id===aqTab);
+  const discoveredCount = all.filter(s=>S.dex[s.fish.id]&&S.dex[s.fish.id].discovered).length;
+  document.getElementById('aqProgress').textContent = `${discoveredCount}/${all.length}`;
+  const grid = document.getElementById('aqGrid');
+  grid.innerHTML='';
+  all.forEach(sp=>{
+    const f = sp.fish;
+    const d = S.dex[f.id];
+    const discovered = d && d.discovered;
+    const r = rarityOf(f.rarity);
+    const card = document.createElement('div'); card.className='card';
+    const c = document.createElement('canvas'); c.width=90; c.height=90;
+    card.appendChild(c);
+    const info = document.createElement('div');
+    if(discovered){
+      info.innerHTML = `<div class="cname">${f.name}${sp.isBoss?' 👑':''}</div>
+        <span class="rbadge" style="background:${r.color}">${r.name}</span>
+        <div class="cmeta">${fmtProb(r.denom)}</div>
+        <div class="cmeta">Récord: ${d.recordWeight}kg / ${d.recordSize}cm</div>
+        <div class="cmeta">Capturas: ${d.timesCaught}</div>`;
+    } else {
+      info.innerHTML = `<div class="cname">???</div>
+        <span class="rbadge" style="background:${r.color}">${r.name}</span>
+        <div class="cmeta">${fmtProb(r.denom)}</div>
+        <div class="cmeta">No descubierto</div>`;
+    }
+    card.appendChild(info);
+    grid.appendChild(card);
+    const cctx = c.getContext('2d'); cctx.save(); cctx.translate(45,45);
+    drawCreatureShape(cctx, f.shape, 60, f.color, f.accent, !discovered, performance.now()/300);
+    cctx.restore();
+  });
+}
+
+/* ---------------------------- QUESTS MODAL ---------------------------- */
+document.getElementById('btnQuests').addEventListener('click', ()=>{ renderQuestsModal(); openModal('mQuests'); });
+function renderQuestsModal(){
+  const body = document.getElementById('questsBody');
+  body.innerHTML = WORLDS.filter(w=>S.unlockedWorlds.includes(w.id)).map(w=>{
+    const list = S.quests[w.id]||[];
+    return `<h3 style="font-size:13px;color:var(--accent2);margin:14px 0 8px;">${w.icon} ${w.name}</h3>` +
+      list.map(q=>{
+        const pct = clamp(q.progress/q.target*100,0,100);
+        const done = q.progress>=q.target;
+        return `<div class="qItem" style="margin-bottom:12px;">
+          <div class="qDesc"><span>${q.desc}</span><span>${Math.floor(Math.min(q.progress,q.target))}/${q.target}</span></div>
+          <div class="qBarBg"><div class="qBarFill" style="width:${pct}%"></div></div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Recompensa: 🪙${fmtNum(q.coins)} · ${q.xp} XP</div>
+          ${done? `<button class="qClaim" onclick="claimQuestFrom('${w.id}','${q.id}')">Reclamar</button>`:''}
+        </div>`;
+      }).join('');
+  }).join('');
+}
+function claimQuestFrom(worldId, qid){
+  const list = S.quests[worldId];
+  const q = list.find(x=>x.id===qid);
+  if(!q || q.claimed || q.progress<q.target) return;
+  q.claimed=true;
+  S.coins+=q.coins; addXp(q.xp);
+  Audio1.sfx('coin'); toast('📜 Misión completada: +'+fmtNum(q.coins)+' monedas');
+  const idx=list.indexOf(q); list[idx]=makeQuest();
+  checkAchievements(); saveGame(); refreshHud(); renderQuestTracker(); renderQuestsModal();
+}
+
+/* ---------------------------- ACHIEVEMENTS MODAL ---------------------------- */
+document.getElementById('btnAch').addEventListener('click', ()=>{ renderAchievements(); openModal('mAch'); });
+function renderAchievements(){
+  const done = ACHIEVEMENTS.filter(a=>S.achievements[a.id]).length;
+  document.getElementById('achProgress').textContent = done+'/'+ACHIEVEMENTS.length;
+  document.getElementById('achBody').innerHTML = ACHIEVEMENTS.map(a=>{
+    const unlocked = !!S.achievements[a.id];
+    return `<div class="achRow ${unlocked?'done':''}">
+      <div class="achIcon">${unlocked?a.icon:'🔒'}</div>
+      <div class="achText"><div class="an">${a.name}</div><div class="ad">${a.desc}</div></div>
+      <div class="achReward">${unlocked?'✔':'+'+fmtNum(a.reward)+'🪙'}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------------------- WORLD MAP MODAL ---------------------------- */
+document.getElementById('btnMap').addEventListener('click', ()=>{ renderWorldMap(); openModal('mMap'); });
+function renderWorldMap(){
+  const grid = document.getElementById('worldMapGrid');
+  grid.innerHTML='';
+  WORLDS.forEach((w,i)=>{
+    const unlocked = S.unlockedWorlds.includes(w.id);
+    const isCurrent = w.id===curWorld.id;
+    const prevWorld = WORLDS[i-1];
+    const hasKey = i===0 || (prevWorld && S.bossKeys[prevWorld.id]);
+    const card = document.createElement('div');
+    card.className = 'worldCard ' + (unlocked?'':'locked') + (isCurrent?' current':'');
+    card.style.background = `linear-gradient(160deg, ${w.palette.water}, ${w.palette.waterDeep})`;
+    card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}</div>
+      <div class="wSub">${unlocked? (isCurrent?'Estás aquí':'Desbloqueado') : (hasKey? ('🪙 '+fmtNum(w.unlockCost)) : 'Requiere llave del jefe anterior')}</div>
+      ${!unlocked?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
+    card.addEventListener('click', ()=>{
+      if(unlocked){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(!hasKey){ toast('Necesitas la llave del jefe de '+prevWorld.name); return; }
+      if(S.coins>=w.unlockCost){
+        S.coins-=w.unlockCost; S.unlockedWorlds.push(w.id);
+        Audio1.sfx('buy'); toast('¡'+w.name+' desbloqueado!');
+        checkAchievements(); refreshHud(); saveGame(); renderWorldMap();
+      } else toast('No tienes suficientes monedas.');
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ---------------------------- CUSTOMIZE MODAL ---------------------------- */
+let customTab='color';
+document.getElementById('btnCustom').addEventListener('click', ()=>{ renderCustom(); openModal('mCustom'); });
+document.querySelectorAll('#customTabs .tabBtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#customTabs .tabBtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); customTab=b.dataset.ctab; renderCustom();
+  });
+});
+function ownsCosmetic(id){ return S.cosmetics.owned.includes(id); }
+function renderCustom(){
+  const grid = document.getElementById('customGrid');
+  grid.innerHTML='';
+  let list, equippedKey;
+  if(customTab==='color'){ list=COLORS; equippedKey='color'; }
+  else if(customTab==='hat'){ list=HATS; equippedKey='hat'; }
+  else if(customTab==='aura'){ list=AURAS; equippedKey='aura'; }
+  else { list=TRAILS; equippedKey='trail'; }
+
+  list.forEach(item=>{
+    const ownId = customTab==='hat'? 'hat_'+item.id : customTab==='aura'? 'aura_'+item.id : customTab==='trail'?'trail_'+item.id : item.id;
+    const owned = item.price===0 || ownsCosmetic(ownId);
+    const equipped = S.cosmetics[equippedKey]===item.id;
+    const card = document.createElement('div'); card.className='card';
+    if(customTab==='color'){
+      card.innerHTML = `<div style="width:50px;height:50px;border-radius:12px;background:${item.hex};box-shadow:inset 0 -8px 12px rgba(0,0,0,0.25), inset 0 8px 10px rgba(255,255,255,0.35);"></div>
+        <div class="cname">${item.name}</div>`;
+    } else {
+      const c=document.createElement('canvas'); c.width=70;c.height=70; card.appendChild(c);
+      const cctx=c.getContext('2d');
+      cctx.save(); cctx.translate(35,42);
+      cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
+      if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
+      if(customTab==='aura' && item.color){
+        cctx.save(); cctx.globalAlpha=0.4; cctx.fillStyle = item.color==='rainbow'?'#f472b6':item.color;
+        cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
+      }
+      cctx.restore();
+      const nameDiv=document.createElement('div'); nameDiv.className='cname'; nameDiv.textContent=item.name; card.appendChild(nameDiv);
+    }
+    const btn=document.createElement('button'); btn.className='shopBtn'+(equipped?' equipped':'');
+    btn.textContent = equipped? 'Equipado' : (owned? 'Equipar' : ('🪙 '+fmtNum(item.price)));
+    btn.addEventListener('click', ()=>{
+      if(owned){ S.cosmetics[equippedKey]=item.id; saveGame(); renderCustom(); return; }
+      if(S.coins>=item.price){
+        S.coins-=item.price; S.cosmetics.owned.push(ownId); S.cosmetics[equippedKey]=item.id;
+        Audio1.sfx('buy'); refreshHud(); saveGame(); renderCustom();
+      } else toast('No tienes suficientes monedas.');
+    });
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+}
+
+/* ---------------------------- SETTINGS ---------------------------- */
+document.getElementById('btnSettings').addEventListener('click', ()=>{ renderSettings(); openModal('mSettings'); });
+function renderSettings(){
+  document.getElementById('toggleMusic').classList.toggle('on', S.settings.musicOn);
+  document.getElementById('toggleSfx').classList.toggle('on', S.settings.sfxOn);
+}
+document.getElementById('toggleMusic').addEventListener('click', ()=>{
+  S.settings.musicOn=!S.settings.musicOn; Audio1.setMusic(S.settings.musicOn); renderSettings(); saveGame();
+});
+document.getElementById('toggleSfx').addEventListener('click', ()=>{
+  S.settings.sfxOn=!S.settings.sfxOn; Audio1.sfxOn=S.settings.sfxOn; renderSettings(); saveGame();
+});
+document.getElementById('resetSaveBtn').addEventListener('click', ()=>{
+  if(confirm('¿Seguro que quieres reiniciar tu partida? Esta acción no se puede deshacer.')){
+    localStorage.removeItem(SAVE_KEY);
+    S = defaultState();
+    setWorld('lago_inicial', false);
+    refreshHud(); renderQuestTracker(); closeAllModals();
+    toast('Partida reiniciada.');
+  }
+});
+
+/* ---------------------------- MAIN LOOP ---------------------------- */
+function update(dt){
+  updatePlayer(dt);
+  fishUpdate(dt);
+  updateWeather(dt);
+  updateActionUI();
+  S.stats.totalPlaytimeSec += dt;
+  progressQuests('playtime', dt);
+  S._saveTimer = (S._saveTimer||0)+dt;
+  S._hudTimer = (S._hudTimer||0)+dt;
+  if(S._saveTimer>12){ S._saveTimer=0; saveGame(); }
+  if(S._hudTimer>1){ S._hudTimer=0; renderQuestTracker(); checkAchievements(); }
+}
+
+function loop(ts){
+  const dt = Math.min(0.05, (ts-lastTs)/1000 || 0);
+  lastTs = ts;
+  if(started){ update(dt); render(); }
+  requestAnimationFrame(loop);
+}
+
+/* ---------------------------- INIT ---------------------------- */
+function init(){
+  loadGame();
+  Audio1.sfxOn = S.settings.sfxOn; Audio1.musicOn = S.settings.musicOn;
+  setWorld(S.currentWorld, false);
+  refreshHud();
+  renderQuestTracker();
+  requestAnimationFrame(loop);
+}
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  document.getElementById('startScreen').style.display='none';
+  Audio1.init();
+  if(S.settings.musicOn) Audio1.startMusic();
+  started = true;
+});
+
+init();
+window.addEventListener('beforeunload', saveGame);
+</script>
+</body>
+</html>
