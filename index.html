@@ -95,6 +95,8 @@ canvas{display:block;position:absolute;top:0;left:0;}
 #statsCol{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:108px;}
 #coinsRow{padding:6px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;pointer-events:auto;}
 #coinsRow .c-icon{color:var(--accent2);}
+#crystalsRow{padding:6px 14px;align-items:center;gap:8px;font-weight:700;font-size:14px;pointer-events:auto;}
+#crystalsRow .c-icon{color:#c4b5fd;}
 #levelWrap{width:190px;padding:6px 12px;pointer-events:auto;}
 #levelWrap .lvRow{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;}
 #xpBarBg{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
@@ -294,6 +296,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     </div>
     <div id="statsCol">
       <div class="panel" id="coinsRow"><span class="c-icon">🪙</span><span id="coinsVal">0</span></div>
+      <div class="panel" id="crystalsRow" style="display:none;"><span class="c-icon">💎</span><span id="crystalsVal">0</span></div>
       <div class="panel" id="levelWrap">
         <div class="lvRow"><span id="lvlVal">Nivel 1</span><span id="xpVal">0/100 XP</span></div>
         <div id="xpBarBg"><div id="xpBarFill"></div></div>
@@ -483,7 +486,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 
   <div class="modalBackdrop" id="mPetChest">
     <div class="modal" style="max-width:420px;">
-      <div class="modalHead"><h2>🎁 Cofre de Mascotas</h2><button class="modalClose" data-close="mPetChest">✕</button></div>
+      <div class="modalHead"><h2 id="petChestTitle">🎁 Cofre de Mascotas</h2><button class="modalClose" data-close="mPetChest">✕</button></div>
       <div style="padding:26px 20px;text-align:center;">
         <div id="petChestBox" style="font-size:70px;transition:transform .15s;">📦</div>
         <div id="petChestResult" style="min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;"></div>
@@ -614,12 +617,14 @@ const RARITIES = [
   {id:'prohibido',   name:'Prohibido',   denom:250000,   color:'#ef4444', glow:'#fca5a5'},
   {id:'secreto',     name:'Secreto',     denom:1000000,  color:'#8b5cf6', glow:'#c4b5fd'},
   {id:'divino',      name:'Divino',      denom:5000000,  color:'#fde047', glow:'#ffffff'},
+  {id:'singularidad',name:'Singularidad',denom:10000000, color:'#000000', glow:'#a855f7', blackHole:true},
 ];
 const RARITY_INDEX = {}; RARITIES.forEach((r,i)=>RARITY_INDEX[r.id]=i);
-const RARITY_VALUE = [8,20,60,200,800,3000,12000,60000,300000,1500000];
-const RARITY_XP    = [2,5,12,30,80,200,500,1500,5000,15000];
-const RARITY_SIZE_CM  = [8,15,25,40,70,110,160,220,300,400];
-const RARITY_WEIGHT_KG= [0.3,0.8,2,6,15,40,90,200,500,1200];
+const RARITY_MAX_IDX = RARITIES.length-1;
+const RARITY_VALUE = [8,20,60,200,800,3000,12000,60000,300000,1500000,12000000];
+const RARITY_XP    = [2,5,12,30,80,200,500,1500,5000,15000,80000];
+const RARITY_SIZE_CM  = [8,15,25,40,70,110,160,220,300,400,500];
+const RARITY_WEIGHT_KG= [0.3,0.8,2,6,15,40,90,200,500,1200,5000];
 
 // "Mundial" is a special event-only rarity: it doesn't live in the normal 10-tier
 // ladder (so it never affects rod tiers or the core weighted-catch math), but every
@@ -687,8 +692,15 @@ const PETS = [
   {id:'cubito_brillante',name:'Cubito Brillante', rarity:'epico',      icon:'🟪'},
   {id:'cubito_dorado',   name:'Cubito Dorado',    rarity:'legendario', icon:'🟨'},
   {id:'cubito_cosmico',  name:'Cubito Cósmico',   rarity:'mitico',     icon:'✨'},
+  {id:'cubito_nova',          name:'Cubito Nova',          rarity:'comun',      icon:'🌑', origin:'space'},
+  {id:'cubito_cometa',        name:'Cubito Cometa',        rarity:'pocoComun',  icon:'☄️', origin:'space'},
+  {id:'cubito_nebulosa',      name:'Cubito Nebulosa',      rarity:'raro',       icon:'🪐', origin:'space'},
+  {id:'cubito_supernova',     name:'Cubito Supernova',     rarity:'epico',      icon:'💥', origin:'space'},
+  {id:'cubito_estelar',       name:'Cubito Estelar',       rarity:'legendario', icon:'🌟', origin:'space'},
+  {id:'cubito_agujero_negro', name:'Cubito Agujero Negro', rarity:'mitico',     icon:'⚫', origin:'space'},
 ];
 const PET_CHEST_PRICE = 5000;
+const COSMIC_PET_CHEST_PRICE = 400;
 function petRarityOf(pet){ return PET_RARITIES[PET_RARITY_INDEX[pet.rarity]]; }
 function petSellValue(pet){ const idx=PET_RARITY_INDEX[pet.rarity]; return [40,150,500,2000,8000,30000][idx]||40; }
 function rollPetRarity(){
@@ -782,7 +794,7 @@ const WEATHER_TYPES = {
   tormenta:  {name:'Tormenta',icon:'⛈️',tint:'rgba(20,25,40,0.35)',particles:'storm',boost:['epico','legendario']},
   niebla:    {name:'Niebla',icon:'🌫️',tint:'rgba(200,210,220,0.32)',particles:'fog',boost:['raro']},
   aurora:    {name:'Aurora',icon:'🌌',tint:null,particles:'aurora',boost:['mitico','omega']},
-  eclipse:   {name:'Eclipse',icon:'🌑',tint:'rgba(10,10,25,0.45)',particles:'eclipse',boost:['prohibido','secreto']},
+  eclipse:   {name:'Eclipse',icon:'🌑',tint:'rgba(10,10,25,0.45)',particles:'eclipse',boost:['prohibido','secreto','singularidad']},
   meteoros:  {name:'Lluvia de Meteoritos',icon:'☄️',tint:'rgba(15,10,35,0.3)',particles:'meteor',boost:['omega','secreto']},
   lunaLlena: {name:'Luna Llena',icon:'🌕',tint:'rgba(30,30,60,0.22)',particles:'moon',boost:['pocoComun','epico']},
 };
@@ -1131,6 +1143,30 @@ const WORLDS = [
       lines:['Última parada conocida del Sistema Solar... por ahora.','Cuida tu cohete, aquí no hay talleres.']},
   ],
 },
+{
+  id:'planeta_tres', idx:13, name:'Horizonte de Sucesos', icon:'🕳️', unlockCost:0, isSpace:true,
+  palette:{water:'#1a0b2e',waterDeep:'#050109',land:'#2e1f4d',landDetail:'#1c1333',fog:'#0f0821'},
+  weatherPool:['eclipse','eclipse','meteoros','tormenta'], decorType:'voidshards',
+  fish:[
+    F('pez_polvo_estelar','Pez de Polvo Estelar','comun','espacial','fish','#8b7bb8','#2e1f4d'),
+    F('cangrejo_del_vacio','Cangrejo del Vacío','pocoComun','espacial','crab','#6d28d9','#1c1333'),
+    F('medusa_nebulosa','Medusa de Nebulosa','raro','espacial','jellyfish','#c084fc','#4c1d95'),
+    F('dragon_del_vortice','Dragón del Vórtice','epico','espacial','dragon','#7c3aed','#1e1033'),
+    F('titan_del_horizonte','Titán del Horizonte','legendario','espacial','whale','#9333ea','#1c1333'),
+    F('fantasma_de_cuasar','Fantasma de Cuásar','mitico','espacial','ghost','#e9d5ff','#4c1d95', {glowIdx:5}),
+    F('devorador_de_galaxias','Devorador de Galaxias','omega','espacial','octopus','#4c1d95','#050109', {glowIdx:6}),
+    F('divinidad_del_vacio','Divinidad del Vacío','divino','espacial','space','#f5f3ff','#7c3aed', {glowIdx:9}),
+    F('corazon_de_singularidad','Corazón de la Singularidad','singularidad','espacial','space','#000000','#a855f7'),
+  ],
+  boss:{id:'devorador_horizontes',name:'Devorador de Horizontes',shape:'dragon',color:'#050109',accent:'#a855f7',
+    minKg:2200,maxKg:4500,minCm:900,maxCm:1300,desc:'Un ser tan denso que dobla la luz a su alrededor. Nadie sabe qué hay dentro de su sombra.'},
+  npcs:[
+    {id:'n_p3_1',name:'Dra. Voss',color:'#c084fc',x:1650,y:1200,role:'story',
+      lines:['Este es el borde del mapa conocido: el Horizonte de Sucesos.','Dicen que hay algo pescando ahí dentro desde antes de que existieran las estrellas.','Si alguna vez sacas del agua un trozo de singularidad... no sueltes la caña.']},
+    {id:'n_p3_2',name:'Zeta',color:'#a855f7',x:400,y:400,role:'merchant',
+      lines:['Aquí ni la luz escapa fácil, imagina los peces.','Cuidado con el agua cerca del centro del mapa. No es solo profunda: es infinita.']},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -1250,7 +1286,8 @@ function findClearWaterSpot(world, baseX, baseY){
   const marNocturno = WORLDS.find(w=>w.id==='mar_nocturno');
   const p1 = WORLDS.find(w=>w.id==='planeta_uno');
   const p2 = WORLDS.find(w=>w.id==='planeta_dos');
-  if(!marNocturno || !p1 || !p2) return;
+  const p3 = WORLDS.find(w=>w.id==='planeta_tres');
+  if(!marNocturno || !p1 || !p2 || !p3) return;
   const mnSpot = findClearWaterSpot(marNocturno, marNocturno.width-220, 220);
   marNocturno.launchPads = [
     {spot:mnSpot, targetId:'planeta_uno', targetName:p1.name, targetIcon:p1.icon, label:'Lanzar hacia '+p1.name},
@@ -1261,9 +1298,15 @@ function findClearWaterSpot(world, baseX, baseY){
     {spot:p1Fwd, targetId:'planeta_dos', targetName:p2.name, targetIcon:p2.icon, label:'Lanzar hacia '+p2.name},
     {spot:p1Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
+  const p2Fwd = findClearWaterSpot(p2, p2.width-220, 220);
   const p2Back = findClearWaterSpot(p2, 220, p2.height-220);
   p2.launchPads = [
+    {spot:p2Fwd, targetId:'planeta_tres', targetName:p3.name, targetIcon:p3.icon, label:'Lanzar hacia '+p3.name},
     {spot:p2Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+  const p3Back = findClearWaterSpot(p3, 220, p3.height-220);
+  p3.launchPads = [
+    {spot:p3Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
 })();
 
@@ -1372,10 +1415,12 @@ const ACHIEVEMENTS = [
   {id:'cohete_listo',name:'Rumbo a las Estrellas',desc:'Construye tu cohete',icon:'🚀',reward:20000,check:s=>s.hasRocket},
   {id:'primer_planeta',name:'Nuevo Mundo',desc:'Pisa tu primer planeta',icon:'🔴',reward:10000,check:s=>(s.visitedWorlds||[]).includes('planeta_uno')},
   {id:'segundo_planeta',name:'Luna Helada',desc:'Llega a Europa Helada',icon:'🌕',reward:20000,check:s=>(s.visitedWorlds||[]).includes('planeta_dos')},
+  {id:'tercer_planeta',name:'Al Borde del Vacío',desc:'Llega al Horizonte de Sucesos',icon:'🕳️',reward:35000,check:s=>(s.visitedWorlds||[]).includes('planeta_tres')},
   {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
-    const ids=['divinidad_ares','divinidad_europa'];
+    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio'];
     return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
   }},
+  {id:'singularidad_capturada',name:'El Que Pescó el Vacío',desc:'Captura al Corazón de la Singularidad',icon:'⚫',reward:1000000,check:s=>s.dex['corazon_de_singularidad']&&s.dex['corazon_de_singularidad'].discovered},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
 ];
@@ -1403,7 +1448,7 @@ function defaultState(){
   WORLDS.forEach(w=>{ quests[w.id]=[makeQuest(),makeQuest(),makeQuest()]; });
   const baits={}; BAITS.forEach(b=>baits[b.id]=b.id==='lombriz'?5:0);
   return {
-    coins:50, xp:0, level:1,
+    coins:50, xp:0, level:1, crystals:0,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -1904,22 +1949,24 @@ function weightedPickFish(){
   const spotMult = activeLuckySpotMultiplier();
   let entries = curWorld.fish.map(f=>{
     const isEventFish = f.rarity==='mundial';
+    const isUltraFish = f.rarity==='singularidad';
     const rIdx = isEventFish? 8 : RARITY_INDEX[f.rarity];
     let w = isEventFish? 1/f.customDenom : 1/rarityOf(f.rarity).denom;
-    w *= 1 + (rod.luck-1) * (rIdx/9);
-    if(!isEventFish && rIdx>maxTierIdx) w=0;
+    w *= 1 + (rod.luck-1) * (rIdx/RARITY_MAX_IDX);
+    if(!isEventFish && !isUltraFish && rIdx>maxTierIdx) w=0;
     if(!isEventFish && weatherBoost.includes(f.rarity)) w*=2.4;
     if(baitObj){
-      if(baitObj.tag==='todos') w*=baitObj.mult;
-      else if(baitObj.tag===f.tag) w*=baitObj.mult;
-      else if(baitObj.tag==='legendaria' && rIdx>=4) w*=baitObj.mult;
+      // better bait = a bigger rarity-scaled luck boost, not a flat multiplier
+      if(baitObj.tag==='todos') w *= 1 + (baitObj.mult-1) * (rIdx/RARITY_MAX_IDX);
+      else if(baitObj.tag===f.tag) w *= 1 + (baitObj.mult-1) * (rIdx/RARITY_MAX_IDX);
+      else if(baitObj.tag==='legendaria' && rIdx>=4) w *= 1 + (baitObj.mult-1) * (rIdx/RARITY_MAX_IDX);
     }
     if(boat){
-      w *= 1 + (boat.luck-1) * (rIdx/9);
-      w *= 1 + depthFactor*0.7*(rIdx/9);
+      w *= 1 + (boat.luck-1) * (rIdx/RARITY_MAX_IDX);
+      w *= 1 + depthFactor*0.7*(rIdx/RARITY_MAX_IDX);
     }
-    if(petLuck>0) w *= 1 + petLuck*(rIdx/9);
-    if(spotMult>1) w *= 1 + (spotMult-1)*(rIdx/9);
+    if(petLuck>0) w *= 1 + petLuck*(rIdx/RARITY_MAX_IDX);
+    if(spotMult>1) w *= 1 + (spotMult-1)*(rIdx/RARITY_MAX_IDX);
     return {f,w};
   });
   let total = entries.reduce((a,e)=>a+e.w,0);
@@ -2113,6 +2160,20 @@ function resolveCatch(fish, isBoss){
     toast('🔑 Has obtenido la llave de '+curWorld.name+'!');
   }
 
+  // cosmic crystals: a space-only currency, only ever earned in the Solar System
+  if(curWorld.isSpace){
+    const rIdxC = RARITY_INDEX[fish.rarity]!=null? RARITY_INDEX[fish.rarity] : 0;
+    if(isBoss){
+      const gained = 15 + curWorld.idx;
+      S.crystals = (S.crystals||0) + gained;
+      setTimeout(()=>toast(`💎 +${gained} cristales cósmicos por derrotar al jefe`), 400);
+    } else if(Math.random() < 0.12 + rIdxC*0.02){
+      const gained = 1 + Math.floor(rIdxC/2);
+      S.crystals = (S.crystals||0) + gained;
+      setTimeout(()=>toast(`💎 +${gained} cristal${gained>1?'es':''} cósmico${gained>1?'s':''}`), 400);
+    }
+  }
+
   // backpack
   const item = {uid:uid(), speciesId:fish.id, weightKg, sizeCm, value:e.value, worldId:curWorld.id, isBoss};
   let autoSold=false;
@@ -2191,6 +2252,11 @@ function tryOpenChest(chest){
   if(!curWorld.isSpace && solarSystemEligible() && !S.hasRocket && S.rocketParts<ROCKET_PARTS_NEEDED && Math.random()<0.3){
     S.rocketParts++;
     setTimeout(()=>toast(`🔩 Encontraste una pieza de cohete (${S.rocketParts}/${ROCKET_PARTS_NEEDED})`), 500);
+  }
+  if(curWorld.isSpace){
+    const gained = randInt(2,5) + (curWorld.idx-11)*2;
+    S.crystals = (S.crystals||0) + gained;
+    setTimeout(()=>toast(`💎 Cofre cósmico: +${gained} cristales`), 700);
   }
   progressQuests('open_chest',1);
   checkAchievements();
@@ -2367,6 +2433,7 @@ function hexToRgba(hex, alpha){
 // orbiting sparkles from omega, and a stronger pulsing shimmer for secreto/divino.
 function drawRarityGlow(ctx, rarityIdx, glowColor, radius, t){
   if(rarityIdx==null || rarityIdx<4) return;
+  if(rarityIdx>=10){ drawBlackHoleAura(ctx, radius, t); return; }
   ctx.save();
   const pulse = 0.65+0.35*Math.sin(t*2.2);
   const outer = radius*(1.15 + (rarityIdx>=8?0.4:rarityIdx>=6?0.28:0.15));
@@ -2393,6 +2460,38 @@ function drawRarityGlow(ctx, rarityIdx, glowColor, radius, t){
     ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(0,0,radius*1.05,0,Math.PI*2*pulse); ctx.stroke();
   }
+  ctx.restore();
+}
+
+// a swirling accretion disk with matter spiraling into a pitch-black core — the
+// signature look for the Singularidad rarity, reused wherever that tier is drawn
+function drawBlackHoleAura(ctx, radius, t){
+  ctx.save();
+  const outer = radius*1.9;
+  // accretion disk glow
+  const diskGrad = ctx.createRadialGradient(0,0,radius*0.55,0,0,outer);
+  diskGrad.addColorStop(0, 'rgba(168,85,247,0.75)');
+  diskGrad.addColorStop(0.4, 'rgba(244,114,182,0.35)');
+  diskGrad.addColorStop(0.7, 'rgba(251,191,36,0.18)');
+  diskGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = diskGrad;
+  ctx.beginPath(); ctx.ellipse(0,0,outer,outer*0.42,t*0.3,0,Math.PI*2); ctx.fill();
+  // spiraling infalling particles
+  for(let i=0;i<14;i++){
+    const spiralT = ((t*1.4 + i*0.45) % 3)/3;
+    const ang = i*(Math.PI*2/14) + t*2.2;
+    const r = radius*0.5 + (1-spiralT)*outer*0.85;
+    const sx = Math.cos(ang)*r, sy = Math.sin(ang)*r*0.42;
+    ctx.globalAlpha = spiralT*0.9;
+    ctx.fillStyle = i%2===0? '#f472b6' : '#fbbf24';
+    ctx.beginPath(); ctx.arc(sx,sy, 1.6+spiralT*1.4, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // event horizon: pitch-black core with a thin bright rim
+  ctx.fillStyle = '#000000';
+  ctx.beginPath(); ctx.arc(0,0,radius*0.62,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(196,181,253,0.9)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0,0,radius*0.62,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
 
@@ -2865,6 +2964,38 @@ function drawGalaxyWater(){
   });
   ctx.globalAlpha=1;
 
+  // Horizonte de Sucesos: a colossal black hole looms fixed in the sky, giving the zone its identity
+  if(curWorld.id==='planeta_tres'){
+    const bh = worldToScreen(curWorld.width*0.5, curWorld.height*0.42);
+    if(bh.x>-500 && bh.x<canvas.width+500 && bh.y>-500 && bh.y<canvas.height+500){
+      ctx.save();
+      ctx.translate(bh.x,bh.y);
+      const R = 220;
+      const diskGrad = ctx.createRadialGradient(0,0,R*0.5,0,0,R*1.7);
+      diskGrad.addColorStop(0,'rgba(168,85,247,0.55)');
+      diskGrad.addColorStop(0.45,'rgba(244,114,182,0.28)');
+      diskGrad.addColorStop(0.75,'rgba(251,191,36,0.12)');
+      diskGrad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = diskGrad;
+      ctx.beginPath(); ctx.ellipse(0,0,R*1.7,R*0.62,t*0.06,0,Math.PI*2); ctx.fill();
+      for(let i=0;i<26;i++){
+        const spiralT = ((t*0.35 + i*0.38) % 3)/3;
+        const ang = i*(Math.PI*2/26) + t*0.5;
+        const r = R*0.55 + (1-spiralT)*R*1.4;
+        const sx = Math.cos(ang)*r, sy = Math.sin(ang)*r*0.36;
+        ctx.globalAlpha = spiralT*0.75;
+        ctx.fillStyle = i%2===0? '#f472b6' : '#fbbf24';
+        ctx.beginPath(); ctx.arc(sx,sy,1.6+spiralT*2,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#000000';
+      ctx.beginPath(); ctx.arc(0,0,R*0.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(196,181,253,0.7)'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(0,0,R*0.5,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   ctx.save();
   ctx.globalAlpha=0.22;
   ctx.strokeStyle = p.water;
@@ -2951,6 +3082,16 @@ function drawDecor(d){
       ctx.globalAlpha=0.5; ctx.fillStyle='#7c2d12';
       ctx.beginPath(); ctx.arc(-s*0.16,s*0.08,s*0.1,0,Math.PI*2); ctx.fill();
       ctx.globalAlpha=1;
+      break;
+    }
+    case 'voidshards': {
+      const glowT = performance.now()/600;
+      ctx.save();
+      ctx.shadowColor='#a855f7'; ctx.shadowBlur = 6+3*Math.sin(glowT+d.x*0.01);
+      ctx.fillStyle='#1c1333';
+      ctx.beginPath(); ctx.moveTo(0,-s*0.6); ctx.lineTo(s*0.22,-s*0.05); ctx.lineTo(s*0.1,s*0.3); ctx.lineTo(-s*0.14,s*0.22); ctx.lineTo(-s*0.2,-s*0.15); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(168,85,247,0.8)'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.restore();
       break;
     }
     default:
@@ -3432,6 +3573,9 @@ function render(){
 /* ---------------------------- HUD REFRESH ---------------------------- */
 function refreshHud(){
   document.getElementById('coinsVal').textContent = fmtNum(S.coins);
+  const crystalsRow = document.getElementById('crystalsRow');
+  crystalsRow.style.display = (S.crystals>0 || S.hasRocket || solarSystemEligible())? 'flex' : 'none';
+  document.getElementById('crystalsVal').textContent = fmtNum(S.crystals||0);
   document.getElementById('lvlVal').textContent = 'Nivel '+S.level;
   const needed = 100+(S.level-1)*60;
   document.getElementById('xpVal').textContent = Math.floor(S.xp)+'/'+needed+' XP';
@@ -3559,6 +3703,14 @@ function renderShop(){
       grid.appendChild(card);
     });
   } else if(shopTab==='pets'){
+    const total = PET_RARITIES.reduce((a,r)=>a+r.weight,0);
+    const oddsHtml = `<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">Probabilidades del cofre</div>` +
+      PET_RARITIES.slice().reverse().map(r=>{
+        const pct = (r.weight/total*100);
+        const pctText = pct<0.1? pct.toFixed(3) : (pct<1? pct.toFixed(2) : pct.toFixed(1));
+        return `<div class="petOddsRow"><span class="rbadge" style="background:${r.color};">${r.name}</span><span>${pctText}%</span></div>`;
+      }).join('');
+
     const wrap = document.createElement('div');
     wrap.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;';
     const chestCard = document.createElement('div'); chestCard.className='card'; chestCard.style.cssText='width:180px;';
@@ -3568,29 +3720,46 @@ function renderShop(){
     wrap.appendChild(chestCard);
     const oddsBox = document.createElement('div');
     oddsBox.style.cssText = 'flex:1;min-width:220px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;';
-    const total = PET_RARITIES.reduce((a,r)=>a+r.weight,0);
-    oddsBox.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">Probabilidades del cofre</div>` +
-      PET_RARITIES.slice().reverse().map(r=>{
-        const pct = (r.weight/total*100);
-        const pctText = pct<0.1? pct.toFixed(3) : (pct<1? pct.toFixed(2) : pct.toFixed(1));
-        return `<div class="petOddsRow"><span class="rbadge" style="background:${r.color};">${r.name}</span><span>${pctText}%</span></div>`;
-      }).join('');
+    oddsBox.innerHTML = oddsHtml;
     wrap.appendChild(oddsBox);
     grid.appendChild(wrap);
-    document.getElementById('buyPetChestBtn').addEventListener('click', openPetChest);
+    document.getElementById('buyPetChestBtn').addEventListener('click', ()=>openPetChest('normal'));
+
+    const wrap2 = document.createElement('div');
+    wrap2.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:4px;';
+    const cosmicCard = document.createElement('div'); cosmicCard.className='card'; cosmicCard.style.cssText='width:180px;';
+    cosmicCard.innerHTML = `<div style="font-size:44px;">🌌</div><div class="cname">Cofre Cósmico</div>
+      <div class="cmeta">Mascotas espaciales, se paga con cristales cósmicos del Sistema Solar</div>
+      <button class="shopBtn" id="buyCosmicChestBtn" ${(S.crystals||0)<COSMIC_PET_CHEST_PRICE?'disabled':''}>💎 ${fmtNum(COSMIC_PET_CHEST_PRICE)}</button>
+      ${!solarSystemEligible()?'<div class="cmeta" style="margin-top:4px;">Consigue cristales explorando el Sistema Solar.</div>':''}`;
+    wrap2.appendChild(cosmicCard);
+    const oddsBox2 = document.createElement('div');
+    oddsBox2.style.cssText = 'flex:1;min-width:220px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.18);border-radius:14px;padding:12px 14px;';
+    oddsBox2.innerHTML = oddsHtml;
+    wrap2.appendChild(oddsBox2);
+    grid.appendChild(wrap2);
+    document.getElementById('buyCosmicChestBtn').addEventListener('click', ()=>openPetChest('space'));
   }
 }
 
 /* ---------------------------- PET CHEST ---------------------------- */
-function openPetChest(){
-  if(S.coins<PET_CHEST_PRICE){ toast('No tienes suficientes monedas.'); return; }
-  S.coins -= PET_CHEST_PRICE;
+function openPetChest(kind){
+  const isSpaceChest = kind==='space';
+  const pool = isSpaceChest? PETS.filter(p=>p.origin==='space') : PETS.filter(p=>!p.origin);
+  if(isSpaceChest){
+    if((S.crystals||0)<COSMIC_PET_CHEST_PRICE){ toast('No tienes suficientes cristales cósmicos.'); return; }
+    S.crystals -= COSMIC_PET_CHEST_PRICE;
+  } else {
+    if(S.coins<PET_CHEST_PRICE){ toast('No tienes suficientes monedas.'); return; }
+    S.coins -= PET_CHEST_PRICE;
+  }
   refreshHud(); saveGame();
+  document.getElementById('petChestTitle').textContent = isSpaceChest? '🌌 Cofre Cósmico' : '🎁 Cofre de Mascotas';
   openModal('mPetChest');
   const box = document.getElementById('petChestBox');
   const resultBox = document.getElementById('petChestResult');
   const continueBtn = document.getElementById('petChestContinueBtn');
-  box.textContent = '📦'; box.classList.remove('chestShaking');
+  box.textContent = isSpaceChest? '🌌' : '📦'; box.classList.remove('chestShaking');
   resultBox.innerHTML = '';
   continueBtn.style.display = 'none';
   void box.offsetWidth;
@@ -3598,8 +3767,8 @@ function openPetChest(){
   Audio1.sfx('chest');
   setTimeout(()=>{
     const rarityId = rollPetRarity();
-    const rarityPets = PETS.filter(p=>p.rarity===rarityId);
-    const pet = rarityPets[Math.floor(Math.random()*rarityPets.length)] || PETS[0];
+    const rarityPets = pool.filter(p=>p.rarity===rarityId);
+    const pet = rarityPets[Math.floor(Math.random()*rarityPets.length)] || pool[0];
     const r = petRarityOf(pet);
     const entry = {uid:uid(), petId:pet.id};
     S.pets.push(entry);
