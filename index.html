@@ -171,6 +171,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 .tabBtn{padding:6px 12px;border-radius:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);
   color:var(--text-dim);font-size:12px;cursor:pointer;}
 .tabBtn.active{background:var(--accent);color:#04252a;font-weight:700;border-color:var(--accent);}
+.aqTabDivider{display:flex;align-items:center;padding:0 4px;font-size:13px;opacity:0.6;}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;align-items:start;}
 .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px;
@@ -442,6 +443,10 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Añade monedas si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
           <button class="shopBtn" id="addCoinsBtn" style="padding:9px 16px;">🪙 +50.000 monedas</button>
+        </div>
+        <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <span style="color:var(--text-dim);font-size:12px;">Añade cristales cósmicos si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
+          <button class="shopBtn" id="addCrystalsBtn" style="padding:9px 16px;">💎 +1.000 cristales</button>
         </div>
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Partida guardada automáticamente en este navegador.</span>
@@ -821,6 +826,10 @@ const WEATHER_TYPES = {
   distorsion:{name:'Distorsión',icon:'🌀',tint:'rgba(80,20,120,0.16)',particles:'glitch',boost:['omega','divino','singularidad']},
   meteoros:  {name:'Lluvia de Meteoritos',icon:'☄️',tint:'rgba(15,10,35,0.3)',particles:'meteor',boost:['omega','secreto']},
   lunaLlena: {name:'Luna Llena',icon:'🌕',tint:'rgba(30,30,60,0.22)',particles:'moon',boost:['pocoComun','epico']},
+  tormentaRoja:  {name:'Tormenta de Polvo Rojo',icon:'🟠',tint:'rgba(124,20,20,0.32)',particles:'dustred',boost:['epico','legendario']},
+  geiseresHelados:{name:'Géiseres Helados',icon:'❄️',tint:'rgba(180,220,255,0.2)',particles:'geyser',boost:['raro','mitico']},
+  vientoSolar:   {name:'Viento Solar',icon:'🌬️',tint:'rgba(251,191,36,0.14)',particles:'solarwind',boost:['legendario','divino']},
+  lluviaGamma:   {name:'Lluvia Gamma',icon:'☢️',tint:'rgba(74,222,128,0.16)',particles:'gamma',boost:['omega','divino']},
 };
 
 /* ---------------------------- WORLDS & CREATURES ---------------------------- */
@@ -850,6 +859,7 @@ const WORLDS = [
       lines:['Este lago fue mi hogar durante 40 años.','Dicen que en el fondo vive algo enorme...','La paciencia es el secreto de todo buen pescador.']},
     {id:'n_li_2',name:'Nia',color:'#38bdf8',x:1650,y:1200,role:'merchant',
       lines:['¡Bienvenido! Aquí tienes cañas y carnadas frescas.','Prueba con una caña mejor si quieres peces más grandes.']},
+    {id:'n_li_lab',name:'Dr. Halden',color:'#e2e8f0',x:1000,y:480,role:'labEvent'},
   ],
 },
 {
@@ -1129,7 +1139,7 @@ const WORLDS = [
 {
   id:'planeta_uno', idx:11, name:'Marte Rojo', icon:'🔴', unlockCost:0, isSpace:true,
   palette:{water:'#7c2d92',waterDeep:'#2e1065',land:'#c2410c',landDetail:'#9a3412',fog:'#4c1d95'},
-  weatherPool:['soleado','tormenta','meteoros','eclipse'], decorType:'marsrocks',
+  weatherPool:['soleado','tormentaRoja','tormentaRoja','meteoros','eclipse'], decorType:'marsrocks',
   fish:[
     F('pez_polvo_rojo','Pez de Polvo Rojo','comun','espacial','fish','#dc6b3f','#7c2d12'),
     F('escarabajo_marciano','Escarabajo Marciano','pocoComun','espacial','crab','#b91c1c','#450a0a'),
@@ -1152,7 +1162,7 @@ const WORLDS = [
 {
   id:'planeta_dos', idx:12, name:'Europa Helada', icon:'🌕', unlockCost:0, isSpace:true,
   palette:{water:'#4c1d95',waterDeep:'#1e1033',land:'#e0e7ff',landDetail:'#c7d2fe',fog:'#312e81'},
-  weatherPool:['niebla','lunaLlena','aurora','meteoros'], decorType:'crystal',
+  weatherPool:['niebla','lunaLlena','aurora','geiseresHelados','geiseresHelados'], decorType:'crystal',
   fish:[
     F('pez_hielo_lunar','Pez de Hielo Lunar','comun','cristal','fish','#dbeafe','#3730a3'),
     F('cangrejo_criogenico','Cangrejo Criogénico','pocoComun','cristal','crab','#93c5fd','#1e3a8a'),
@@ -1175,7 +1185,7 @@ const WORLDS = [
 {
   id:'planeta_tres', idx:13, name:'Horizonte de Sucesos', icon:'🕳️', unlockCost:0, isSpace:true,
   palette:{water:'#1a0b2e',waterDeep:'#050109',land:'#2e1f4d',landDetail:'#1c1333',fog:'#0f0821'},
-  weatherPool:['eclipse','eclipse','meteoros','tormenta'], decorType:'voidshards',
+  weatherPool:['eclipse','eclipse','meteoros','lluviaGamma','lluviaGamma'], decorType:'voidshards',
   fish:[
     F('pez_polvo_estelar','Pez de Polvo Estelar','comun','espacial','fish','#8b7bb8','#2e1f4d'),
     F('cangrejo_del_vacio','Cangrejo del Vacío','pocoComun','espacial','crab','#6d28d9','#1c1333'),
@@ -1228,7 +1238,7 @@ const WORLDS = [
 {
   id:'planeta_cinco', idx:15, name:'El Primer Amanecer', icon:'🌅', unlockCost:0, isSpace:true,
   palette:{water:'#fde68a', waterDeep:'#f59e0b', land:'#fff7ed', landDetail:'#fed7aa', fog:'#fef3c7'},
-  weatherPool:['soleado','soleado','aurora','lunaLlena'], decorType:'genesis',
+  weatherPool:['soleado','vientoSolar','vientoSolar','aurora'], decorType:'genesis',
   fish:[
     F('pez_de_luz_primera','Pez de Luz Primera','comun','espacial','fish','#fef08a','#b45309'),
     F('cangrejo_del_amanecer','Cangrejo del Amanecer','pocoComun','espacial','crab','#fdba74','#9a3412'),
@@ -1414,6 +1424,8 @@ function findClearWaterSpot(world, baseX, baseY){
 // Grietas Negras: a fixed, permanent, high-luck fishing spot in every Solar System
 // world — swim into the black hole marker and your odds shoot way up while you're near it
 const RIFT_LUCK_MULT = 10;
+const RIFT_SURGE_MULT = 20;
+function riftMultFor(w){ return (w._riftSurgeUntil && Date.now()<w._riftSurgeUntil)? RIFT_SURGE_MULT : RIFT_LUCK_MULT; }
 (function setupBlackHoleRifts(){
   WORLDS.filter(w=>w.isSpace).forEach(w=>{
     w.riftSpot = findClearWaterSpot(w, w.width-220, w.height-220);
@@ -1607,6 +1619,7 @@ function defaultState(){
     npcMet:{},
     settings:{musicOn:true,sfxOn:true},
     playerPos:{},
+    labStage:0,
   };
 }
 let S = defaultState();
@@ -1735,6 +1748,16 @@ function updateLuckySpot(dt){
       S._riftSeen[w.id] = true;
       toast('🕳️ Entras en la Grieta Negra — la suerte se multiplica x'+RIFT_LUCK_MULT+' aquí.');
     }
+    // rotating surge event: every so often the rift spikes from x10 to x20 for a short window
+    if(w._riftSurgeUntil && Date.now()>w._riftSurgeUntil){ w._riftSurgeUntil = null; }
+    w._riftSurgeCheckTimer = (w._riftSurgeCheckTimer==null? randRange(60,120) : w._riftSurgeCheckTimer) - dt;
+    if(!w._riftSurgeUntil && w._riftSurgeCheckTimer<=0){
+      w._riftSurgeCheckTimer = randRange(90,180);
+      if(Math.random()<0.4){
+        w._riftSurgeUntil = Date.now()+30000;
+        if(w.id===curWorld.id) toast('🕳️ ¡La Grieta Negra entra en erupción! Suerte x'+RIFT_SURGE_MULT+' durante 30s.');
+      }
+    }
   }
 }
 function spawnLuckySpot(w){
@@ -1753,7 +1776,7 @@ function activeLuckySpotMultiplier(){
   const spot = curWorld._luckySpot;
   if(spot && Math.hypot(spot.x-player.x, spot.y-player.y)<90) mult = Math.max(mult, spot.mult);
   const rift = curWorld.riftSpot;
-  if(rift && Math.hypot(rift.x-player.x, rift.y-player.y)<100) mult = Math.max(mult, RIFT_LUCK_MULT);
+  if(rift && Math.hypot(rift.x-player.x, rift.y-player.y)<100) mult = Math.max(mult, riftMultFor(curWorld));
   return mult;
 }
 function inRiftSpot(){
@@ -2520,6 +2543,11 @@ function openDialogue(npc){
     openModal('mDialogue');
     return;
   }
+  if(npc.role==='labEvent'){
+    renderLabEventDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
@@ -2593,6 +2621,57 @@ function renderLoreQuestDialogue(npc, bonus){
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
     <div class="dlgLine">"${npc.questIntro}"</div>
     <div class="cmeta" style="margin-top:6px;">📜 ${npc.questTitle}: ${progress}/${npc.questTarget}</div>`;
+}
+
+/* ---------------------------- LABORATORIO SECRETO (side story) ---------------------------- */
+const ILLEGAL_FISH = {id:'pez_ilegal', name:'Pez Ilegal', rarity:'prohibido', tag:'ilegal', shape:'fish', color:'#1e293b', accent:'#7f1d1d'};
+function grantIllegalFish(){
+  const item = {uid:uid(), speciesId:ILLEGAL_FISH.id, fishData:ILLEGAL_FISH,
+    weightKg:+randRange(2,5).toFixed(2), sizeCm:Math.round(randRange(30,55)), value:0, worldId:'lago_inicial', illegal:true};
+  S.keepnet.push(item);
+}
+function renderLabEventDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  const stage = S.labStage||0;
+  if(stage===0){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"¡Un momento, ya casi lo tengo...! ¿Eh? ¿Quién eres tú? No deberías estar aquí, no deberías ver esto."</div>
+      <div class="dlgLine" style="margin-top:8px;">"Esto que tengo aquí es un pez que no debería existir. Una probabilidad de una entre cien millones. Lo llamo... el Pez Ilegal."</div>
+      <button class="bigBtn" style="padding:8px 20px;font-size:13px;margin-top:10px;" onclick="advanceLabEvent(1);">Continuar</button>`;
+  } else if(stage===1){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>
+      <div class="dlgLine">*Un disparo resuena en el laboratorio. El Dr. Halden cae al suelo.*</div>
+      <div class="dlgLine" style="margin-top:8px;color:var(--danger);">"¡Detrás de ti...! ¡Cuidado!"</div>
+      <div class="cmeta" style="margin-top:6px;">Alguien ha entrado por la fuerza y te ha puesto un arma en la mano.</div>
+      <button class="bigBtn" style="padding:8px 20px;font-size:13px;margin-top:10px;" onclick="advanceLabEvent(2);">🔫 Detener al atacante</button>`;
+  } else if(stage===2){
+    box.innerHTML = `<div class="dlgName">Atacante</div>
+      <div class="dlgLine">"¡Está bien, está bien! No dispares. Podemos arreglar esto."</div>
+      <div class="dlgLine" style="margin-top:8px;">"Te doy el pez ilegal... si me dejas ir sin más. ¿Trato?"</div>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="bigBtn" style="padding:8px 18px;font-size:13px;" onclick="advanceLabEvent(3);">🤝 Hacer trato</button>
+        <button class="bigBtn" style="padding:8px 18px;font-size:13px;background:var(--danger);" onclick="advanceLabEvent(4);">🚫 No hacer trato</button>
+      </div>`;
+  } else if(stage===3){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>
+      <div class="dlgLine">*El atacante te lanza un frasco sellado y desaparece entre los árboles.*</div>
+      <div class="dlgLine" style="margin-top:8px;">"Gracias por no complicar esto más... llévate el pez, pero escóndelo bien."</div>
+      <div class="cmeta" style="margin-top:6px;">🐟 El Pez Ilegal está en tu mochila. De momento no se puede vender ni usar en ningún sitio... todavía.</div>`;
+  } else if(stage===4){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>
+      <div class="dlgLine">"Hiciste lo correcto entregando al atacante. El pez... probablemente sea mejor que desaparezca conmigo."</div>
+      <div class="cmeta" style="margin-top:6px;">🪙 El doctor te da 5.000 monedas por tu ayuda.</div>`;
+  }
+}
+function advanceLabEvent(nextStage){
+  if(nextStage===3 && S.labStage!==3) grantIllegalFish();
+  if(nextStage===4 && S.labStage!==4){ S.coins += 5000; refreshHud(); }
+  S.labStage = nextStage;
+  Audio1.sfx(nextStage===3||nextStage===4? 'achievement' : 'click');
+  saveGame();
+  const npc = curWorld.npcs.find(n=>n.id==='n_li_lab');
+  renderLabEventDialogue(npc, '');
 }
 
 /* ---------------------------- BOSS INTRO ---------------------------- */
@@ -3039,13 +3118,22 @@ function renderMinimap(){
 function ensureWeatherParticles(){
   const wt = WEATHER_TYPES[curWeather];
   if(!wt.particles){ weatherParticles=[]; return; }
-  const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0,glitch:0}[wt.particles]||0;
+  const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0,glitch:0,
+    dustred:90,geyser:50,solarwind:70,gamma:100}[wt.particles]||0;
   if(weatherParticles.length!==targetCount || weatherParticles._type!==wt.particles){
     weatherParticles=[];
     weatherParticles._type = wt.particles;
     for(let i=0;i<targetCount;i++){
       if(wt.particles==='meteor'){
         weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height*0.5, vx:-260,vy:340, len:randRange(40,90)});
+      } else if(wt.particles==='dustred'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:-90, vy:120, len:6+Math.random()*6});
+      } else if(wt.particles==='geyser'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:wcanvas.height+Math.random()*100, vx:(Math.random()-0.5)*20, vy:-(220+Math.random()*160), len:10+Math.random()*10});
+      } else if(wt.particles==='solarwind'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:260+Math.random()*140, vy:(Math.random()-0.5)*20, len:18+Math.random()*20});
+      } else if(wt.particles==='gamma'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:0, vy:500+Math.random()*200, len:20+Math.random()*16});
       } else {
         weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:wt.particles==='storm'?-180:-60, vy:wt.particles==='storm'?620:420, len: wt.particles==='storm'?22:14});
       }
@@ -3076,6 +3164,26 @@ function updateWeather(dt){
     weatherParticles.forEach(p=>{
       p.x+=p.vx*dt; p.y+=p.vy*dt;
       if(p.y>wcanvas.height||p.x<-100){ p.y=-20-Math.random()*100; p.x=wcanvas.width*Math.random()+200; }
+    });
+  } else if(wt.particles==='dustred'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.y>wcanvas.height||p.x<-20){ p.y=-10; p.x=Math.random()*wcanvas.width; }
+    });
+  } else if(wt.particles==='geyser'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy += 90*dt;
+      if(p.y<-20 || p.vy>200){ p.y=wcanvas.height+Math.random()*40; p.x=Math.random()*wcanvas.width; p.vy=-(220+Math.random()*160); }
+    });
+  } else if(wt.particles==='solarwind'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.x>wcanvas.width+20){ p.x=-20; p.y=Math.random()*wcanvas.height; }
+    });
+  } else if(wt.particles==='gamma'){
+    weatherParticles.forEach(p=>{
+      p.y+=p.vy*dt;
+      if(p.y>wcanvas.height){ p.y=-20; p.x=Math.random()*wcanvas.width; }
     });
   }
 }
@@ -3138,6 +3246,43 @@ function renderWeather(){
       wctx.fillStyle = 'rgba(255,255,255,0.5)';
       wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
     }
+    wctx.restore();
+  } else if(wt.particles==='dustred'){
+    // Marte Rojo: a thick red dust storm, soft glowing puffs drifting diagonally
+    wctx.save();
+    weatherParticles.forEach(p=>{
+      const g = wctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.len);
+      g.addColorStop(0,'rgba(220,110,60,0.5)'); g.addColorStop(1,'rgba(220,110,60,0)');
+      wctx.fillStyle=g;
+      wctx.beginPath(); wctx.arc(p.x,p.y,p.len,0,Math.PI*2); wctx.fill();
+    });
+    wctx.restore();
+  } else if(wt.particles==='geyser'){
+    // Europa Helada: jets of ice crystals bursting up from below
+    wctx.strokeStyle='rgba(224,242,254,0.75)'; wctx.lineWidth=1.6;
+    weatherParticles.forEach(p=>{
+      wctx.beginPath(); wctx.moveTo(p.x,p.y);
+      wctx.lineTo(p.x - p.vx*0.05, p.y - p.vy*0.06);
+      wctx.stroke();
+    });
+  } else if(wt.particles==='solarwind'){
+    // El Primer Amanecer: warm golden streaks blowing across the sky
+    wctx.strokeStyle='rgba(254,240,138,0.6)'; wctx.lineWidth=1.8;
+    weatherParticles.forEach(p=>{
+      wctx.beginPath(); wctx.moveTo(p.x,p.y);
+      wctx.lineTo(p.x - p.len, p.y - p.vy*0.03);
+      wctx.stroke();
+    });
+  } else if(wt.particles==='gamma'){
+    // Horizonte de Sucesos: sickly green-purple radiation rain with a flicker
+    wctx.save();
+    const flicker = Math.random()<0.05;
+    wctx.strokeStyle = flicker? 'rgba(255,255,255,0.6)' : 'rgba(134,239,172,0.55)';
+    wctx.lineWidth=1.6;
+    weatherParticles.forEach((p,i)=>{
+      wctx.strokeStyle = i%2===0? 'rgba(134,239,172,0.5)':'rgba(196,181,253,0.5)';
+      wctx.beginPath(); wctx.moveTo(p.x,p.y); wctx.lineTo(p.x,p.y+p.len); wctx.stroke();
+    });
     wctx.restore();
   }
 }
@@ -3359,14 +3504,13 @@ function drawDecor(d){
   ctx.restore();
 }
 
-function drawCube(x,y,size,color,bob,label,hat,aura,trail){
-  const screen = worldToScreen(x,y);
-  const bobY = Math.sin(bob)*3;
-  ctx.save();
-  ctx.translate(screen.x,screen.y+bobY);
-
-  if(aura && aura!=='none'){
-    const auraObj = AURAS.find(a=>a.id===aura);
+// draws the equipped aura's effect centered on the current transform origin;
+// shared by the player cube and, for idea-#3 continuity, the boat hull while sailing
+function drawAuraEffect(aura, size){
+  if(!aura || aura==='none') return;
+  const auraObj = AURAS.find(a=>a.id===aura);
+  if(!auraObj) return;
+  {
     const t = performance.now()/500;
     if(auraObj.color==='galaxy'){
       ctx.save();
@@ -3486,6 +3630,15 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
       ctx.restore();
     }
   }
+}
+
+function drawCube(x,y,size,color,bob,label,hat,aura,trail){
+  const screen = worldToScreen(x,y);
+  const bobY = Math.sin(bob)*3;
+  ctx.save();
+  ctx.translate(screen.x,screen.y+bobY);
+
+  drawAuraEffect(aura, size);
 
   // shadow
   ctx.globalAlpha=0.3; ctx.fillStyle='#000';
@@ -3758,6 +3911,33 @@ function drawChestIcon(chest){
   ctx.restore();
 }
 
+function drawLabBuilding(){
+  if(curWorld.id!=='lago_inicial') return;
+  const screen = worldToScreen(1000,480);
+  if(screen.x<-100||screen.x>canvas.width+100||screen.y<-100||screen.y>canvas.height+100) return;
+  const t = performance.now()/500;
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,32,44,14,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#3f3f52';
+  roundRect(ctx,-38,-14,76,42,6); ctx.fill();
+  ctx.fillStyle='#2a2a3a';
+  ctx.beginPath(); ctx.moveTo(-42,-14); ctx.lineTo(0,-40); ctx.lineTo(42,-14); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#7dd3fc'; ctx.globalAlpha=0.5+0.4*Math.sin(t);
+  roundRect(ctx,-14,-4,28,18,3); ctx.fill();
+  ctx.globalAlpha=1;
+  if((S.labStage||0)<3){
+    ctx.fillStyle='#fbbf24';
+    ctx.font='bold 14px system-ui'; ctx.textAlign='center';
+    ctx.fillText('⚠️', 0, -30);
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.font='11px system-ui'; ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.textAlign='center';
+  ctx.fillText('Laboratorio Secreto', screen.x, screen.y-46);
+  ctx.restore();
+}
+
 function drawBossSpot(){
   const bs = curWorld.bossSpot;
   const screen = worldToScreen(bs.x,bs.y);
@@ -3813,15 +3993,22 @@ function drawRiftSpot(){
   const screen = worldToScreen(rift.x, rift.y);
   if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
   const t = performance.now()/1000;
+  const surging = riftMultFor(curWorld)===RIFT_SURGE_MULT;
   ctx.save(); ctx.translate(screen.x, screen.y);
   ctx.globalAlpha=0.25; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,20,42,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  drawBlackHoleAura(ctx, 34, t);
+  drawBlackHoleAura(ctx, surging? 44 : 34, t*(surging?2.2:1));
+  if(surging){
+    ctx.globalAlpha = 0.5+0.3*Math.sin(t*8);
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(0,0,58+Math.sin(t*6)*4,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
   ctx.restore();
   ctx.save();
-  ctx.font = 'bold 13px system-ui'; ctx.fillStyle='#c4b5fd'; ctx.textAlign='center';
+  ctx.font = 'bold 13px system-ui'; ctx.fillStyle = surging? '#fde047' : '#c4b5fd'; ctx.textAlign='center';
   ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
-  ctx.fillText('Grieta Negra · x'+RIFT_LUCK_MULT, screen.x, screen.y-58);
+  ctx.fillText((surging?'⚡ ¡ERUPCIÓN! ':'Grieta Negra · ')+'x'+riftMultFor(curWorld), screen.x, screen.y-(surging?66:58));
   ctx.restore();
 }
 
@@ -3927,6 +4114,9 @@ function drawBoat(x,y,angle,boatIdx,bob,trailType){
   const bobY = Math.sin(bob)*2.5;
   ctx.save();
   ctx.translate(screen.x,screen.y+bobY);
+  // idea #3: the boat carries the same aura effect the player has equipped, so your
+  // ride visibly matches your look instead of always being a plain hull
+  drawAuraEffect(S.cosmetics.aura, size*1.15);
   ctx.globalAlpha=0.28; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,size*0.32,size*0.55,size*0.2,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.rotate(angle);
@@ -4090,6 +4280,7 @@ function render(){
   drawPortal();
   drawLuckySpot();
   drawRiftSpot();
+  drawLabBuilding();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -4430,30 +4621,39 @@ function renderBag(){
   grid.innerHTML='';
   bagCardEntries = [];
   S.keepnet.forEach(item=>{
-    const sp = ALL_SPECIES[item.speciesId]; if(!sp) return;
+    const sp = item.fishData? {fish:item.fishData} : ALL_SPECIES[item.speciesId]; if(!sp) return;
     const r = rarityOf(sp.fish.rarity);
     const card = document.createElement('div'); card.className='card';
     const c = document.createElement('canvas'); c.width=70; c.height=70;
     card.appendChild(c);
     const info = document.createElement('div');
-    info.innerHTML = `<div class="cname">${sp.fish.name}</div><div class="cmeta">${item.weightKg}kg · ${item.sizeCm}cm</div>
-      <span class="rbadge" style="background:${r.color}">${r.name}</span>
-      <div class="cmeta" style="margin-top:4px;">Valor: 🪙${fmtNum(item.value)}</div>
-      <button class="shopBtn">Vender</button>`;
+    if(item.illegal){
+      info.innerHTML = `<div class="cname">${sp.fish.name}</div><div class="cmeta">${item.weightKg}kg · ${item.sizeCm}cm</div>
+        <span class="rbadge" style="background:${r.color}">${r.name}</span>
+        <div class="cmeta" style="margin-top:4px;">🚫 No se puede vender ni usar (todavía)</div>`;
+    } else {
+      info.innerHTML = `<div class="cname">${sp.fish.name}</div><div class="cmeta">${item.weightKg}kg · ${item.sizeCm}cm</div>
+        <span class="rbadge" style="background:${r.color}">${r.name}</span>
+        <div class="cmeta" style="margin-top:4px;">Valor: 🪙${fmtNum(item.value)}</div>
+        <button class="shopBtn">Vender</button>`;
+    }
     card.appendChild(info);
     grid.appendChild(card);
     drawCreatureCard(c, sp.fish, true, 32);
     bagCardEntries.push({canvas:c, fish:sp.fish, discovered:true, size:32});
-    info.querySelector('button').addEventListener('click', ()=>{
-      S.coins+=item.value; S.stats.totalSold++; S.keepnet = S.keepnet.filter(x=>x.uid!==item.uid);
-      Audio1.sfx('coin'); progressQuests('sell',1); checkAchievements(); refreshHud(); saveGame(); renderBag();
-    });
+    if(!item.illegal){
+      info.querySelector('button').addEventListener('click', ()=>{
+        S.coins+=item.value; S.stats.totalSold++; S.keepnet = S.keepnet.filter(x=>x.uid!==item.uid);
+        Audio1.sfx('coin'); progressQuests('sell',1); checkAchievements(); refreshHud(); saveGame(); renderBag();
+      });
+    }
   });
   document.getElementById('sellAllBtn').onclick = ()=>{
-    if(!S.keepnet.length) return;
-    let total=0; S.stats.totalSold += S.keepnet.length;
-    S.keepnet.forEach(i=>total+=i.value);
-    S.coins+=total; S.keepnet=[];
+    const sellable = S.keepnet.filter(i=>!i.illegal);
+    if(!sellable.length) return;
+    let total=0; S.stats.totalSold += sellable.length;
+    sellable.forEach(i=>total+=i.value);
+    S.coins+=total; S.keepnet = S.keepnet.filter(i=>i.illegal);
     progressQuests('sell', 1);
     Audio1.sfx('coin'); toast('Vendido todo por 🪙'+fmtNum(total));
     checkAchievements(); refreshHud(); saveGame(); renderBag();
@@ -4520,13 +4720,19 @@ function renderPetGrid(){
 }
 
 /* ---------------------------- AQUARIUM ---------------------------- */
-let aqTab='all';
+let aqTab='earth';
 document.getElementById('btnAquarium').addEventListener('click', ()=>{ renderAquariumTabs(); renderAquarium(); openModal('mAquarium'); });
 function renderAquariumTabs(){
   const tabs = document.getElementById('aqTabs');
-  const visibleWorlds = WORLDS.filter(w=>!w.isSpace || S.hasRocket);
-  tabs.innerHTML = `<button class="tabBtn ${aqTab==='all'?'active':''}" data-aq="all">Todos</button>` +
-    visibleWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  const earthWorlds = WORLDS.filter(w=>!w.isSpace);
+  const spaceWorlds = WORLDS.filter(w=>w.isSpace);
+  let html = `<button class="tabBtn ${aqTab==='earth'?'active':''}" data-aq="earth">🌍 Toda la Tierra</button>`;
+  if(S.hasRocket) html += `<button class="tabBtn ${aqTab==='space'?'active':''}" data-aq="space">🚀 Todo el Sistema Solar</button>`;
+  html += `<span class="aqTabDivider">🌍</span>` + earthWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  if(S.hasRocket){
+    html += `<span class="aqTabDivider">🚀</span>` + spaceWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  }
+  tabs.innerHTML = html;
   tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
 }
 function renderSolarProgressBanner(){
@@ -4545,7 +4751,12 @@ function renderSolarProgressBanner(){
 let aqCardEntries = [];
 function renderAquarium(){
   renderSolarProgressBanner();
-  const all = Object.values(ALL_SPECIES).filter(s=> (aqTab==='all' || s.world.id===aqTab) && (!s.world.isSpace || S.hasRocket));
+  const all = Object.values(ALL_SPECIES).filter(s=>{
+    if(s.world.isSpace && !S.hasRocket) return false;
+    if(aqTab==='earth') return !s.world.isSpace;
+    if(aqTab==='space') return s.world.isSpace;
+    return s.world.id===aqTab;
+  });
   const discoveredCount = all.filter(s=>S.dex[s.fish.id]&&S.dex[s.fish.id].discovered).length;
   document.getElementById('aqProgress').textContent = `${discoveredCount}/${all.length}`;
   const grid = document.getElementById('aqGrid');
@@ -4801,6 +5012,13 @@ document.getElementById('addCoinsBtn').addEventListener('click', ()=>{
   S.coins += 50000;
   Audio1.sfx('coin');
   toast('🪙 +50.000 monedas');
+  refreshHud();
+  saveGame();
+});
+document.getElementById('addCrystalsBtn').addEventListener('click', ()=>{
+  S.crystals = (S.crystals||0) + 1000;
+  Audio1.sfx('coin');
+  toast('💎 +1.000 cristales cósmicos');
   refreshHud();
   saveGame();
 });
