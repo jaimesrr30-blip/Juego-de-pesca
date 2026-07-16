@@ -650,6 +650,7 @@ const RODS = [
   {id:'marciana',  name:'Caña Marciana',    price:5000000,waitMin:400, waitMax:800,  luck:24,  zoneBonus:36, maxTier:9, icon:'🔴'},
   {id:'cometa',    name:'Caña de Cometa',   price:12000000,waitMin:350,waitMax:700,  luck:32,  zoneBonus:40, maxTier:9, icon:'☄️'},
   {id:'nebulosa',  name:'Caña Nebulosa',    price:30000000,waitMin:300,waitMax:600,  luck:45,  zoneBonus:46, maxTier:9, icon:'🌠'},
+  {id:'singularidad_rod', name:'Caña de la Singularidad', price:0, priceCrystals:6000, waitMin:250,waitMax:500, luck:90, zoneBonus:55, maxTier:10, icon:'🕳️'},
 ];
 const BAITS = [
   {id:'lombriz',   name:'Lombriz',           price:5,   icon:'🪱', tag:'comun',      mult:1.6},
@@ -672,7 +673,8 @@ const BOATS = [
   {id:'velero',   name:'Velero',            price:15000,  speed:440, luck:2.2,  hullColor:'#e2e8f0', accent:'#64748b', sail:true,  icon:'⛵'},
   {id:'yate',     name:'Yate de Lujo',      price:60000,  speed:500, luck:3,    hullColor:'#fbbf24', accent:'#92400e', sail:true,  icon:'🛥️'},
   {id:'legendario_boat', name:'Buque Legendario', price:220000, speed:580, luck:4.2, hullColor:'#a855f7', accent:'#4c1d95', sail:true, icon:'🚢'},
-  {id:'nave_estelar', name:'Nave Estelar',  price:8000000, speed:700, luck:6,   hullColor:'#c4b5fd', accent:'#312e81', sail:true, icon:'🛸'},
+  {id:'nave_estelar', name:'Nave Estelar',  price:8000000, speed:700, luck:6,   hullColor:'#c4b5fd', accent:'#312e81', sail:false, icon:'🛸', shape:'ufo'},
+  {id:'singularidad_boat', name:'Devoradora de Horizontes', price:0, priceCrystals:9000, speed:820, luck:20, hullColor:'#000000', accent:'#a855f7', sail:false, icon:'🕳️', shape:'blackhole'},
 ];
 
 /* ---------------------------- PETS ---------------------------- */
@@ -795,6 +797,7 @@ const WEATHER_TYPES = {
   niebla:    {name:'Niebla',icon:'🌫️',tint:'rgba(200,210,220,0.32)',particles:'fog',boost:['raro']},
   aurora:    {name:'Aurora',icon:'🌌',tint:null,particles:'aurora',boost:['mitico','omega']},
   eclipse:   {name:'Eclipse',icon:'🌑',tint:'rgba(10,10,25,0.45)',particles:'eclipse',boost:['prohibido','secreto','singularidad']},
+  distorsion:{name:'Distorsión',icon:'🌀',tint:'rgba(80,20,120,0.16)',particles:'glitch',boost:['omega','divino','singularidad']},
   meteoros:  {name:'Lluvia de Meteoritos',icon:'☄️',tint:'rgba(15,10,35,0.3)',particles:'meteor',boost:['omega','secreto']},
   lunaLlena: {name:'Luna Llena',icon:'🌕',tint:'rgba(30,30,60,0.22)',particles:'moon',boost:['pocoComun','epico']},
 };
@@ -1167,6 +1170,30 @@ const WORLDS = [
       lines:['Aquí ni la luz escapa fácil, imagina los peces.','Cuidado con el agua cerca del centro del mapa. No es solo profunda: es infinita.']},
   ],
 },
+{
+  id:'planeta_cuatro', idx:14, name:'Dimensión Fracturada', icon:'🌀', unlockCost:0, isSpace:true,
+  palette:{water:'#1a0033', waterDeep:'#05000d', land:'#f5f3ff', landDetail:'#e0d5ff', fog:'#2d0a4e'},
+  weatherPool:['distorsion','distorsion','eclipse','meteoros'], decorType:'fractura',
+  fish:[
+    F('pez_fragmentado','Pez Fragmentado','comun','espacial','fish','#ddd6fe','#4c1d95'),
+    F('cangrejo_de_grietas','Cangrejo de Grietas','pocoComun','espacial','crab','#f472b6','#831843'),
+    F('medusa_paradoja','Medusa Paradoja','raro','espacial','jellyfish','#5eead4','#0f766e'),
+    F('dragon_bifurcado','Dragón Bifurcado','epico','espacial','dragon','#e879f9','#701a75'),
+    F('titan_desincronizado','Titán Desincronizado','legendario','espacial','whale','#c4b5fd','#312e81'),
+    F('fantasma_de_lo_que_pudo_ser','Fantasma de lo que Pudo Ser','mitico','espacial','ghost','#fdf4ff','#86198f', {glowIdx:5}),
+    F('devorador_de_realidades','Devorador de Realidades','omega','espacial','octopus','#0a0118','#f472b6', {glowIdx:6}),
+    F('divinidad_fracturada','Divinidad Fracturada','divino','espacial','space','#ffffff','#e879f9', {glowIdx:9}),
+    F('eco_del_colapso','Eco del Colapso','singularidad','espacial','space','#000000','#5eead4'),
+  ],
+  boss:{id:'colapso_eterno',name:'El Colapso Eterno',shape:'dragon',color:'#0a0118',accent:'#f5f3ff',
+    minKg:3000,maxKg:6000,minCm:1000,maxCm:1500,desc:'Ni criatura ni fenómeno: una grieta con hambre. Cada vez que lo miras, es distinto.'},
+  npcs:[
+    {id:'n_p4_1',name:'Fragmento-0',color:'#e879f9',x:1650,y:1200,role:'story',
+      lines:['Esto ya no es un planeta. Es lo que queda cuando algo colapsa sobre sí mismo.','Aquí dentro, el tiempo no avanza: se repite, roto, una y otra vez.','Si oyes tu propia voz respondiéndote, no le hagas caso.']},
+    {id:'n_p4_2',name:'Nix-∞',color:'#5eead4',x:400,y:400,role:'merchant',
+      lines:['Vendo lo que queda de otros viajeros que llegaron... y no volvieron enteros.','No preguntes de dónde saco la mercancía.']},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -1287,7 +1314,8 @@ function findClearWaterSpot(world, baseX, baseY){
   const p1 = WORLDS.find(w=>w.id==='planeta_uno');
   const p2 = WORLDS.find(w=>w.id==='planeta_dos');
   const p3 = WORLDS.find(w=>w.id==='planeta_tres');
-  if(!marNocturno || !p1 || !p2 || !p3) return;
+  const p4 = WORLDS.find(w=>w.id==='planeta_cuatro');
+  if(!marNocturno || !p1 || !p2 || !p3 || !p4) return;
   const mnSpot = findClearWaterSpot(marNocturno, marNocturno.width-220, 220);
   marNocturno.launchPads = [
     {spot:mnSpot, targetId:'planeta_uno', targetName:p1.name, targetIcon:p1.icon, label:'Lanzar hacia '+p1.name},
@@ -1304,9 +1332,15 @@ function findClearWaterSpot(world, baseX, baseY){
     {spot:p2Fwd, targetId:'planeta_tres', targetName:p3.name, targetIcon:p3.icon, label:'Lanzar hacia '+p3.name},
     {spot:p2Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
+  const p3Fwd = findClearWaterSpot(p3, p3.width-220, 220);
   const p3Back = findClearWaterSpot(p3, 220, p3.height-220);
   p3.launchPads = [
+    {spot:p3Fwd, targetId:'planeta_cuatro', targetName:p4.name, targetIcon:p4.icon, label:'Atravesar el Horizonte'},
     {spot:p3Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+  const p4Back = findClearWaterSpot(p4, 220, p4.height-220);
+  p4.launchPads = [
+    {spot:p4Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
 })();
 
@@ -1416,11 +1450,16 @@ const ACHIEVEMENTS = [
   {id:'primer_planeta',name:'Nuevo Mundo',desc:'Pisa tu primer planeta',icon:'🔴',reward:10000,check:s=>(s.visitedWorlds||[]).includes('planeta_uno')},
   {id:'segundo_planeta',name:'Luna Helada',desc:'Llega a Europa Helada',icon:'🌕',reward:20000,check:s=>(s.visitedWorlds||[]).includes('planeta_dos')},
   {id:'tercer_planeta',name:'Al Borde del Vacío',desc:'Llega al Horizonte de Sucesos',icon:'🕳️',reward:35000,check:s=>(s.visitedWorlds||[]).includes('planeta_tres')},
+  {id:'cuarto_planeta',name:'Más Allá del Colapso',desc:'Llega a la Dimensión Fracturada',icon:'🌀',reward:60000,check:s=>(s.visitedWorlds||[]).includes('planeta_cuatro')},
   {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
-    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio'];
+    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada'];
     return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
   }},
   {id:'singularidad_capturada',name:'El Que Pescó el Vacío',desc:'Captura al Corazón de la Singularidad',icon:'⚫',reward:1000000,check:s=>s.dex['corazon_de_singularidad']&&s.dex['corazon_de_singularidad'].discovered},
+  {id:'singularidad_x2',name:'Rompedor de Realidades',desc:'Captura las 2 criaturas de rareza Singularidad',icon:'🌀',reward:3000000,check:s=>{
+    const ids=['corazon_de_singularidad','eco_del_colapso'];
+    return ids.every(id=>s.dex[id]&&s.dex[id].discovered);
+  }},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
 ];
@@ -2827,7 +2866,7 @@ function renderMinimap(){
 function ensureWeatherParticles(){
   const wt = WEATHER_TYPES[curWeather];
   if(!wt.particles){ weatherParticles=[]; return; }
-  const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0}[wt.particles]||0;
+  const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0,glitch:0}[wt.particles]||0;
   if(weatherParticles.length!==targetCount || weatherParticles._type!==wt.particles){
     weatherParticles=[];
     weatherParticles._type = wt.particles;
@@ -2908,6 +2947,24 @@ function renderWeather(){
     const g = wctx.createRadialGradient(wcanvas.width-90,90,10,wcanvas.width-90,90,120);
     g.addColorStop(0,'rgba(255,255,240,0.9)'); g.addColorStop(1,'rgba(255,255,240,0)');
     wctx.fillStyle=g; wctx.fillRect(wcanvas.width-220,-30,240,240);
+    wctx.restore();
+  } else if(wt.particles==='glitch'){
+    // reality-tearing glitch bands: the signature weather of the Dimensión Fracturada
+    wctx.save();
+    const bands = 6+Math.floor(Math.random()*4);
+    for(let i=0;i<bands;i++){
+      const y = Math.random()*wcanvas.height;
+      const h = 2+Math.random()*8;
+      const shift = (Math.random()-0.5)*60;
+      wctx.globalAlpha = 0.18+Math.random()*0.22;
+      wctx.fillStyle = Math.random()<0.5? 'rgba(244,114,182,0.6)':'rgba(94,234,212,0.5)';
+      wctx.fillRect(shift, y, wcanvas.width, h);
+    }
+    if(Math.random()<0.04){
+      wctx.globalAlpha=0.3;
+      wctx.fillStyle = 'rgba(255,255,255,0.5)';
+      wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+    }
     wctx.restore();
   }
 }
@@ -3091,6 +3148,18 @@ function drawDecor(d){
       ctx.fillStyle='#1c1333';
       ctx.beginPath(); ctx.moveTo(0,-s*0.6); ctx.lineTo(s*0.22,-s*0.05); ctx.lineTo(s*0.1,s*0.3); ctx.lineTo(-s*0.14,s*0.22); ctx.lineTo(-s*0.2,-s*0.15); ctx.closePath(); ctx.fill();
       ctx.strokeStyle='rgba(168,85,247,0.8)'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'fractura': {
+      // jagged shard with a chromatic-split double outline, like a crack in the world
+      ctx.save();
+      ctx.globalAlpha=0.55; ctx.strokeStyle='#f472b6'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(1,-s*0.58); ctx.lineTo(s*0.26,-s*0.02); ctx.lineTo(s*0.06,s*0.32); ctx.lineTo(-s*0.18,s*0.18); ctx.lineTo(-s*0.16,-s*0.2); ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha=0.55; ctx.strokeStyle='#5eead4';
+      ctx.beginPath(); ctx.moveTo(-1,-s*0.58); ctx.lineTo(s*0.24,-s*0.02); ctx.lineTo(s*0.04,s*0.32); ctx.lineTo(-s*0.2,s*0.18); ctx.lineTo(-s*0.18,-s*0.2); ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha=1; ctx.fillStyle='#0a0118';
+      ctx.beginPath(); ctx.moveTo(0,-s*0.58); ctx.lineTo(s*0.25,-s*0.02); ctx.lineTo(s*0.05,s*0.32); ctx.lineTo(-s*0.19,s*0.18); ctx.lineTo(-s*0.17,-s*0.2); ctx.closePath(); ctx.fill();
       ctx.restore();
       break;
     }
@@ -3496,25 +3565,31 @@ function drawBoat(x,y,angle,boatIdx,bob,trailType){
   ctx.globalAlpha=0.28; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,size*0.32,size*0.55,size*0.2,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   ctx.rotate(angle);
-  ctx.beginPath();
-  ctx.moveTo(size*0.62,0);
-  ctx.quadraticCurveTo(size*0.3,-size*0.34,-size*0.5,-size*0.3);
-  ctx.quadraticCurveTo(-size*0.64,0,-size*0.5,size*0.3);
-  ctx.quadraticCurveTo(size*0.3,size*0.34,size*0.62,0);
-  ctx.closePath();
-  const hullGrad = ctx.createLinearGradient(0,-size*0.3,0,size*0.3);
-  hullGrad.addColorStop(0, shade(boat.hullColor,30));
-  hullGrad.addColorStop(1, shade(boat.hullColor,-30));
-  ctx.fillStyle = hullGrad; ctx.fill();
-  ctx.strokeStyle = boat.accent; ctx.lineWidth=Math.max(1.5,size*0.035); ctx.stroke();
-  ctx.fillStyle = shade(boat.hullColor,-10);
-  roundRect(ctx,-size*0.16,-size*0.14,size*0.32,size*0.28,size*0.06); ctx.fill();
-  if(boat.sail){
-    ctx.fillStyle='#f8fafc'; ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.1); ctx.lineTo(-size*0.02,-size*0.85); ctx.lineTo(size*0.28,-size*0.14); ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.strokeStyle=boat.accent; ctx.lineWidth=Math.max(1.5,size*0.03);
-    ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.9); ctx.lineTo(-size*0.02,-size*0.05); ctx.stroke();
+  if(boat.shape==='ufo'){
+    drawUfoHull(ctx, boat, size);
+  } else if(boat.shape==='blackhole'){
+    drawBlackHoleHull(ctx, boat, size);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(size*0.62,0);
+    ctx.quadraticCurveTo(size*0.3,-size*0.34,-size*0.5,-size*0.3);
+    ctx.quadraticCurveTo(-size*0.64,0,-size*0.5,size*0.3);
+    ctx.quadraticCurveTo(size*0.3,size*0.34,size*0.62,0);
+    ctx.closePath();
+    const hullGrad = ctx.createLinearGradient(0,-size*0.3,0,size*0.3);
+    hullGrad.addColorStop(0, shade(boat.hullColor,30));
+    hullGrad.addColorStop(1, shade(boat.hullColor,-30));
+    ctx.fillStyle = hullGrad; ctx.fill();
+    ctx.strokeStyle = boat.accent; ctx.lineWidth=Math.max(1.5,size*0.035); ctx.stroke();
+    ctx.fillStyle = shade(boat.hullColor,-10);
+    roundRect(ctx,-size*0.16,-size*0.14,size*0.32,size*0.28,size*0.06); ctx.fill();
+    if(boat.sail){
+      ctx.fillStyle='#f8fafc'; ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.1); ctx.lineTo(-size*0.02,-size*0.85); ctx.lineTo(size*0.28,-size*0.14); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle=boat.accent; ctx.lineWidth=Math.max(1.5,size*0.03);
+      ctx.beginPath(); ctx.moveTo(-size*0.02,-size*0.9); ctx.lineTo(-size*0.02,-size*0.05); ctx.stroke();
+    }
   }
   ctx.restore();
 
@@ -3529,6 +3604,65 @@ function drawBoat(x,y,angle,boatIdx,bob,trailType){
     const hatObj = HATS.find(h=>h.id===S.cosmetics.hat);
     if(hatObj && hatObj.draw) drawHat(ctx,hatObj.draw,22);
   }
+  ctx.restore();
+}
+
+// UFO-shaped hull: a domed disc with a glowing rim, used by the Nave Estelar
+function drawUfoHull(ctx, boat, size){
+  const t = performance.now()/400;
+  ctx.save();
+  const glow = ctx.createRadialGradient(0,size*0.02,size*0.1,0,size*0.02,size*0.75);
+  glow.addColorStop(0, hexToRgba(boat.hullColor,0.55));
+  glow.addColorStop(1, hexToRgba(boat.hullColor,0));
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.ellipse(0,size*0.02,size*0.75,size*0.4,0,0,Math.PI*2); ctx.fill();
+
+  const saucerGrad = ctx.createLinearGradient(0,-size*0.2,0,size*0.22);
+  saucerGrad.addColorStop(0, shade(boat.hullColor,35));
+  saucerGrad.addColorStop(1, shade(boat.hullColor,-25));
+  ctx.fillStyle = saucerGrad;
+  ctx.beginPath(); ctx.ellipse(0,0,size*0.62,size*0.26,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = boat.accent; ctx.lineWidth=Math.max(1.5,size*0.03); ctx.stroke();
+
+  ctx.fillStyle = hexToRgba('#e0f2fe',0.85);
+  ctx.beginPath(); ctx.ellipse(0,-size*0.14,size*0.3,size*0.22,0,Math.PI,0); ctx.fill();
+  ctx.strokeStyle = boat.accent; ctx.lineWidth=1.2; ctx.stroke();
+
+  for(let i=0;i<6;i++){
+    const ang = i*(Math.PI*2/6) + t;
+    const lx = Math.cos(ang)*size*0.5, ly = Math.sin(ang)*size*0.2 + size*0.03;
+    ctx.globalAlpha = 0.5+0.5*Math.sin(t*2+i);
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath(); ctx.arc(lx,ly,size*0.045,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+// a small event horizon towing its own miniature accretion disk, used by the Singularidad-tier boat
+function drawBlackHoleHull(ctx, boat, size){
+  const t = performance.now()/500;
+  ctx.save();
+  const diskGrad = ctx.createRadialGradient(0,0,size*0.18,0,0,size*0.85);
+  diskGrad.addColorStop(0,'rgba(168,85,247,0.7)');
+  diskGrad.addColorStop(0.5,'rgba(244,114,182,0.32)');
+  diskGrad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = diskGrad;
+  ctx.beginPath(); ctx.ellipse(0,0,size*0.85,size*0.36,t*0.4,0,Math.PI*2); ctx.fill();
+  for(let i=0;i<10;i++){
+    const spiralT = ((t*1.2+i*0.5)%2)/2;
+    const ang = i*(Math.PI*2/10) + t*1.8;
+    const r = size*0.22 + (1-spiralT)*size*0.55;
+    const sx = Math.cos(ang)*r, sy = Math.sin(ang)*r*0.36;
+    ctx.globalAlpha = spiralT*0.85;
+    ctx.fillStyle = i%2===0? '#f472b6' : '#fbbf24';
+    ctx.beginPath(); ctx.arc(sx,sy,1.4+spiralT*1.6,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle='#000000';
+  ctx.beginPath(); ctx.arc(0,0,size*0.26,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(196,181,253,0.9)'; ctx.lineWidth=Math.max(1.5,size*0.035);
+  ctx.beginPath(); ctx.arc(0,0,size*0.26,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
 
@@ -3632,17 +3766,21 @@ function renderShop(){
       const owned = i<=S.rodIndex;
       const equipped = i===S.rodIndex;
       const canBuy = i===S.rodIndex+1;
+      const isCrystal = r.priceCrystals!=null;
+      const priceLabel = isCrystal? ('💎 '+fmtNum(r.priceCrystals)) : ('🪙 '+fmtNum(r.price));
+      const affordable = isCrystal? (S.crystals||0)>=r.priceCrystals : S.coins>=r.price;
       const card = document.createElement('div'); card.className='card';
       card.innerHTML = `<div style="font-size:30px;">${r.icon}</div><div class="cname">${r.name}</div>
         <div class="cmeta">Suerte x${r.luck} · Precisión +${r.zoneBonus}</div>
-        <div class="cmeta">Hasta: ${rarityOf(RARITIES[Math.min(r.maxTier,9)].id).name}</div>
+        <div class="cmeta">Hasta: ${rarityOf(RARITIES[Math.min(r.maxTier,RARITY_MAX_IDX)].id).name}</div>
         <button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
-          ${equipped?'Equipada':(owned?'Obtenida':(canBuy?('🪙 '+fmtNum(r.price)):'Bloqueada'))}
+          ${equipped?'Equipada':(owned?'Obtenida':(canBuy?priceLabel:'Bloqueada'))}
         </button>`;
       if(canBuy){
         card.querySelector('button').addEventListener('click', ()=>{
-          if(S.coins>=r.price){ S.coins-=r.price; S.rodIndex=i; Audio1.sfx('buy'); toast('¡Nueva caña equipada: '+r.name+'!'); refreshHud(); saveGame(); renderShop(); }
-          else toast('No tienes suficientes monedas.');
+          if(!affordable){ toast(isCrystal? 'No tienes suficientes cristales cósmicos.' : 'No tienes suficientes monedas.'); return; }
+          if(isCrystal) S.crystals -= r.priceCrystals; else S.coins -= r.price;
+          S.rodIndex=i; Audio1.sfx('buy'); toast('¡Nueva caña equipada: '+r.name+'!'); refreshHud(); saveGame(); renderShop();
         });
       }
       grid.appendChild(card);
@@ -3686,18 +3824,21 @@ function renderShop(){
       const owned = i<=S.boatIndex;
       const equipped = i===S.boatIndex;
       const canBuy = i===S.boatIndex+1;
+      const isCrystal = b.priceCrystals!=null;
+      const priceLabel = isCrystal? ('💎 '+fmtNum(b.priceCrystals)) : ('🪙 '+fmtNum(b.price));
+      const affordable = isCrystal? (S.crystals||0)>=b.priceCrystals : S.coins>=b.price;
       const card = document.createElement('div'); card.className='card';
       card.innerHTML = `<div style="font-size:30px;">${b.icon}</div><div class="cname">${b.name}</div>
         <div class="cmeta">Velocidad ${b.speed} · Suerte de pesca x${b.luck}</div>
         <button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
-          ${equipped?'En uso':(owned?'Obtenido':(canBuy?('🪙 '+fmtNum(b.price)):'Bloqueado'))}
+          ${equipped?'En uso':(owned?'Obtenido':(canBuy?priceLabel:'Bloqueado'))}
         </button>`;
       if(canBuy){
         card.querySelector('button').addEventListener('click', ()=>{
-          if(S.coins>=b.price){
-            S.coins-=b.price; S.boatIndex=i; Audio1.sfx('buy');
-            toast('⛵ ¡'+b.name+' listo para navegar!'); refreshHud(); checkAchievements(); saveGame(); renderShop();
-          } else toast('No tienes suficientes monedas.');
+          if(!affordable){ toast(isCrystal? 'No tienes suficientes cristales cósmicos.' : 'No tienes suficientes monedas.'); return; }
+          if(isCrystal) S.crystals -= b.priceCrystals; else S.coins -= b.price;
+          S.boatIndex=i; Audio1.sfx('buy');
+          toast('⛵ ¡'+b.name+' listo para navegar!'); refreshHud(); checkAchievements(); saveGame(); renderShop();
         });
       }
       grid.appendChild(card);
