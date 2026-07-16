@@ -642,6 +642,9 @@ const RODS = [
   {id:'omega',     name:'Caña Omega',       price:250000, waitMin:600, waitMax:1150, luck:9,   zoneBonus:22, maxTier:9, icon:'🔱'},
   {id:'celestial', name:'Caña Celestial',   price:600000, waitMin:550, waitMax:1050, luck:12,  zoneBonus:26, maxTier:9, icon:'🌠'},
   {id:'creador',   name:'Caña del Creador', price:2000000,waitMin:450, waitMax:900,  luck:18,  zoneBonus:32, maxTier:9, icon:'👑'},
+  {id:'marciana',  name:'Caña Marciana',    price:5000000,waitMin:400, waitMax:800,  luck:24,  zoneBonus:36, maxTier:9, icon:'🔴'},
+  {id:'cometa',    name:'Caña de Cometa',   price:12000000,waitMin:350,waitMax:700,  luck:32,  zoneBonus:40, maxTier:9, icon:'☄️'},
+  {id:'nebulosa',  name:'Caña Nebulosa',    price:30000000,waitMin:300,waitMax:600,  luck:45,  zoneBonus:46, maxTier:9, icon:'🌠'},
 ];
 const BAITS = [
   {id:'lombriz',   name:'Lombriz',           price:5,   icon:'🪱', tag:'comun',      mult:1.6},
@@ -664,6 +667,7 @@ const BOATS = [
   {id:'velero',   name:'Velero',            price:15000,  speed:440, luck:2.2,  hullColor:'#e2e8f0', accent:'#64748b', sail:true,  icon:'⛵'},
   {id:'yate',     name:'Yate de Lujo',      price:60000,  speed:500, luck:3,    hullColor:'#fbbf24', accent:'#92400e', sail:true,  icon:'🛥️'},
   {id:'legendario_boat', name:'Buque Legendario', price:220000, speed:580, luck:4.2, hullColor:'#a855f7', accent:'#4c1d95', sail:true, icon:'🚢'},
+  {id:'nave_estelar', name:'Nave Estelar',  price:8000000, speed:700, luck:6,   hullColor:'#c4b5fd', accent:'#312e81', sail:true, icon:'🛸'},
 ];
 
 /* ---------------------------- PETS ---------------------------- */
@@ -738,7 +742,11 @@ const COLORS = [
   {id:'plata',name:'Plata',price:500,hex:'#94a3b8'},
   {id:'obsidiana',name:'Obsidiana',price:800,hex:'#1e293b'},
   {id:'perla',name:'Perla',price:1200,hex:'#f8fafc'},
+  {id:'galaxia',name:'Galaxia',price:20000,hex:'#4c1d95',special:'galaxy'},
+  {id:'llameante',name:'Llameante',price:20000,hex:'#c2410c',special:'fire'},
 ];
+const COLOR_SPECIAL_BY_HEX = {};
+COLORS.forEach(c=>{ if(c.special) COLOR_SPECIAL_BY_HEX[c.hex]=c.special; });
 const HATS = [
   {id:'none',name:'Sin Sombrero',price:0,draw:null},
   {id:'gorra',name:'Gorra',price:80,draw:'cap'},
@@ -747,6 +755,7 @@ const HATS = [
   {id:'casco',name:'Casco Espacial',price:1200,draw:'helmet'},
   {id:'corona',name:'Corona',price:3000,draw:'crown'},
   {id:'halo',name:'Halo',price:8000,draw:'halo'},
+  {id:'corona_cosmica',name:'Corona Cósmica',price:35000,draw:'cosmicCrown'},
 ];
 const AURAS = [
   {id:'none',name:'Sin Aura',price:0,color:null},
@@ -754,6 +763,8 @@ const AURAS = [
   {id:'dorada',name:'Aura Dorada',price:2000,color:'#fbbf24'},
   {id:'arcoiris',name:'Aura Arcoíris',price:6000,color:'rainbow'},
   {id:'oscura',name:'Aura Oscura',price:10000,color:'#8b5cf6'},
+  {id:'galaxia',name:'Aura Galaxia',price:25000,color:'galaxy'},
+  {id:'fuego',name:'Aura de Fuego',price:25000,color:'fire'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -761,6 +772,7 @@ const TRAILS = [
   {id:'estrellas',name:'Estrellas',price:1500},
   {id:'fuego',name:'Fuego',price:4000},
   {id:'sombra',name:'Sombra',price:9000},
+  {id:'caramelos',name:'Caramelos',price:12000},
 ];
 
 /* ---------------------------- WEATHER ---------------------------- */
@@ -1732,7 +1744,7 @@ function updatePlayer(dt){
     player.facing.x=mx; player.facing.y=my;
     player.bob += dt*10;
     if(!S.isOnBoat && S.cosmetics.trail!=='none' && Math.random()<0.4){
-      player.trail.push({x:player.x,y:player.y,life:0.6,type:S.cosmetics.trail});
+      player.trail.push({x:player.x,y:player.y,life:0.6,type:S.cosmetics.trail,seed:Math.random()});
     }
     if(S.isOnBoat && Math.random()<0.5){
       player.trail.push({x:player.x-mx*20,y:player.y-my*20,life:0.5,type:'burbujas'});
@@ -1923,6 +1935,16 @@ function startCast(isBoss){
   fishing.state='casting';
   fishing.timer=0;
   Audio1.sfx('cast');
+  if(!isBoss && S.selectedBait){
+    const baitId = S.selectedBait;
+    S.baits[baitId] = Math.max(0, (S.baits[baitId]||0) - 1);
+    if(S.baits[baitId]<=0){
+      S.selectedBait = null;
+      const b = BAITS.find(x=>x.id===baitId);
+      toast('🪱 Se te acabó la carnada de '+(b?b.name:baitId)+'.');
+    }
+    saveGame();
+  }
   setTimeout(()=>{
     if(fishing.state!=='casting') return;
     fishing.state='waiting';
@@ -2946,15 +2968,49 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
   if(aura && aura!=='none'){
     const auraObj = AURAS.find(a=>a.id===aura);
     const t = performance.now()/500;
-    ctx.save();
-    ctx.globalAlpha = 0.35+0.15*Math.sin(t*2);
-    if(auraObj.color==='rainbow'){
-      const grad = ctx.createConicGradient? ctx.createConicGradient(t, 0,0) : null;
-      ctx.fillStyle = grad || '#f472b6';
-      if(grad){ ['#f87171','#fbbf24','#4ade80','#38bdf8','#a78bfa','#f87171'].forEach((c,i)=>grad.addColorStop(i/5,c)); }
-    } else { ctx.fillStyle = auraObj.color; }
-    ctx.beginPath(); ctx.arc(0,4,size*0.95,0,Math.PI*2); ctx.fill();
-    ctx.restore();
+    if(auraObj.color==='galaxy'){
+      ctx.save();
+      ctx.globalAlpha = 0.4+0.1*Math.sin(t*2);
+      const grad = ctx.createRadialGradient(0,4,size*0.15,0,4,size*1.05);
+      grad.addColorStop(0,'#a78bfa'); grad.addColorStop(0.5,'#4c1d95'); grad.addColorStop(1,'rgba(76,29,149,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,4,size*1.05,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.9;
+      for(let i=0;i<8;i++){
+        const ang = t*1.3 + i*(Math.PI*2/8);
+        const rad = size*0.75;
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.55;
+        const tw = 0.5+0.5*Math.sin(t*4+i);
+        ctx.globalAlpha = 0.4+0.5*tw;
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(sx,sy,1.4+tw*1.2,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    } else if(auraObj.color==='fire'){
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      for(let i=0;i<10;i++){
+        const ang = i*(Math.PI*2/10) + t*0.6;
+        const flick = 0.6+0.4*Math.sin(t*6+i*1.7);
+        const rad = size*(0.55+flick*0.35);
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.85 - flick*4;
+        const grad = ctx.createRadialGradient(sx,sy,0,sx,sy,size*0.22*flick);
+        grad.addColorStop(0,'#fef08a'); grad.addColorStop(0.5,'#fb923c'); grad.addColorStop(1,'rgba(220,38,38,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(sx,sy,size*0.22*flick,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.globalAlpha = 0.35+0.15*Math.sin(t*2);
+      if(auraObj.color==='rainbow'){
+        const grad = ctx.createConicGradient? ctx.createConicGradient(t, 0,0) : null;
+        ctx.fillStyle = grad || '#f472b6';
+        if(grad){ ['#f87171','#fbbf24','#4ade80','#38bdf8','#a78bfa','#f87171'].forEach((c,i)=>grad.addColorStop(i/5,c)); }
+      } else { ctx.fillStyle = auraObj.color; }
+      ctx.beginPath(); ctx.arc(0,4,size*0.95,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
   }
 
   // shadow
@@ -2975,6 +3031,39 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
   // top highlight
   ctx.fillStyle='rgba(255,255,255,0.28)';
   roundRect(ctx,-size*0.36,-size*0.42,size*0.72,size*0.22,size*0.1); ctx.fill();
+
+  // special color overlays
+  const special = COLOR_SPECIAL_BY_HEX[color];
+  if(special==='galaxy'){
+    ctx.save();
+    roundRect(ctx,-size/2,-size/2,size,size,size*0.22); ctx.clip();
+    const st = performance.now()/700;
+    for(let i=0;i<12;i++){
+      const sx = ((Math.sin(i*12.9)*0.5+0.5)*2-1)*size*0.45;
+      const sy = ((Math.cos(i*7.3)*0.5+0.5)*2-1)*size*0.45;
+      const tw = 0.4+0.6*Math.sin(st*3+i*2);
+      ctx.globalAlpha = clamp(tw,0.1,1);
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(sx,sy,0.9+tw*0.8,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  } else if(special==='fire'){
+    ctx.save();
+    ctx.translate(0,-size*0.5);
+    const ft = performance.now()/300;
+    for(let i=-1;i<=1;i++){
+      const flick = 0.6+0.4*Math.sin(ft*2+i*2);
+      ctx.fillStyle = i===0? '#fde047':'#fb923c';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(i*size*0.14, size*0.05);
+      ctx.quadraticCurveTo(i*size*0.22-size*0.06, -size*0.22*flick, i*size*0.05, -size*0.36*flick);
+      ctx.quadraticCurveTo(i*size*0.02+size*0.06, -size*0.18*flick, i*size*0.14+size*0.1, size*0.05);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
 
   // hat
   if(hat && hat!=='none') drawHat(ctx,hat,size);
@@ -3018,19 +3107,80 @@ function drawHat(ctx,hat,size){
       ctx.strokeStyle='#fde68a'; ctx.lineWidth=4; ctx.globalAlpha=0.9;
       ctx.beginPath(); ctx.ellipse(0,-size*0.18,size*0.28,size*0.08,0,0,Math.PI*2); ctx.stroke();
       break;
+    case 'cosmicCrown': {
+      const t = performance.now()/500;
+      const grad = ctx.createLinearGradient(-size*0.32,-size*0.34,size*0.32,0);
+      grad.addColorStop(0,'#c4b5fd'); grad.addColorStop(0.5,'#818cf8'); grad.addColorStop(1,'#a78bfa');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(-size*0.32,0); ctx.lineTo(-size*0.32,-size*0.22); ctx.lineTo(-size*0.14,-size*0.06);
+      ctx.lineTo(0,-size*0.34); ctx.lineTo(size*0.14,-size*0.06); ctx.lineTo(size*0.32,-size*0.22); ctx.lineTo(size*0.32,0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.5; ctx.stroke();
+      for(let i=0;i<5;i++){
+        const px = -size*0.28 + i*size*0.14;
+        const tw = 0.4+0.6*Math.sin(t*3+i*1.8);
+        ctx.globalAlpha = tw;
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(px, -size*0.16-Math.abs(Math.sin(i*1.3))*size*0.1, 1.4+tw, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#fef08a';
+      ctx.beginPath(); ctx.arc(0,-size*0.34,size*0.05,0,Math.PI*2); ctx.fill();
+      break;
+    }
   }
   ctx.restore();
+}
+
+function drawStarShape(cx,cy,r,rot){
+  ctx.beginPath();
+  for(let i=0;i<5;i++){
+    const outAng = rot + i*(Math.PI*2/5) - Math.PI/2;
+    const inAng = outAng + Math.PI/5;
+    const ox = cx+Math.cos(outAng)*r, oy = cy+Math.sin(outAng)*r;
+    const ix = cx+Math.cos(inAng)*r*0.45, iy = cy+Math.sin(inAng)*r*0.45;
+    if(i===0) ctx.moveTo(ox,oy); else ctx.lineTo(ox,oy);
+    ctx.lineTo(ix,iy);
+  }
+  ctx.closePath();
 }
 
 function drawTrailParticles(){
   player.trail.forEach(t=>{
     const screen = worldToScreen(t.x,t.y);
     ctx.save();
-    ctx.globalAlpha = clamp(t.life/0.6,0,1)*0.7;
+    const a = clamp(t.life/0.6,0,1);
+    ctx.globalAlpha = a*0.7;
     if(t.type==='burbujas'){ ctx.fillStyle='#a5f3fc'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,4,0,Math.PI*2); ctx.fill(); }
-    else if(t.type==='estrellas'){ ctx.fillStyle='#fde68a'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,3,0,Math.PI*2); ctx.fill(); }
+    else if(t.type==='estrellas'){
+      const rot = (t.seed||0) + (1-a)*2;
+      ctx.globalAlpha = a*0.95;
+      ctx.shadowColor = '#fde68a'; ctx.shadowBlur = 8;
+      ctx.fillStyle='#fef9c3';
+      drawStarShape(screen.x, screen.y+10, 3+a*3, rot);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle='#fbbf24'; ctx.globalAlpha = a*0.6;
+      drawStarShape(screen.x, screen.y+10, 1.5+a*1.5, rot);
+      ctx.fill();
+    }
     else if(t.type==='fuego'){ ctx.fillStyle='#fb923c'; ctx.beginPath(); ctx.arc(screen.x,screen.y+10,5,0,Math.PI*2); ctx.fill(); }
     else if(t.type==='sombra'){ ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.ellipse(screen.x,screen.y+16,8,4,0,0,Math.PI*2); ctx.fill(); }
+    else if(t.type==='caramelos'){
+      const colors = ['#f472b6','#38bdf8','#fbbf24','#4ade80','#f87171'];
+      const ci = (t.seed!=null? Math.floor(t.seed*7) : 0) % colors.length;
+      const rot = (t.seed||0)*6;
+      ctx.globalAlpha = a*0.9;
+      ctx.save();
+      ctx.translate(screen.x,screen.y+10); ctx.rotate(rot);
+      ctx.fillStyle = colors[ci];
+      ctx.beginPath(); ctx.ellipse(0,0,4.5,3,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.globalAlpha = a*0.7;
+      ctx.beginPath(); ctx.moveTo(-2.2,-1.2); ctx.lineTo(2.2,1.2); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.globalAlpha = a*0.9;
+      ctx.beginPath(); ctx.moveTo(-4.5,0); ctx.lineTo(-6.5,-1.8); ctx.lineTo(-6.5,1.8); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(4.5,0); ctx.lineTo(6.5,-1.8); ctx.lineTo(6.5,1.8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     ctx.restore();
   });
 }
@@ -3361,15 +3511,17 @@ function renderShop(){
       card.innerHTML = `<div style="font-size:30px;">${b.icon}</div><div class="cname">${b.name}</div>
         <div class="cmeta">Tienes: ${owned}</div>
         <button class="shopBtn">🪙 ${fmtNum(b.price)} (+3)</button>
-        <button class="shopBtn ${selected?'equipped':''}" style="margin-top:4px;">${selected?'Seleccionada':'Usar'}</button>`;
+        <button class="shopBtn ${selected?'equipped':''}" style="margin-top:4px;" ${owned<=0?'disabled':''}>${selected?'Seleccionada':'Usar'}</button>`;
       const buttons = card.querySelectorAll('button');
       buttons[0].addEventListener('click', ()=>{
         if(S.coins>=b.price){ S.coins-=b.price; S.baits[b.id]=(S.baits[b.id]||0)+3; Audio1.sfx('buy'); refreshHud(); saveGame(); renderShop(); }
         else toast('No tienes suficientes monedas.');
       });
-      buttons[1].addEventListener('click', ()=>{
-        S.selectedBait = selected? null : b.id; saveGame(); renderShop();
-      });
+      if(owned>0){
+        buttons[1].addEventListener('click', ()=>{
+          S.selectedBait = selected? null : b.id; saveGame(); renderShop();
+        });
+      }
       grid.appendChild(card);
     });
   } else if(shopTab==='bag'){
@@ -3527,22 +3679,29 @@ function renderBoatBagSection(){
 
 function renderRocketBagSection(){
   const box = document.getElementById('rocketBagSection');
-  if(!S.hasRocket){
-    box.style.display='none';
+  if(S.hasRocket){
+    box.style.display='block';
+    box.innerHTML = `<div style="font-size:30px;">🚀</div><div class="cname">Cohete</div>
+      <div class="cmeta">Piezas de repuesto: ${S.rocketParts}/${ROCKET_PARTS_NEEDED}</div>
+      <button class="shopBtn" id="rocketDeployBtn">${S.isOnRocket? 'Ya lo llevas contigo':'🚀 Sacar cohete'}</button>
+      ${S.isOnRocket? `<button class="shopBtn" id="rocketStowBtn" style="margin-top:6px;background:var(--danger);">🎒 Guardar cohete</button>`:''}
+      <div class="cmeta" style="margin-top:6px;">Con el cohete fuera, camina hasta una plataforma de lanzamiento para viajar.</div>`;
+    if(!S.isOnRocket){
+      document.getElementById('rocketDeployBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
+    } else {
+      document.getElementById('rocketDeployBtn').disabled = true;
+      document.getElementById('rocketStowBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
+    }
     return;
   }
-  box.style.display='block';
-  box.innerHTML = `<div style="font-size:30px;">🚀</div><div class="cname">Cohete</div>
-    <div class="cmeta">Piezas de repuesto: ${S.rocketParts}/${ROCKET_PARTS_NEEDED}</div>
-    <button class="shopBtn" id="rocketDeployBtn">${S.isOnRocket? 'Ya lo llevas contigo':'🚀 Sacar cohete'}</button>
-    ${S.isOnRocket? `<button class="shopBtn" id="rocketStowBtn" style="margin-top:6px;background:var(--danger);">🎒 Guardar cohete</button>`:''}
-    <div class="cmeta" style="margin-top:6px;">Con el cohete fuera, camina hasta una plataforma de lanzamiento para viajar.</div>`;
-  if(!S.isOnRocket){
-    document.getElementById('rocketDeployBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
-  } else {
-    document.getElementById('rocketDeployBtn').disabled = true;
-    document.getElementById('rocketStowBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
+  if(S.rocketParts>0 || solarSystemEligible()){
+    box.style.display='block';
+    box.innerHTML = `<div style="font-size:30px;">🔩</div><div class="cname">Piezas de Cohete</div>
+      <div class="cmeta">Piezas recolectadas: ${S.rocketParts}/${ROCKET_PARTS_NEEDED}</div>
+      <div class="cmeta" style="margin-top:6px;">Las guardas aquí a medida que las encuentras explorando. Llévaselas al ingeniero de cohetes para construirlo.</div>`;
+    return;
   }
+  box.style.display='none';
 }
 
 let bagCardEntries = [];
@@ -3865,7 +4024,10 @@ function renderCustom(){
     const equipped = S.cosmetics[equippedKey]===item.id;
     const card = document.createElement('div'); card.className='card';
     if(customTab==='color'){
-      card.innerHTML = `<div style="width:50px;height:50px;border-radius:12px;background:${item.hex};box-shadow:inset 0 -8px 12px rgba(0,0,0,0.25), inset 0 8px 10px rgba(255,255,255,0.35);"></div>
+      let extra = '';
+      if(item.special==='galaxy') extra = `<div style="position:absolute;inset:0;background-image:radial-gradient(circle at 25% 30%,#fff 1px,transparent 1.5px),radial-gradient(circle at 65% 60%,#fff 1px,transparent 1.5px),radial-gradient(circle at 45% 80%,#fff 1px,transparent 1.5px),radial-gradient(circle at 80% 20%,#fff 1px,transparent 1.5px);border-radius:12px;"></div>`;
+      else if(item.special==='fire') extra = `<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:20px;">🔥</div>`;
+      card.innerHTML = `<div style="position:relative;width:50px;height:50px;border-radius:12px;background:${item.hex};box-shadow:inset 0 -8px 12px rgba(0,0,0,0.25), inset 0 8px 10px rgba(255,255,255,0.35);">${extra}</div>
         <div class="cname">${item.name}</div>`;
     } else {
       const c=document.createElement('canvas'); c.width=70;c.height=70; card.appendChild(c);
@@ -3874,7 +4036,8 @@ function renderCustom(){
       cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
       if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
       if(customTab==='aura' && item.color){
-        cctx.save(); cctx.globalAlpha=0.4; cctx.fillStyle = item.color==='rainbow'?'#f472b6':item.color;
+        cctx.save(); cctx.globalAlpha=0.4;
+        cctx.fillStyle = item.color==='rainbow'?'#f472b6':item.color==='galaxy'?'#7c3aed':item.color==='fire'?'#fb923c':item.color;
         cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
       }
       cctx.restore();
