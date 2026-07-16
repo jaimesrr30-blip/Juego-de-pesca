@@ -56,6 +56,8 @@ canvas{display:block;position:absolute;top:0;left:0;}
 #worldInfo .wweather{font-size:11px;color:var(--text-dim);}
 #leftCol{display:flex;flex-direction:column;gap:6px;}
 #hpWrap{width:200px;padding:6px 12px;pointer-events:auto;}
+#eventBanner{width:200px;padding:6px 12px;pointer-events:auto;font-size:11px;font-weight:700;color:#fde047;
+  border-color:rgba(253,224,71,0.35);}
 #hpWrap .lvRow{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;}
 #hpBarBg{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
 #hpBarFill{height:100%;width:100%;background:linear-gradient(90deg,#4ade80,#fbbf24,#ef4444);background-size:200% 100%;transition:width .3s;}
@@ -256,6 +258,9 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <div class="panel" id="hpWrap">
         <div class="lvRow"><span>❤️ Vida</span><span id="hpVal">100/100</span></div>
         <div id="hpBarBg"><div id="hpBarFill"></div></div>
+      </div>
+      <div class="panel" id="eventBanner" style="display:none;">
+        🏆 Evento Mundial · <span id="eventCountdown"></span>
       </div>
     </div>
     <div id="statsCol">
@@ -550,7 +555,15 @@ const RARITY_XP    = [2,5,12,30,80,200,500,1500,5000,15000];
 const RARITY_SIZE_CM  = [8,15,25,40,70,110,160,220,300,400];
 const RARITY_WEIGHT_KG= [0.3,0.8,2,6,15,40,90,200,500,1200];
 
-function rarityOf(id){ return RARITIES[RARITY_INDEX[id]]; }
+// "Mundial" is a special event-only rarity: it doesn't live in the normal 10-tier
+// ladder (so it never affects rod tiers or the core weighted-catch math), but every
+// fish that uses it carries its own customDenom/customValue/etc, so España and
+// Argentina can be far rarer than Brasil or Francia while sharing the same badge.
+const MUNDIAL_RARITY = {id:'mundial', name:'Mundial ⚽', color:'#f59e0b', glow:'#fde047', denom:null};
+function rarityOf(id){ if(id==='mundial') return MUNDIAL_RARITY; return RARITIES[RARITY_INDEX[id]]; }
+function denomFor(fish){ return fish.customDenom!=null? fish.customDenom : rarityOf(fish.rarity).denom; }
+function glowIdxFor(fish){ return fish.glowIdx!=null? fish.glowIdx : RARITY_INDEX[fish.rarity]; }
+function glowColorFor(fish){ return fish.rarity==='mundial'? '#ffd166' : rarityOf(fish.rarity).glow; }
 
 /* ---------------------------- DATA: RODS / BAIT / COSMETICS ---------------------------- */
 const RODS = [
@@ -635,7 +648,7 @@ const WEATHER_TYPES = {
 };
 
 /* ---------------------------- WORLDS & CREATURES ---------------------------- */
-function F(id,name,rarity,tag,shape,color,accent){ return {id,name,rarity,tag,shape,color,accent}; }
+function F(id,name,rarity,tag,shape,color,accent,extra){ return Object.assign({id,name,rarity,tag,shape,color,accent}, extra||{}); }
 
 const WORLDS = [
 {
@@ -859,6 +872,47 @@ const WORLDS = [
       lines:['La última tienda antes de la oscuridad total.','Buena suerte ahí fuera, la vas a necesitar.']},
   ],
 },
+{
+  id:'rio_mundial', idx:10, name:'Río del Mundial', icon:'⚽', unlockCost:0, isEvent:true,
+  palette:{water:'#2563eb',waterDeep:'#1e3a8a',land:'#4ade80',landDetail:'#22c55e',fog:'#eff6ff'},
+  weatherPool:['soleado','soleado','lunaLlena'], decorType:'flags',
+  fish:[
+    F('pez_brasil','Pez de Brasil','mundial','comun','flagfish','#009c3b','#166534',
+      {customDenom:40, customValue:180, customXp:70, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#009c3b','#ffdf00','#009c3b'],dir:'horizontal'}}),
+    F('pez_francia','Pez de Francia','mundial','comun','flagfish','#0055A4','#001b3a',
+      {customDenom:55, customValue:200, customXp:75, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#0055A4','#FFFFFF','#EF4135'],dir:'vertical'}}),
+    F('pez_alemania','Pez de Alemania','mundial','comun','flagfish','#111827','#7a5c17',
+      {customDenom:70, customValue:220, customXp:80, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#000000','#DD0000','#FFCE00'],dir:'horizontal'}}),
+    F('pez_inglaterra','Pez de Inglaterra','mundial','comun','flagfish','#f8fafc','#94a3b8',
+      {customDenom:85, customValue:240, customXp:85, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#FFFFFF'],dir:'horizontal',emblem:'cross',emblemColor:'#CE1124'}}),
+    F('pez_portugal','Pez de Portugal','mundial','comun','flagfish','#046A38','#7a1f1f',
+      {customDenom:100, customValue:260, customXp:90, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#046A38','#DA020E'],dir:'vertical'}}),
+    F('pez_italia','Pez de Italia','mundial','comun','flagfish','#009246','#7a1420',
+      {customDenom:120, customValue:280, customXp:95, minCm:18,maxCm:34,minKg:0.4,maxKg:1.8,
+       flag:{colors:['#009246','#FFFFFF','#CE2B37'],dir:'vertical'}}),
+    F('pez_argentina','Pez de Argentina','mundial','comun','flagfish','#74ACDF','#1e3a5f',
+      {customDenom:8000, customValue:15000, customXp:3000, minCm:80,maxCm:140,minKg:8,maxKg:20, glowIdx:7,
+       flag:{colors:['#74ACDF','#FFFFFF','#74ACDF'],dir:'horizontal',emblem:'sun'}}),
+    F('pez_espana','Pez de España','mundial','comun','flagfish','#AA151B','#7a0f13',
+      {customDenom:8000, customValue:15000, customXp:3000, minCm:80,maxCm:140,minKg:8,maxKg:20, glowIdx:7,
+       flag:{colors:['#AA151B','#F1BF00','#AA151B'],dir:'horizontal'}}),
+    F('copa_dorada','Copa Dorada','mundial','comun','trophy','#fbbf24','#92400e',
+      {customDenom:300000, customValue:400000, customXp:50000, minCm:50,maxCm:80,minKg:15,maxKg:25, glowIdx:9}),
+  ],
+  boss:{id:'balon_oro_gigante',name:'Balón de Oro Gigante',shape:'whale',color:'#fbbf24',accent:'#92400e',
+    minKg:60,maxKg:120,minCm:150,maxCm:220,desc:'Un balón dorado descomunal que apareció flotando la noche de la final. Nadie sabe de dónde salió.'},
+  npcs:[
+    {id:'n_rm_1',name:'Che Pesca',color:'#74ACDF',x:1650,y:1200,role:'story',
+      lines:['¡La final está cerca, se siente en el agua!','Dicen que España y Argentina son imposibles de pescar.','Si sacas la Copa Dorada, eres leyenda.']},
+    {id:'n_rm_2',name:'Marta Gol',color:'#f59e0b',x:400,y:400,role:'merchant',
+      lines:['Carnadas frescas para la temporada del Mundial.','¡Vamos, a por esa camiseta dorada!']},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -914,7 +968,7 @@ WORLDS.forEach(w=>{
   w.portalSpot = {x:px, y:py};
 });
 
-const BOAT_VENDOR_NAMES = ['Cap. Ren','Cap. Sol','Cap. Mira','Cap. Toko','Cap. Vale','Cap. Nix','Cap. Ori','Cap. Dune','Cap. Iris','Cap. Noct'];
+const BOAT_VENDOR_NAMES = ['Cap. Ren','Cap. Sol','Cap. Mira','Cap. Toko','Cap. Vale','Cap. Nix','Cap. Ori','Cap. Dune','Cap. Iris','Cap. Noct','Cap. Leo'];
 WORLDS.forEach(w=>{
   const rnd = mulberry32(hashStr(w.id+'_dock'));
   w.npcs.push({
@@ -928,6 +982,46 @@ WORLDS.forEach(w=>{
     ],
   });
 });
+
+// special free portal linking Lago Inicial <-> Río del Mundial (event zone), on the
+// LEFT side of the map — always open, no boss/key/coins required either direction
+(function setupEventPortal(){
+  const lago = WORLDS.find(w=>w.id==='lago_inicial');
+  const rioMundial = WORLDS.find(w=>w.id==='rio_mundial');
+  if(!lago || !rioMundial) return;
+  let lx = 220, ly = lago.height/2;
+  for(let tries=0; tries<40; tries++){
+    let onLand=false;
+    for(const isl of lago.islands){
+      const dx=lx-isl.x, dy=ly-isl.y;
+      if((dx*dx)/((isl.rx+90)*(isl.rx+90))+(dy*dy)/((isl.ry+90)*(isl.ry+90))<=1){ onLand=true; break; }
+    }
+    if(!onLand) break;
+    ly = lago.height/2 + (tries%2===0? tries*40 : -tries*40);
+  }
+  lago.extraPortal = {spot:{x:lx,y:ly}, targetId:'rio_mundial', targetName:rioMundial.name, targetIcon:rioMundial.icon};
+  let rx = 220, ry = rioMundial.height/2;
+  for(let tries=0; tries<40; tries++){
+    let onLand=false;
+    for(const isl of rioMundial.islands){
+      const dx=rx-isl.x, dy=ry-isl.y;
+      if((dx*dx)/((isl.rx+90)*(isl.rx+90))+(dy*dy)/((isl.ry+90)*(isl.ry+90))<=1){ onLand=true; break; }
+    }
+    if(!onLand) break;
+    ry = rioMundial.height/2 + (tries%2===0? tries*40 : -tries*40);
+  }
+  rioMundial.extraPortal = {spot:{x:rx,y:ry}, targetId:'lago_inicial', targetName:lago.name, targetIcon:lago.icon};
+})();
+
+const EVENT_END = new Date('2026-08-05T23:59:59');
+function eventCountdownText(){
+  const diff = EVENT_END.getTime() - Date.now();
+  if(diff<=0) return '¡La final ya se jugó! (zona sigue disponible)';
+  const d = Math.floor(diff/86400000);
+  const h = Math.floor((diff%86400000)/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  return `Termina en ${d}d ${h}h ${m}m`;
+}
 
 function isLand(world,x,y){
   const m=70;
@@ -997,7 +1091,7 @@ const ACHIEVEMENTS = [
   {id:'primer_tiburon',name:'Cazatiburones',desc:'Captura tu primer tiburón',icon:'🦈',reward:300,check:s=>(s.stats.shapeCaught.shark||0)>=1},
   {id:'primer_pulpo',name:'Tinta y Tentáculos',desc:'Captura tu primer pulpo',icon:'🐙',reward:300,check:s=>(s.stats.shapeCaught.octopus||0)>=1},
   {id:'primer_jefe',name:'Cazador de Jefes',desc:'Derrota tu primer jefe marino',icon:'⚔️',reward:5000,check:s=>Object.keys(s.bossDefeated).length>=1},
-  {id:'todos_jefes',name:'Azote de los Mares',desc:'Derrota a todos los jefes marinos',icon:'🏆',reward:100000,check:s=>Object.keys(s.bossDefeated).length>=WORLDS.length},
+  {id:'todos_jefes',name:'Azote de los Mares',desc:'Derrota a todos los jefes marinos',icon:'🏆',reward:100000,check:s=>Object.keys(s.bossDefeated).length>=WORLDS.filter(w=>!w.isEvent).length},
   {id:'todos_mundos',name:'Explorador Total',desc:'Desbloquea todos los mundos',icon:'🗺️',reward:50000,check:s=>s.unlockedWorlds.length>=WORLDS.length},
   {id:'diez_cofres',name:'Cazatesoros',desc:'Abre 10 cofres',icon:'🧰',reward:800,check:s=>s.stats.chestsOpened>=10},
   {id:'media_hora',name:'Pescador Dedicado',desc:'Pesca durante 30 minutos acumulados',icon:'⏱️',reward:1000,check:s=>s.stats.totalPlaytimeSec>=1800},
@@ -1034,7 +1128,7 @@ function defaultState(){
     coins:50, xp:0, level:1,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
-    unlockedWorlds:['lago_inicial'],
+    unlockedWorlds:['lago_inicial','rio_mundial'],
     visitedWorlds:['lago_inicial'],
     bossKeys:{}, bossDefeated:{},
     rodIndex:0, baits, selectedBait:null,
@@ -1071,6 +1165,8 @@ function loadGame(){
       // saves from before boats/portals existed: grandfather already-unlocked worlds in as visited
       if(!parsed.visitedWorlds){ S.visitedWorlds = S.unlockedWorlds.slice(); }
       if(S.hp==null) S.hp = S.maxHp;
+      // the World Cup event zone is always free, even on older saves
+      if(!S.unlockedWorlds.includes('rio_mundial')) S.unlockedWorlds.push('rio_mundial');
     }
   }catch(e){ S = defaultState(); }
 }
@@ -1137,6 +1233,7 @@ function setWorld(worldId, opts){
   updateWeatherLabel();
   fishing.state='idle';
   if(typeof renderQuestTracker==='function') renderQuestTracker();
+  if(typeof updateEventBanner==='function') updateEventBanner();
 }
 
 function updateWeatherLabel(){
@@ -1144,20 +1241,37 @@ function updateWeatherLabel(){
   document.getElementById('worldWeather').textContent = wt.icon+' '+wt.name;
 }
 
+function updateEventBanner(){
+  const banner = document.getElementById('eventBanner');
+  if(curWorld.isEvent){
+    banner.style.display = 'block';
+    document.getElementById('eventCountdown').textContent = eventCountdownText();
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
 /* ---------------------------- PORTAL / TRAVEL ---------------------------- */
 function tryEnterPortal(){
-  const nextWorld = WORLDS[curWorld.idx+1];
-  if(!nextWorld) return;
   if(S._traveling) return;
-  const d = Math.hypot(curWorld.portalSpot.x-player.x, curWorld.portalSpot.y-player.y);
-  if(d<70){
-    if(S.unlockedWorlds.includes(nextWorld.id)){
-      startTravel(nextWorld.id);
-    } else if(!S._portalWarned){
-      S._portalWarned = true;
-      toast('🔒 Desbloquea '+nextWorld.name+' en el Mapa de Mundos para cruzar el portal.');
-      setTimeout(()=>{ S._portalWarned=false; }, 5000);
+  const nextWorld = WORLDS[curWorld.idx+1];
+  if(nextWorld && !nextWorld.isEvent){
+    const d = Math.hypot(curWorld.portalSpot.x-player.x, curWorld.portalSpot.y-player.y);
+    if(d<70){
+      if(S.unlockedWorlds.includes(nextWorld.id)){
+        startTravel(nextWorld.id);
+        return;
+      } else if(!S._portalWarned){
+        S._portalWarned = true;
+        toast('🔒 Desbloquea '+nextWorld.name+' en el Mapa de Mundos para cruzar el portal.');
+        setTimeout(()=>{ S._portalWarned=false; }, 5000);
+      }
     }
+  }
+  // the special free event portal (e.g. Lago Inicial <-> Río del Mundial) never needs unlocking
+  if(curWorld.extraPortal){
+    const d2 = Math.hypot(curWorld.extraPortal.spot.x-player.x, curWorld.extraPortal.spot.y-player.y);
+    if(d2<70){ startTravel(curWorld.extraPortal.targetId); }
   }
 }
 
@@ -1438,11 +1552,12 @@ function weightedPickFish(){
   const boat = S.isOnBoat? currentBoat() : null;
   const depthFactor = boat? clamp(nearestIslandGap(curWorld,player.x,player.y)/500,0,1) : 0;
   let entries = curWorld.fish.map(f=>{
-    const rIdx = RARITY_INDEX[f.rarity];
-    let w = 1/rarityOf(f.rarity).denom;
+    const isEventFish = f.rarity==='mundial';
+    const rIdx = isEventFish? 8 : RARITY_INDEX[f.rarity];
+    let w = isEventFish? 1/f.customDenom : 1/rarityOf(f.rarity).denom;
     w *= 1 + (rod.luck-1) * (rIdx/9);
-    if(rIdx>maxTierIdx) w=0;
-    if(weatherBoost.includes(f.rarity)) w*=2.4;
+    if(!isEventFish && rIdx>maxTierIdx) w=0;
+    if(!isEventFish && weatherBoost.includes(f.rarity)) w*=2.4;
     if(baitObj){
       if(baitObj.tag==='todos') w*=baitObj.mult;
       else if(baitObj.tag===f.tag) w*=baitObj.mult;
@@ -1529,14 +1644,15 @@ function startMinigame(){
   document.getElementById('minigame').classList.add('show');
   const mgFish = document.getElementById('mgFish');
   mgFish.textContent = shapeEmoji(fishing.target.shape);
-  const rIdxGlow = RARITY_INDEX[fishing.target.rarity];
-  mgFish.style.filter = (rIdxGlow>=4)? `drop-shadow(0 0 9px ${rarityOf(fishing.target.rarity).glow})` : 'none';
+  const rIdxGlow = glowIdxFor(fishing.target);
+  mgFish.style.filter = (rIdxGlow>=4)? `drop-shadow(0 0 9px ${glowColorFor(fishing.target)})` : 'none';
   if(fishing.isBoss){ openBossIntroIfNeeded(); }
 }
 
 function shapeEmoji(shape){
   const map = {fish:'🐟',tropical:'🐠',shark:'🦈',octopus:'🐙',squid:'🦑',crab:'🦀',lobster:'🦞',
-    turtle:'🐢',starfish:'⭐',jellyfish:'🪼',shell:'🐚',pufferfish:'🐡',dragon:'🐉',ghost:'👻',space:'🌌',whale:'🐋'};
+    turtle:'🐢',starfish:'⭐',jellyfish:'🪼',shell:'🐚',pufferfish:'🐡',dragon:'🐉',ghost:'👻',space:'🌌',whale:'🐋',
+    flagfish:'🐟',trophy:'🏆'};
   return map[shape]||'🐟';
 }
 
@@ -1606,11 +1722,12 @@ function minigameEnd(success){
 function resolveCatch(fish, isBoss){
   const worldIdx = curWorld.idx;
   let sizeStats;
-  if(isBoss){ sizeStats = {minCm:fish.minCm,maxCm:fish.maxCm,minKg:fish.minKg,maxKg:fish.maxKg}; }
+  if(isBoss || fish.minCm!=null){ sizeStats = {minCm:fish.minCm,maxCm:fish.maxCm,minKg:fish.minKg,maxKg:fish.maxKg}; }
   else { sizeStats = sizeStatsFor(fish, worldIdx); }
   const weightKg = +randRange(sizeStats.minKg, sizeStats.maxKg).toFixed(2);
   const sizeCm = Math.round(randRange(sizeStats.minCm, sizeStats.maxCm));
-  const e = isBoss? {value: Math.round(RARITY_VALUE[4]*(6+worldIdx*1.5)), xp: Math.round(RARITY_XP[4]*(6+worldIdx*1.5))} : econ(fish, worldIdx);
+  const e = isBoss? {value: Math.round(RARITY_VALUE[4]*(6+worldIdx*1.5)), xp: Math.round(RARITY_XP[4]*(6+worldIdx*1.5))}
+    : (fish.customValue!=null? {value:fish.customValue, xp:fish.customXp} : econ(fish, worldIdx));
 
   const wasDiscovered = !!S.dex[fish.id];
   if(!S.dex[fish.id]){
@@ -1674,7 +1791,7 @@ function showCatchResult(fish, weightKg, sizeCm, value, isBoss, autoSold, isNew)
   drawCreatureCard(c, fish, true, 85);
   document.getElementById('crName').textContent = fish.name + (isNew? '  🆕':'');
   const r = rarityOf(fish.rarity);
-  document.getElementById('crRarity').innerHTML = `<span class="rbadge" style="background:${r.color}">${r.name} · ${fmtProb(r.denom)}</span>`;
+  document.getElementById('crRarity').innerHTML = `<span class="rbadge" style="background:${r.color}">${r.name} · ${fmtProb(denomFor(fish))}</span>`;
   document.getElementById('crMeta').innerHTML = `Peso: ${weightKg} kg &nbsp;·&nbsp; Tamaño: ${sizeCm} cm`;
   document.getElementById('crCoins').textContent = autoSold? `🪙 +${fmtNum(value)} (mochila llena, vendido automáticamente)` : `Añadido a tu mochila`;
   document.getElementById('catchResultBackdrop').classList.add('show');
@@ -1864,13 +1981,13 @@ function drawCreatureCard(canvas, fish, discovered, size){
   cctx.translate(canvas.width/2, canvas.height/2);
   const t = performance.now()/300;
   if(discovered){
-    drawRarityGlow(cctx, RARITY_INDEX[fish.rarity], rarityOf(fish.rarity).glow, size*0.9, t);
+    drawRarityGlow(cctx, glowIdxFor(fish), glowColorFor(fish), size*0.9, t);
   }
-  drawCreatureShape(cctx, fish.shape, size, fish.color, fish.accent, !discovered, t);
+  drawCreatureShape(cctx, fish.shape, size, fish.color, fish.accent, !discovered, t, fish.flag);
   cctx.restore();
 }
 
-function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t){
+function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t, flagData){
   t = t||0;
   const c = silhouette? '#243146' : color;
   const a = silhouette? '#182236' : (accent||shade(color,-40));
@@ -2073,6 +2190,59 @@ function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t){
       ctx.globalAlpha=1;
       break;
     }
+    case 'flagfish': {
+      const stripes = (silhouette || !flagData)? [c] : flagData.colors;
+      const dir = flagData? flagData.dir : 'vertical';
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.5,s*0.32,0,0,Math.PI*2); ctx.clip();
+      const n = stripes.length;
+      if(dir==='vertical'){
+        const stripeW = s*1.04/n;
+        for(let i=0;i<n;i++){ ctx.fillStyle=stripes[i]; ctx.fillRect(-s*0.52+i*stripeW, -s*0.4, stripeW+1, s*0.8); }
+      } else {
+        const stripeH = s*0.68/n;
+        for(let i=0;i<n;i++){ ctx.fillStyle=stripes[i]; ctx.fillRect(-s*0.55, -s*0.34+i*stripeH, s*1.1, stripeH+1); }
+      }
+      ctx.restore();
+      ctx.fillStyle = a;
+      ctx.beginPath(); ctx.moveTo(-s*0.46,0); ctx.lineTo(-s*0.82,-s*0.26); ctx.lineTo(-s*0.82,s*0.26); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-s*0.02,-s*0.27); ctx.lineTo(s*0.08,-s*0.5); ctx.lineTo(s*0.22,-s*0.24); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.28)'; ctx.lineWidth=Math.max(1,s*0.02);
+      ctx.beginPath(); ctx.ellipse(0,0,s*0.5,s*0.32,0,0,Math.PI*2); ctx.stroke();
+      if(!silhouette && flagData && flagData.emblem==='sun'){
+        ctx.fillStyle='#fcd34d';
+        ctx.beginPath(); ctx.arc(s*0.06,0,s*0.09,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1.6;
+        for(let i=0;i<8;i++){ const ang=i/8*Math.PI*2; ctx.beginPath();
+          ctx.moveTo(s*0.06+Math.cos(ang)*s*0.1, Math.sin(ang)*s*0.1);
+          ctx.lineTo(s*0.06+Math.cos(ang)*s*0.15, Math.sin(ang)*s*0.15); ctx.stroke(); }
+      } else if(!silhouette && flagData && flagData.emblem==='cross'){
+        ctx.strokeStyle = flagData.emblemColor||'#dc2626'; ctx.lineWidth=Math.max(2,s*0.07);
+        ctx.beginPath(); ctx.moveTo(s*0.06,-s*0.26); ctx.lineTo(s*0.06,s*0.26);
+        ctx.moveTo(-s*0.2,0); ctx.lineTo(s*0.32,0); ctx.stroke();
+      }
+      ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.beginPath(); ctx.arc(s*0.32,-s*0.05,s*0.045,0,Math.PI*2); ctx.fill();
+      break;
+    }
+    case 'trophy': {
+      ctx.fillStyle=c;
+      ctx.beginPath();
+      ctx.moveTo(-s*0.3,-s*0.32); ctx.quadraticCurveTo(-s*0.4,s*0.05,-s*0.13,s*0.16);
+      ctx.lineTo(s*0.13,s*0.16); ctx.quadraticCurveTo(s*0.4,s*0.05,s*0.3,-s*0.32); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=a; ctx.lineWidth=Math.max(2,s*0.05);
+      ctx.beginPath(); ctx.moveTo(-s*0.3,-s*0.24); ctx.quadraticCurveTo(-s*0.54,-s*0.1,-s*0.32,s*0.04); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(s*0.3,-s*0.24); ctx.quadraticCurveTo(s*0.54,-s*0.1,s*0.32,s*0.04); ctx.stroke();
+      ctx.fillStyle=a;
+      ctx.fillRect(-s*0.055,s*0.16,s*0.11,s*0.17);
+      ctx.beginPath(); ctx.ellipse(0,s*0.38,s*0.22,s*0.07,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=Math.max(1,s*0.025);
+      ctx.beginPath(); ctx.moveTo(-s*0.16,-s*0.22); ctx.lineTo(-s*0.06,s*0.04); ctx.stroke();
+      if(!silhouette){
+        ctx.fillStyle='#fde68a';
+        ctx.beginPath(); ctx.arc(0,-s*0.38,s*0.05,0,Math.PI*2); ctx.fill();
+      }
+      break;
+    }
     default: {
       ctx.beginPath(); ctx.ellipse(0,0,s*0.4,s*0.3,0,0,Math.PI*2); ctx.fill();
     }
@@ -2108,9 +2278,13 @@ function renderMinimap(){
   mctx.fillStyle = S.bossDefeated[curWorld.boss.id]? '#64748b':'#ef4444';
   mctx.beginPath(); mctx.arc(curWorld.bossSpot.x*sx,curWorld.bossSpot.y*sy,3.2,0,Math.PI*2); mctx.fill();
   // portal
-  if(WORLDS[curWorld.idx+1]){
+  if(WORLDS[curWorld.idx+1] && !WORLDS[curWorld.idx+1].isEvent){
     mctx.fillStyle = S.unlockedWorlds.includes(WORLDS[curWorld.idx+1].id)? '#38d3c9':'#94a3b8';
     mctx.beginPath(); mctx.arc(curWorld.portalSpot.x*sx,curWorld.portalSpot.y*sy,3,0,Math.PI*2); mctx.fill();
+  }
+  if(curWorld.extraPortal){
+    mctx.fillStyle = '#fbbf24';
+    mctx.beginPath(); mctx.arc(curWorld.extraPortal.spot.x*sx,curWorld.extraPortal.spot.y*sy,3,0,Math.PI*2); mctx.fill();
   }
   // player
   mctx.fillStyle='#38d3c9';
@@ -2283,6 +2457,16 @@ function drawDecor(d){
       ctx.fillStyle='#334155'; ctx.fillRect(-s*0.06,-s*0.1,s*0.12,s*0.6);
       ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(0,-s*0.35,s*0.42,0,Math.PI*2); ctx.fill();
       break;
+    case 'flags': {
+      ctx.fillStyle='#78716c'; ctx.fillRect(-s*0.04,-s*0.55,s*0.08,s*0.75);
+      const flagColors = [['#009c3b','#ffdf00'],['#0055A4','#EF4135'],['#AA151B','#F1BF00'],['#74ACDF','#FFFFFF']];
+      const fc = flagColors[Math.floor(Math.abs(Math.sin(d.x*0.01+d.y*0.02))*flagColors.length)%flagColors.length];
+      ctx.fillStyle=fc[0];
+      ctx.beginPath(); ctx.moveTo(s*0.04,-s*0.55); ctx.lineTo(s*0.5,-s*0.42); ctx.lineTo(s*0.04,-s*0.28); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=fc[1];
+      ctx.beginPath(); ctx.moveTo(s*0.04,-s*0.48); ctx.lineTo(s*0.32,-s*0.42); ctx.lineTo(s*0.04,-s*0.35); ctx.closePath(); ctx.fill();
+      break;
+    }
     default:
       ctx.fillStyle='#5da456'; ctx.beginPath(); ctx.arc(0,0,s*0.3,0,Math.PI*2); ctx.fill();
   }
@@ -2417,19 +2601,15 @@ function drawBossSpot(){
   ctx.restore();
 }
 
-function drawPortal(){
-  const nextWorld = WORLDS[curWorld.idx+1];
-  if(!nextWorld) return;
-  const ps = curWorld.portalSpot;
-  const screen = worldToScreen(ps.x,ps.y);
+function drawPortalMarker(spot, label, unlocked, colorA, colorB, icon){
+  const screen = worldToScreen(spot.x,spot.y);
   if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
   const t = performance.now()/1000;
-  const unlocked = S.unlockedWorlds.includes(nextWorld.id);
   ctx.save(); ctx.translate(screen.x,screen.y);
   ctx.globalAlpha=0.28; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,20,44,16,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   const grad = ctx.createRadialGradient(0,0,4,0,0,42);
-  if(unlocked){ grad.addColorStop(0,'#e0fbff'); grad.addColorStop(0.5,'#38d3c9'); grad.addColorStop(1,'rgba(56,211,201,0)'); }
+  if(unlocked){ grad.addColorStop(0,'#fff'); grad.addColorStop(0.5,colorA); grad.addColorStop(1,'rgba(0,0,0,0)'); }
   else { grad.addColorStop(0,'#cbd5e1'); grad.addColorStop(0.5,'#64748b'); grad.addColorStop(1,'rgba(100,116,139,0)'); }
   ctx.fillStyle=grad;
   ctx.beginPath(); ctx.ellipse(0,0,40+Math.sin(t*1.6)*4,40+Math.sin(t*1.6)*4,0,0,Math.PI*2); ctx.fill();
@@ -2439,12 +2619,23 @@ function drawPortal(){
     ctx.beginPath(); ctx.ellipse(0,0,26-i*8,34-i*10, t*1.4+i, 0, Math.PI*1.5); ctx.stroke();
   }
   ctx.fillStyle='#fff'; ctx.font='22px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(unlocked?'🌀':'🔒', 0, 2);
+  ctx.fillText(unlocked?(icon||'🌀'):'🔒', 0, 2);
   ctx.restore();
   ctx.save();
   ctx.font='11px system-ui'; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.textAlign='center';
-  ctx.fillText('Portal · '+nextWorld.name, screen.x, screen.y-56);
+  ctx.fillText(label, screen.x, screen.y-56);
   ctx.restore();
+}
+
+function drawPortal(){
+  const nextWorld = WORLDS[curWorld.idx+1];
+  if(nextWorld && !nextWorld.isEvent){
+    const unlocked = S.unlockedWorlds.includes(nextWorld.id);
+    drawPortalMarker(curWorld.portalSpot, 'Portal · '+nextWorld.name, unlocked, '#38d3c9', '#0f766e', '🌀');
+  }
+  if(curWorld.extraPortal){
+    drawPortalMarker(curWorld.extraPortal.spot, curWorld.extraPortal.targetIcon+' '+curWorld.extraPortal.targetName, true, '#fbbf24', '#92400e', curWorld.extraPortal.targetIcon);
+  }
 }
 
 function drawBoat(x,y,angle,boatIdx,bob,trailType){
@@ -2775,13 +2966,13 @@ function renderAquarium(){
     if(discovered){
       info.innerHTML = `<div class="cname">${f.name}${sp.isBoss?' 👑':''}</div>
         <span class="rbadge" style="background:${r.color}">${r.name}</span>
-        <div class="cmeta">${fmtProb(r.denom)}</div>
+        <div class="cmeta">${fmtProb(denomFor(f))}</div>
         <div class="cmeta">Récord: ${d.recordWeight}kg / ${d.recordSize}cm</div>
         <div class="cmeta">Capturas: ${d.timesCaught}</div>`;
     } else {
       info.innerHTML = `<div class="cname">???</div>
         <span class="rbadge" style="background:${r.color}">${r.name}</span>
-        <div class="cmeta">${fmtProb(r.denom)}</div>
+        <div class="cmeta">${fmtProb(denomFor(f))}</div>
         <div class="cmeta">No descubierto</div>`;
     }
     card.appendChild(info);
@@ -2851,16 +3042,20 @@ function renderWorldMap(){
     card.className = 'worldCard ' + (unlocked?'':'locked') + (isCurrent?' current':'');
     card.style.background = `linear-gradient(160deg, ${w.palette.water}, ${w.palette.waterDeep})`;
     let sub;
-    if(isCurrent) sub='Estás aquí';
+    if(w.isEvent){
+      sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Zona libre · portal en Lago Inicial');
+    } else if(isCurrent) sub='Estás aquí';
     else if(unlocked && visited) sub='Viaje rápido disponible';
     else if(unlocked) sub='Desbloqueado · navega hasta el portal';
     else if(hasKey) sub='🪙 '+fmtNum(w.unlockCost);
     else sub='Requiere llave del jefe anterior';
-    card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}</div>
+    card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}${w.isEvent?' 🏆':''}</div>
       <div class="wSub">${sub}</div>
-      ${!unlocked?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
+      ${w.isEvent?`<div class="wSub" style="margin-top:2px;font-weight:700;">${eventCountdownText()}</div>`:''}
+      ${(!unlocked && !w.isEvent)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
     card.addEventListener('click', ()=>{
       if(unlocked && visited){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(w.isEvent && !visited){ toast('Ve al portal dorado en el lado izquierdo de Lago Inicial para llegar por primera vez.'); return; }
       if(unlocked && !visited){ toast('Primero debes llegar navegando por el portal desde '+(prevWorld?prevWorld.name:'tu mundo actual')+'.'); return; }
       if(!hasKey){ toast('Necesitas la llave del jefe de '+prevWorld.name); return; }
       if(S.coins>=w.unlockCost){
@@ -2962,7 +3157,7 @@ function update(dt){
   S._saveTimer = (S._saveTimer||0)+dt;
   S._hudTimer = (S._hudTimer||0)+dt;
   if(S._saveTimer>12){ S._saveTimer=0; saveGame(); }
-  if(S._hudTimer>1){ S._hudTimer=0; renderQuestTracker(); checkAchievements(); }
+  if(S._hudTimer>1){ S._hudTimer=0; renderQuestTracker(); checkAchievements(); updateEventBanner(); }
 }
 
 function updateHpUI(){
