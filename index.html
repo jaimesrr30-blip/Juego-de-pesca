@@ -1472,7 +1472,7 @@ function earthDexPercent(){
   return total? discovered/total : 0;
 }
 function finalBossDefeated(){ return !!S.bossDefeated[FINAL_BOSS_ID]; }
-function solarSystemEligible(){ return earthDexPercent()>=0.75 && finalBossDefeated(); }
+function solarSystemEligible(){ return earthDexPercent()>=0.7 && finalBossDefeated(); }
 const ROCKET_PARTS_NEEDED = 8;
 
 /* ---------------------------- ACHIEVEMENTS ---------------------------- */
@@ -2487,7 +2487,7 @@ function renderRocketEngineerDialogue(npc, bonus){
     const pct = Math.min(100, Math.round(earthDexPercent()*100));
     box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
       <div class="dlgLine">"Aún no puedo construir nada. Necesito ver que dominas este planeta."</div>
-      <div class="cmeta" style="margin-top:6px;">📖 Acuario de la Tierra: ${pct}% / 75%</div>
+      <div class="cmeta" style="margin-top:6px;">📖 Acuario de la Tierra: ${pct}% / 70%</div>
       <div class="cmeta">👑 Jefe final (Leviatán de las Sombras): ${finalBossDefeated()?'✔ Derrotado':'Pendiente'}</div>`;
     openModal('mDialogue');
     return;
@@ -4351,9 +4351,9 @@ function renderSolarProgressBanner(){
   }
   const pct = Math.min(100, Math.round(earthDexPercent()*100));
   const bossOk = finalBossDefeated();
-  banner.innerHTML = `🌍 <strong>Dimensión 1 · La Tierra.</strong> Completa el 75% de la colección terrestre y vence al jefe final
+  banner.innerHTML = `🌍 <strong>Dimensión 1 · La Tierra.</strong> Completa el 70% de la colección terrestre y vence al jefe final
     para desbloquear la <strong>Dimensión del Sistema Solar</strong>.<br>
-    📖 Colección: ${pct}/75% &nbsp;·&nbsp; 👑 Leviatán de las Sombras: ${bossOk?'✔ Derrotado':'Pendiente'}
+    📖 Colección: ${pct}/70% &nbsp;·&nbsp; 👑 Leviatán de las Sombras: ${bossOk?'✔ Derrotado':'Pendiente'}
     ${solarSystemEligible()?'<br>✨ ¡Ya puedes hablar con la Ingeniera Kel en Mar Nocturno para construir tu cohete!':''}`;
 }
 let aqCardEntries = [];
