@@ -758,6 +758,8 @@ const COLORS = [
   {id:'perla',name:'Perla',price:1200,hex:'#f8fafc'},
   {id:'galaxia',name:'Galaxia',price:20000,hex:'#4c1d95',special:'galaxy'},
   {id:'llameante',name:'Llameante',price:20000,hex:'#c2410c',special:'fire'},
+  {id:'cromatico_colapso',name:'Cromático del Colapso',hex:'#831843',special:'chroma',locked:true,
+    unlockDesc:'Captura todas las criaturas de rareza Singularidad.'},
 ];
 const COLOR_SPECIAL_BY_HEX = {};
 COLORS.forEach(c=>{ if(c.special) COLOR_SPECIAL_BY_HEX[c.hex]=c.special; });
@@ -770,6 +772,12 @@ const HATS = [
   {id:'corona',name:'Corona',price:3000,draw:'crown'},
   {id:'halo',name:'Halo',price:8000,draw:'halo'},
   {id:'corona_cosmica',name:'Corona Cósmica',price:35000,draw:'cosmicCrown'},
+  {id:'corona_profundidades',name:'Corona de las Profundidades',draw:'deepCrown',locked:true,
+    unlockDesc:'Derrota a los 10 jefes de la Tierra.'},
+  {id:'yelmo_vacio',name:'Yelmo del Vacío',draw:'voidHelm',locked:true,
+    unlockDesc:'Derrota a todos los jefes del Sistema Solar.'},
+  {id:'explorador_eterno',name:'Sombrero del Explorador Eterno',draw:'eternalHat',locked:true,
+    unlockDesc:'Visita todos los mundos del juego.'},
 ];
 const AURAS = [
   {id:'none',name:'Sin Aura',price:0,color:null},
@@ -779,6 +787,12 @@ const AURAS = [
   {id:'oscura',name:'Aura Oscura',price:10000,color:'#8b5cf6'},
   {id:'galaxia',name:'Aura Galaxia',price:25000,color:'galaxy'},
   {id:'fuego',name:'Aura de Fuego',price:25000,color:'fire'},
+  {id:'singularidad_primordial',name:'Aura de la Singularidad Primordial',color:'blackhole',locked:true,
+    unlockDesc:'Completa el 100% de la colección terrestre.'},
+  {id:'eco_ancestral',name:'Aura del Eco Ancestral',color:'echo',locked:true,
+    unlockDesc:'Habla con Nyx en Mar Nocturno y captura 3 criaturas fantasma.'},
+  {id:'vacio_susurrante',name:'Aura del Vacío Susurrante',color:'void',locked:true,
+    unlockDesc:'Habla con la Dra. Voss y derrota a los jefes de Marte Rojo y Europa Helada.'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -1051,8 +1065,13 @@ const WORLDS = [
   boss:{id:'leviatan_sombras',name:'Leviatán de las Sombras',shape:'shark',color:'#111827',accent:'#7f1d1d',
     minKg:1500,maxKg:3200,minCm:700,maxCm:950,desc:'La criatura más antigua del mar nocturno; sus ojos brillan como brasas.'},
   npcs:[
-    {id:'n_mn_1',name:'Nyx',color:'#a78bfa',x:1650,y:1250,role:'quest',
-      lines:['Bajo la luna llena, hasta el agua parece respirar.','Pocos han visto al Leviatán y vivido para contarlo.']},
+    {id:'n_mn_1',name:'Nyx',color:'#a78bfa',x:1650,y:1250,role:'loreQuest',
+      lines:['Bajo la luna llena, hasta el agua parece respirar.','Pocos han visto al Leviatán y vivido para contarlo.'],
+      questTitle:'Susurros del Más Allá',
+      questIntro:'Hay voces en el agua profunda que solo las criaturas fantasma pueden oír. Tráeme la prueba de tres de ellas y te enseñaré algo que perdí hace mucho tiempo.',
+      questDoneLine:'El eco ya es tuyo. Llévalo contigo, viajero — pocos escuchan tan bien como tú.',
+      questProgress:s=>(s.stats.tagCaught&&s.stats.tagCaught['fantasma'])||0, questTarget:3,
+      unlockCosmeticId:'aura_eco_ancestral', unlockCosmeticName:'Aura del Eco Ancestral'},
     {id:'n_mn_2',name:'Suri',color:'#cbd5e1',x:400,y:400,role:'merchant',
       lines:['La última tienda antes de la oscuridad total.','Buena suerte ahí fuera, la vas a necesitar.']},
     {id:'n_mn_3',name:'Ingeniera Kel',color:'#f97316',x:900,y:1400,role:'rocketEngineer',
@@ -1164,8 +1183,13 @@ const WORLDS = [
   boss:{id:'devorador_horizontes',name:'Devorador de Horizontes',shape:'dragon',color:'#050109',accent:'#a855f7',
     minKg:2200,maxKg:4500,minCm:900,maxCm:1300,desc:'Un ser tan denso que dobla la luz a su alrededor. Nadie sabe qué hay dentro de su sombra.'},
   npcs:[
-    {id:'n_p3_1',name:'Dra. Voss',color:'#c084fc',x:1650,y:1200,role:'story',
-      lines:['Este es el borde del mapa conocido: el Horizonte de Sucesos.','Dicen que hay algo pescando ahí dentro desde antes de que existieran las estrellas.','Si alguna vez sacas del agua un trozo de singularidad... no sueltes la caña.']},
+    {id:'n_p3_1',name:'Dra. Voss',color:'#c084fc',x:1650,y:1200,role:'loreQuest',
+      lines:['Este es el borde del mapa conocido: el Horizonte de Sucesos.','Dicen que hay algo pescando ahí dentro desde antes de que existieran las estrellas.','Si alguna vez sacas del agua un trozo de singularidad... no sueltes la caña.'],
+      questTitle:'La Prueba de la Dra. Voss',
+      questIntro:'Antes de que confíe en ti con lo que sé, demuéstrame que puedes con los guardianes de Marte y Europa. Derrótalos y hablamos.',
+      questDoneLine:'Lo lograste. Como prometí, aquí tienes lo que dejaron atrás quienes vinieron antes que tú.',
+      questProgress:s=>(s.bossDefeated['behemot_marte']?1:0)+(s.bossDefeated['kraken_europa']?1:0), questTarget:2,
+      unlockCosmeticId:'aura_vacio_susurrante', unlockCosmeticName:'Aura del Vacío Susurrante'},
     {id:'n_p3_2',name:'Zeta',color:'#a855f7',x:400,y:400,role:'merchant',
       lines:['Aquí ni la luz escapa fácil, imagina los peces.','Cuidado con el agua cerca del centro del mapa. No es solo profunda: es infinita.']},
   ],
@@ -1192,6 +1216,30 @@ const WORLDS = [
       lines:['Esto ya no es un planeta. Es lo que queda cuando algo colapsa sobre sí mismo.','Aquí dentro, el tiempo no avanza: se repite, roto, una y otra vez.','Si oyes tu propia voz respondiéndote, no le hagas caso.']},
     {id:'n_p4_2',name:'Nix-∞',color:'#5eead4',x:400,y:400,role:'merchant',
       lines:['Vendo lo que queda de otros viajeros que llegaron... y no volvieron enteros.','No preguntes de dónde saco la mercancía.']},
+  ],
+},
+{
+  id:'planeta_cinco', idx:15, name:'El Primer Amanecer', icon:'🌅', unlockCost:0, isSpace:true,
+  palette:{water:'#fde68a', waterDeep:'#f59e0b', land:'#fff7ed', landDetail:'#fed7aa', fog:'#fef3c7'},
+  weatherPool:['soleado','soleado','aurora','lunaLlena'], decorType:'genesis',
+  fish:[
+    F('pez_de_luz_primera','Pez de Luz Primera','comun','espacial','fish','#fef08a','#b45309'),
+    F('cangrejo_del_amanecer','Cangrejo del Amanecer','pocoComun','espacial','crab','#fdba74','#9a3412'),
+    F('medusa_de_alba','Medusa de Alba','raro','espacial','jellyfish','#fef3c7','#d97706'),
+    F('dragon_dorado_naciente','Dragón Dorado Naciente','epico','espacial','dragon','#fbbf24','#92400e'),
+    F('titan_del_origen','Titán del Origen','legendario','espacial','whale','#fef9e7','#d97706'),
+    F('fantasma_del_primer_dia','Fantasma del Primer Día','mitico','espacial','ghost','#fffbeb','#b45309', {glowIdx:5}),
+    F('devorador_de_amaneceres','Devorador de Amaneceres','omega','espacial','octopus','#f59e0b','#78350f', {glowIdx:6}),
+    F('divinidad_del_génesis','Divinidad del Génesis','divino','espacial','space','#ffffff','#fbbf24', {glowIdx:9}),
+    F('primer_aliento','Primer Aliento del Universo','singularidad','espacial','space','#000000','#fef08a'),
+  ],
+  boss:{id:'primer_ser',name:'El Primer Ser',shape:'whale',color:'#fff7ed',accent:'#fbbf24',
+    minKg:4000,maxKg:8000,minCm:1200,maxCm:1800,desc:'Lo que existía antes de que hubiera algo que existir. No te ataca: simplemente, te recuerda que eres pequeño.'},
+  npcs:[
+    {id:'n_p5_1',name:'Alma',color:'#fef08a',x:1650,y:1200,role:'story',
+      lines:['Atravesaste la oscuridad y llegaste a la luz del principio. No mucha gente lo consigue.','Aquí no hay grietas ni sombras: solo el primer amanecer, una y otra vez.','Sea lo que sea que hayas dejado atrás en la Tierra, ya no eres la misma persona que empezó este viaje.']},
+    {id:'n_p5_2',name:'Ren-Alba',color:'#fbbf24',x:400,y:400,role:'merchant',
+      lines:['Los últimos suministros del universo conocido, con la luz más pura que existe.','Después de esto... ya solo queda explorar por explorar.']},
   ],
 },
 ];
@@ -1315,7 +1363,8 @@ function findClearWaterSpot(world, baseX, baseY){
   const p2 = WORLDS.find(w=>w.id==='planeta_dos');
   const p3 = WORLDS.find(w=>w.id==='planeta_tres');
   const p4 = WORLDS.find(w=>w.id==='planeta_cuatro');
-  if(!marNocturno || !p1 || !p2 || !p3 || !p4) return;
+  const p5 = WORLDS.find(w=>w.id==='planeta_cinco');
+  if(!marNocturno || !p1 || !p2 || !p3 || !p4 || !p5) return;
   const mnSpot = findClearWaterSpot(marNocturno, marNocturno.width-220, 220);
   marNocturno.launchPads = [
     {spot:mnSpot, targetId:'planeta_uno', targetName:p1.name, targetIcon:p1.icon, label:'Lanzar hacia '+p1.name},
@@ -1338,9 +1387,15 @@ function findClearWaterSpot(world, baseX, baseY){
     {spot:p3Fwd, targetId:'planeta_cuatro', targetName:p4.name, targetIcon:p4.icon, label:'Atravesar el Horizonte'},
     {spot:p3Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
+  const p4Fwd = findClearWaterSpot(p4, p4.width-220, 220);
   const p4Back = findClearWaterSpot(p4, 220, p4.height-220);
   p4.launchPads = [
+    {spot:p4Fwd, targetId:'planeta_cinco', targetName:p5.name, targetIcon:p5.icon, label:'Salir al Otro Lado'},
     {spot:p4Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+  const p5Back = findClearWaterSpot(p5, 220, p5.height-220);
+  p5.launchPads = [
+    {spot:p5Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
 })();
 
@@ -1417,7 +1472,7 @@ function earthDexPercent(){
   return total? discovered/total : 0;
 }
 function finalBossDefeated(){ return !!S.bossDefeated[FINAL_BOSS_ID]; }
-function solarSystemEligible(){ return earthDexPercent()>=0.8 && finalBossDefeated(); }
+function solarSystemEligible(){ return earthDexPercent()>=0.75 && finalBossDefeated(); }
 const ROCKET_PARTS_NEEDED = 8;
 
 /* ---------------------------- ACHIEVEMENTS ---------------------------- */
@@ -1451,17 +1506,39 @@ const ACHIEVEMENTS = [
   {id:'segundo_planeta',name:'Luna Helada',desc:'Llega a Europa Helada',icon:'🌕',reward:20000,check:s=>(s.visitedWorlds||[]).includes('planeta_dos')},
   {id:'tercer_planeta',name:'Al Borde del Vacío',desc:'Llega al Horizonte de Sucesos',icon:'🕳️',reward:35000,check:s=>(s.visitedWorlds||[]).includes('planeta_tres')},
   {id:'cuarto_planeta',name:'Más Allá del Colapso',desc:'Llega a la Dimensión Fracturada',icon:'🌀',reward:60000,check:s=>(s.visitedWorlds||[]).includes('planeta_cuatro')},
+  {id:'quinto_planeta',name:'El Otro Lado',desc:'Llega a El Primer Amanecer',icon:'🌅',reward:100000,check:s=>(s.visitedWorlds||[]).includes('planeta_cinco')},
   {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
-    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada'];
+    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada','divinidad_del_génesis'];
     return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
   }},
   {id:'singularidad_capturada',name:'El Que Pescó el Vacío',desc:'Captura al Corazón de la Singularidad',icon:'⚫',reward:1000000,check:s=>s.dex['corazon_de_singularidad']&&s.dex['corazon_de_singularidad'].discovered},
-  {id:'singularidad_x2',name:'Rompedor de Realidades',desc:'Captura las 2 criaturas de rareza Singularidad',icon:'🌀',reward:3000000,check:s=>{
-    const ids=['corazon_de_singularidad','eco_del_colapso'];
-    return ids.every(id=>s.dex[id]&&s.dex[id].discovered);
-  }},
+  {id:'singularidad_x2',name:'Rompedor de Realidades',desc:'Captura todas las criaturas de rareza Singularidad',icon:'🌀',reward:3000000,
+    check:s=>{
+      const ids = Object.values(ALL_SPECIES).filter(e=>e.fish.rarity==='singularidad').map(e=>e.fish.id);
+      return ids.length>0 && ids.every(id=>s.dex[id]&&s.dex[id].discovered);
+    },
+    unlockCosmetic:{slot:'color', id:'cromatico_colapso', label:'color Cromático del Colapso'}},
+  {id:'primer_ser_derrotado',name:'Ante el Primer Ser',desc:'Derrota a El Primer Ser, el final del viaje',icon:'🌟',reward:5000000,check:s=>!!s.bossDefeated['primer_ser']},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
+  {id:'tierra_completa',name:'Guardián de la Tierra',desc:'Completa el 100% de la colección terrestre',icon:'🌍',reward:250000,
+    check:s=>earthDexPercent()>=1,
+    unlockCosmetic:{slot:'aura', id:'singularidad_primordial', label:'Aura de la Singularidad Primordial'}},
+  {id:'quest_nyx',name:'Susurros del Más Allá',desc:'Captura 3 criaturas de tipo fantasma para Nyx',icon:'👻',reward:5000,
+    check:s=>((s.stats.tagCaught&&s.stats.tagCaught['fantasma'])||0)>=3,
+    unlockCosmetic:{slot:'aura', id:'eco_ancestral', label:'Aura del Eco Ancestral'}},
+  {id:'quest_voss',name:'La Prueba de la Dra. Voss',desc:'Derrota a los jefes de Marte Rojo y Europa Helada',icon:'🔭',reward:8000,
+    check:s=>!!s.bossDefeated['behemot_marte'] && !!s.bossDefeated['kraken_europa'],
+    unlockCosmetic:{slot:'aura', id:'vacio_susurrante', label:'Aura del Vacío Susurrante'}},
+  {id:'corona_profundidades',name:'Señor de las Profundidades',desc:'Derrota a los 10 jefes de la Tierra',icon:'👑',reward:100000,
+    check:s=>EARTH_WORLDS.every(w=>!!s.bossDefeated[w.boss.id]),
+    unlockCosmetic:{slot:'hat', id:'corona_profundidades', label:'Corona de las Profundidades'}},
+  {id:'yelmo_vacio',name:'Conquistador del Vacío',desc:'Derrota a todos los jefes del Sistema Solar',icon:'🪖',reward:150000,
+    check:s=>WORLDS.filter(w=>w.isSpace).every(w=>!!s.bossDefeated[w.boss.id]),
+    unlockCosmetic:{slot:'hat', id:'yelmo_vacio', label:'Yelmo del Vacío'}},
+  {id:'explorador_eterno',name:'Explorador Eterno',desc:'Visita todos los mundos del juego',icon:'🧭',reward:80000,
+    check:s=>(s.visitedWorlds||[]).length>=WORLDS.length,
+    unlockCosmetic:{slot:'hat', id:'explorador_eterno', label:'Sombrero del Explorador Eterno'}},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -1502,7 +1579,7 @@ function defaultState(){
     quests,
     achievements:{},
     cosmetics:{owned:['celeste','none_hat','none_aura','none_trail'],color:'celeste',hat:'none',aura:'none',trail:'none'},
-    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0,portalsCrossed:0,luckySpotCatches:0},
+    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},tagCaught:{},totalSold:0,portalsCrossed:0,luckySpotCatches:0},
     npcMet:{},
     settings:{musicOn:true,sfxOn:true},
     playerPos:{},
@@ -2191,6 +2268,8 @@ function resolveCatch(fish, isBoss){
   S.stats.totalCatches++;
   S.stats.rarityCaught[fish.rarity] = (S.stats.rarityCaught[fish.rarity]||0)+1;
   S.stats.shapeCaught[fish.shape] = (S.stats.shapeCaught[fish.shape]||0)+1;
+  if(!S.stats.tagCaught) S.stats.tagCaught={};
+  S.stats.tagCaught[fish.tag] = (S.stats.tagCaught[fish.tag]||0)+1;
   if(fishing.caughtInLuckySpot){ S.stats.luckySpotCatches = (S.stats.luckySpotCatches||0)+1; }
 
   if(isBoss){
@@ -2348,7 +2427,16 @@ function checkAchievements(){
     } else if(a.check){
       ok = a.check(S);
     }
-    if(ok){ S.achievements[a.id]=true; S.coins+=a.reward; unlocked=true; Audio1.sfx('achievement'); toast('🏆 Logro: '+a.name+' (+'+fmtNum(a.reward)+')'); }
+    if(ok){
+      S.achievements[a.id]=true; S.coins+=a.reward; unlocked=true; Audio1.sfx('achievement');
+      toast('🏆 Logro: '+a.name+' (+'+fmtNum(a.reward)+')');
+      if(a.unlockCosmetic){
+        const uc = a.unlockCosmetic;
+        const ownId = uc.slot==='hat'? 'hat_'+uc.id : uc.slot==='aura'? 'aura_'+uc.id : uc.slot==='trail'? 'trail_'+uc.id : uc.id;
+        if(!S.cosmetics.owned.includes(ownId)) S.cosmetics.owned.push(ownId);
+        setTimeout(()=>{ Audio1.sfx('achievement'); toast('🔓 ¡Desbloqueaste el '+uc.label+'!'); }, 600);
+      }
+    }
   }
   if(unlocked){ refreshHud(); }
 }
@@ -2365,6 +2453,11 @@ function openDialogue(npc){
   }
   if(npc.role==='rocketEngineer'){
     renderRocketEngineerDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
+  if(npc.role==='loreQuest'){
+    renderLoreQuestDialogue(npc, bonus);
     openModal('mDialogue');
     return;
   }
@@ -2394,7 +2487,7 @@ function renderRocketEngineerDialogue(npc, bonus){
     const pct = Math.min(100, Math.round(earthDexPercent()*100));
     box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
       <div class="dlgLine">"Aún no puedo construir nada. Necesito ver que dominas este planeta."</div>
-      <div class="cmeta" style="margin-top:6px;">📖 Acuario de la Tierra: ${pct}% / 80%</div>
+      <div class="cmeta" style="margin-top:6px;">📖 Acuario de la Tierra: ${pct}% / 75%</div>
       <div class="cmeta">👑 Jefe final (Leviatán de las Sombras): ${finalBossDefeated()?'✔ Derrotado':'Pendiente'}</div>`;
     openModal('mDialogue');
     return;
@@ -2424,6 +2517,22 @@ function buildRocket(){
   checkAchievements();
   saveGame();
   closeModal('mDialogue');
+}
+
+// generic NPC handler for one-off "bring me proof" style side quests that unlock a
+// mission-only cosmetic; each npc carries its own goal text and progress function
+function renderLoreQuestDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  const done = S.cosmetics.owned.includes(npc.unlockCosmeticId);
+  if(done){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${npc.questDoneLine}"</div>`;
+    return;
+  }
+  const progress = Math.min(npc.questProgress(S), npc.questTarget);
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+    <div class="dlgLine">"${npc.questIntro}"</div>
+    <div class="cmeta" style="margin-top:6px;">📜 ${npc.questTitle}: ${progress}/${npc.questTarget}</div>`;
 }
 
 /* ---------------------------- BOSS INTRO ---------------------------- */
@@ -3163,6 +3272,23 @@ function drawDecor(d){
       ctx.restore();
       break;
     }
+    case 'genesis': {
+      // a luminous crystal-flower, glowing warm gold — the first light after the dark dimensions
+      const glowT = performance.now()/500;
+      ctx.save();
+      ctx.shadowColor='#fbbf24'; ctx.shadowBlur = 8+4*Math.sin(glowT+d.x*0.01);
+      ctx.fillStyle='#78350f'; ctx.fillRect(-s*0.04,-s*0.05,s*0.08,s*0.5);
+      for(let i=0;i<5;i++){
+        const ang = i*(Math.PI*2/5) - Math.PI/2;
+        const px = Math.cos(ang)*s*0.28, py = -s*0.35+Math.sin(ang)*s*0.28;
+        ctx.fillStyle = i%2===0? '#fef08a':'#fbbf24';
+        ctx.beginPath(); ctx.ellipse(px,py,s*0.16,s*0.09,ang,0,Math.PI*2); ctx.fill();
+      }
+      ctx.fillStyle='#fff7ed';
+      ctx.beginPath(); ctx.arc(0,-s*0.35,s*0.12,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+      break;
+    }
     default:
       ctx.fillStyle='#5da456'; ctx.beginPath(); ctx.arc(0,0,s*0.3,0,Math.PI*2); ctx.fill();
   }
@@ -3208,6 +3334,46 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
         grad.addColorStop(0,'#fef08a'); grad.addColorStop(0.5,'#fb923c'); grad.addColorStop(1,'rgba(220,38,38,0)');
         ctx.fillStyle = grad;
         ctx.beginPath(); ctx.arc(sx,sy,size*0.22*flick,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    } else if(auraObj.color==='blackhole'){
+      ctx.save();
+      ctx.translate(0,4);
+      drawBlackHoleAura(ctx, size*0.75, t);
+      ctx.restore();
+    } else if(auraObj.color==='echo'){
+      ctx.save();
+      for(let i=0;i<3;i++){
+        const ringT = ((t*0.5+i/3)%1);
+        ctx.globalAlpha = (1-ringT)*0.55;
+        ctx.strokeStyle = '#a5f3fc'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(0,4,size*(0.55+ringT*0.7),0,Math.PI*2); ctx.stroke();
+      }
+      for(let i=0;i<6;i++){
+        const ang = i*(Math.PI*2/6) - t*0.8;
+        const rad = size*0.7;
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.6;
+        const tw = 0.4+0.6*Math.sin(t*3+i*1.5);
+        ctx.globalAlpha = tw*0.7;
+        ctx.fillStyle = '#e0f2fe';
+        ctx.beginPath(); ctx.arc(sx,sy,1.6,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    } else if(auraObj.color==='void'){
+      ctx.save();
+      ctx.globalAlpha = 0.4+0.15*Math.sin(t*1.5);
+      const grad = ctx.createRadialGradient(0,4,size*0.1,0,4,size*1.1);
+      grad.addColorStop(0,'#1e1033'); grad.addColorStop(0.6,'#0a0118'); grad.addColorStop(1,'rgba(10,1,24,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,4,size*1.1,0,Math.PI*2); ctx.fill();
+      for(let i=0;i<7;i++){
+        const ang = i*(Math.PI*2/7) + t*0.4;
+        const drift = ((t*0.3+i/7)%1);
+        const rad = size*(0.3+drift*0.8);
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.6;
+        ctx.globalAlpha = (1-drift)*0.6;
+        ctx.fillStyle='#c4b5fd';
+        ctx.beginPath(); ctx.arc(sx,sy,1.2,0,Math.PI*2); ctx.fill();
       }
       ctx.restore();
     } else {
@@ -3273,6 +3439,21 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
     }
     ctx.restore();
     ctx.globalAlpha=1;
+  } else if(special==='chroma'){
+    ctx.save();
+    roundRect(ctx,-size/2,-size/2,size,size,size*0.22); ctx.clip();
+    const ct = performance.now()/500;
+    const palette = ['#f472b6','#5eead4','#a855f7','#fbbf24'];
+    for(let i=0;i<9;i++){
+      const sx = ((Math.sin(i*9.1)*0.5+0.5)*2-1)*size*0.45;
+      const sy = ((Math.cos(i*5.7)*0.5+0.5)*2-1)*size*0.45;
+      const tw = 0.4+0.6*Math.sin(ct*3.5+i*2.3);
+      ctx.globalAlpha = clamp(tw,0.15,1);
+      ctx.fillStyle = palette[i%palette.length];
+      ctx.beginPath(); ctx.arc(sx,sy,1+tw,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha=1;
   }
 
   // hat
@@ -3335,6 +3516,46 @@ function drawHat(ctx,hat,size){
       ctx.globalAlpha=1;
       ctx.fillStyle='#fef08a';
       ctx.beginPath(); ctx.arc(0,-size*0.34,size*0.05,0,Math.PI*2); ctx.fill();
+      break;
+    }
+    case 'deepCrown': {
+      const t = performance.now()/450;
+      const grad = ctx.createLinearGradient(-size*0.34,-size*0.3,size*0.34,0);
+      grad.addColorStop(0,'#0e7490'); grad.addColorStop(0.5,'#155e75'); grad.addColorStop(1,'#0e7490');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(-size*0.34,0); ctx.lineTo(-size*0.34,-size*0.2); ctx.lineTo(-size*0.2,-size*0.36);
+      ctx.lineTo(-size*0.07,-size*0.14); ctx.lineTo(0,-size*0.4); ctx.lineTo(size*0.07,-size*0.14); ctx.lineTo(size*0.2,-size*0.36);
+      ctx.lineTo(size*0.34,-size*0.2); ctx.lineTo(size*0.34,0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#67e8f9'; ctx.lineWidth=1.4; ctx.stroke();
+      [-0.2,0,0.2].forEach((px,i)=>{
+        const tw = 0.5+0.5*Math.sin(t*2.5+i*2);
+        ctx.fillStyle='#67e8f9'; ctx.globalAlpha = 0.6+0.4*tw;
+        ctx.beginPath(); ctx.arc(size*px, -size*0.2, 2+tw*1.2, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha=1;
+      break;
+    }
+    case 'voidHelm': {
+      ctx.fillStyle='#0a0118';
+      ctx.beginPath(); ctx.arc(0,-size*0.02,size*0.4,Math.PI*1.05,Math.PI*1.95); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#a855f7'; ctx.lineWidth=1.5; ctx.globalAlpha=0.8;
+      ctx.beginPath(); ctx.arc(0,-size*0.02,size*0.4,Math.PI*1.05,Math.PI*1.95); ctx.stroke();
+      ctx.globalAlpha=1;
+      const t = performance.now()/400;
+      ctx.fillStyle = `rgba(196,181,253,${0.5+0.4*Math.sin(t*3)})`;
+      ctx.beginPath(); ctx.ellipse(0,-size*0.06,size*0.22,size*0.045,0,0,Math.PI*2); ctx.fill();
+      break;
+    }
+    case 'eternalHat': {
+      ctx.fillStyle='#a9793f'; ctx.beginPath(); ctx.ellipse(0,size*0.06,size*0.52,size*0.13,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#8a5a30'; ctx.beginPath(); ctx.arc(0,-size*0.08,size*0.3,Math.PI,0); ctx.fill();
+      ctx.fillStyle='#6b4a24'; ctx.fillRect(-size*0.3,-size*0.08,size*0.6,size*0.06);
+      const t = performance.now()/600;
+      ctx.save(); ctx.translate(size*0.24,size*0.02); ctx.rotate(t*0.6);
+      ctx.strokeStyle='#fde68a'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(-size*0.045,0); ctx.lineTo(size*0.045,0); ctx.moveTo(0,-size*0.045); ctx.lineTo(0,size*0.045); ctx.stroke();
+      ctx.fillStyle='#fde68a'; ctx.beginPath(); ctx.arc(0,0,size*0.02,0,Math.PI*2); ctx.fill();
+      ctx.restore();
       break;
     }
   }
@@ -4130,9 +4351,9 @@ function renderSolarProgressBanner(){
   }
   const pct = Math.min(100, Math.round(earthDexPercent()*100));
   const bossOk = finalBossDefeated();
-  banner.innerHTML = `🌍 <strong>Dimensión 1 · La Tierra.</strong> Completa el 80% de la colección terrestre y vence al jefe final
+  banner.innerHTML = `🌍 <strong>Dimensión 1 · La Tierra.</strong> Completa el 75% de la colección terrestre y vence al jefe final
     para desbloquear la <strong>Dimensión del Sistema Solar</strong>.<br>
-    📖 Colección: ${pct}/80% &nbsp;·&nbsp; 👑 Leviatán de las Sombras: ${bossOk?'✔ Derrotado':'Pendiente'}
+    📖 Colección: ${pct}/75% &nbsp;·&nbsp; 👑 Leviatán de las Sombras: ${bossOk?'✔ Derrotado':'Pendiente'}
     ${solarSystemEligible()?'<br>✨ ¡Ya puedes hablar con la Ingeniera Kel en Mar Nocturno para construir tu cohete!':''}`;
 }
 let aqCardEntries = [];
@@ -4272,8 +4493,9 @@ function renderSolarMap(){
   const container = document.getElementById('solarOrbits');
   container.innerHTML = '';
   const planets = WORLDS.filter(w=>w.isSpace);
+  const ringStep = planets.length>4? 58 : 75;
   planets.forEach((w,i)=>{
-    const radius = 95 + i*75;
+    const radius = 85 + i*ringStep;
     const duration = 16 + i*11;
     const ring = document.createElement('div');
     ring.className='orbitRing';
@@ -4346,22 +4568,32 @@ function renderCustom(){
       cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
       if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
       if(customTab==='aura' && item.color){
+        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033'};
         cctx.save(); cctx.globalAlpha=0.4;
-        cctx.fillStyle = item.color==='rainbow'?'#f472b6':item.color==='galaxy'?'#7c3aed':item.color==='fire'?'#fb923c':item.color;
+        cctx.fillStyle = previewColors[item.color] || item.color;
         cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
       }
       cctx.restore();
       const nameDiv=document.createElement('div'); nameDiv.className='cname'; nameDiv.textContent=item.name; card.appendChild(nameDiv);
     }
     const btn=document.createElement('button'); btn.className='shopBtn'+(equipped?' equipped':'');
-    btn.textContent = equipped? 'Equipado' : (owned? 'Equipar' : ('🪙 '+fmtNum(item.price)));
-    btn.addEventListener('click', ()=>{
-      if(owned){ S.cosmetics[equippedKey]=item.id; saveGame(); renderCustom(); return; }
-      if(S.coins>=item.price){
-        S.coins-=item.price; S.cosmetics.owned.push(ownId); S.cosmetics[equippedKey]=item.id;
-        Audio1.sfx('buy'); refreshHud(); saveGame(); renderCustom();
-      } else toast('No tienes suficientes monedas.');
-    });
+    if(item.locked && !owned){
+      btn.textContent = '🔒 Misión';
+      btn.disabled = true;
+      card.title = item.unlockDesc || '';
+      const descDiv = document.createElement('div'); descDiv.className='cmeta'; descDiv.style.cssText='margin-top:4px;font-size:11px;';
+      descDiv.textContent = item.unlockDesc || 'Se desbloquea completando una misión especial.';
+      card.appendChild(descDiv);
+    } else {
+      btn.textContent = equipped? 'Equipado' : (owned? 'Equipar' : ('🪙 '+fmtNum(item.price)));
+      btn.addEventListener('click', ()=>{
+        if(owned){ S.cosmetics[equippedKey]=item.id; saveGame(); renderCustom(); return; }
+        if(S.coins>=item.price){
+          S.coins-=item.price; S.cosmetics.owned.push(ownId); S.cosmetics[equippedKey]=item.id;
+          Audio1.sfx('buy'); refreshHud(); saveGame(); renderCustom();
+        } else toast('No tienes suficientes monedas.');
+      });
+    }
     card.appendChild(btn);
     grid.appendChild(card);
   });
