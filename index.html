@@ -651,6 +651,8 @@ const RODS = [
   {id:'cometa',    name:'Caña de Cometa',   price:12000000,waitMin:350,waitMax:700,  luck:32,  zoneBonus:40, maxTier:9, icon:'☄️'},
   {id:'nebulosa',  name:'Caña Nebulosa',    price:30000000,waitMin:300,waitMax:600,  luck:45,  zoneBonus:46, maxTier:9, icon:'🌠'},
   {id:'singularidad_rod', name:'Caña de la Singularidad', price:0, priceCrystals:6000, waitMin:250,waitMax:500, luck:90, zoneBonus:55, maxTier:10, icon:'🕳️'},
+  {id:'genesis_rod', name:'Caña del Génesis', price:0, waitMin:200,waitMax:400, luck:120, zoneBonus:60, maxTier:10, icon:'🌅', locked:true,
+    unlockDesc:'Derrota a todos los jefes de la Tierra y del Sistema Solar.'},
 ];
 const BAITS = [
   {id:'lombriz',   name:'Lombriz',           price:5,   icon:'🪱', tag:'comun',      mult:1.6},
@@ -675,6 +677,7 @@ const BOATS = [
   {id:'legendario_boat', name:'Buque Legendario', price:220000, speed:580, luck:4.2, hullColor:'#a855f7', accent:'#4c1d95', sail:true, icon:'🚢'},
   {id:'nave_estelar', name:'Nave Estelar',  price:8000000, speed:700, luck:6,   hullColor:'#c4b5fd', accent:'#312e81', sail:false, icon:'🛸', shape:'ufo'},
   {id:'singularidad_boat', name:'Devoradora de Horizontes', price:0, priceCrystals:9000, speed:820, luck:20, hullColor:'#000000', accent:'#a855f7', sail:false, icon:'🕳️', shape:'blackhole'},
+  {id:'amanecer_boat', name:'Amanecer Eterno', price:60000000, speed:880, luck:26, hullColor:'#fef08a', accent:'#f59e0b', sail:false, icon:'🌅', shape:'sunboat'},
 ];
 
 /* ---------------------------- PETS ---------------------------- */
@@ -787,6 +790,8 @@ const AURAS = [
   {id:'oscura',name:'Aura Oscura',price:10000,color:'#8b5cf6'},
   {id:'galaxia',name:'Aura Galaxia',price:25000,color:'galaxy'},
   {id:'fuego',name:'Aura de Fuego',price:25000,color:'fire'},
+  {id:'cristal',name:'Aura de Cristal',price:9000,color:'crystal'},
+  {id:'solar',name:'Aura Solar',price:12000,color:'solar'},
   {id:'singularidad_primordial',name:'Aura de la Singularidad Primordial',color:'blackhole',locked:true,
     unlockDesc:'Completa el 100% de la colección terrestre.'},
   {id:'eco_ancestral',name:'Aura del Eco Ancestral',color:'echo',locked:true,
@@ -801,6 +806,8 @@ const TRAILS = [
   {id:'fuego',name:'Fuego',price:4000},
   {id:'sombra',name:'Sombra',price:9000},
   {id:'caramelos',name:'Caramelos',price:12000},
+  {id:'cometa',name:'Rastro de Cometa',price:6000},
+  {id:'solar',name:'Rastro Solar',price:8000},
 ];
 
 /* ---------------------------- WEATHER ---------------------------- */
@@ -1071,7 +1078,7 @@ const WORLDS = [
       questIntro:'Hay voces en el agua profunda que solo las criaturas fantasma pueden oír. Tráeme la prueba de tres de ellas y te enseñaré algo que perdí hace mucho tiempo.',
       questDoneLine:'El eco ya es tuyo. Llévalo contigo, viajero — pocos escuchan tan bien como tú.',
       questProgress:s=>(s.stats.tagCaught&&s.stats.tagCaught['fantasma'])||0, questTarget:3,
-      unlockCosmeticId:'aura_eco_ancestral', unlockCosmeticName:'Aura del Eco Ancestral'},
+      questAchievementId:'quest_nyx'},
     {id:'n_mn_2',name:'Suri',color:'#cbd5e1',x:400,y:400,role:'merchant',
       lines:['La última tienda antes de la oscuridad total.','Buena suerte ahí fuera, la vas a necesitar.']},
     {id:'n_mn_3',name:'Ingeniera Kel',color:'#f97316',x:900,y:1400,role:'rocketEngineer',
@@ -1189,7 +1196,7 @@ const WORLDS = [
       questIntro:'Antes de que confíe en ti con lo que sé, demuéstrame que puedes con los guardianes de Marte y Europa. Derrótalos y hablamos.',
       questDoneLine:'Lo lograste. Como prometí, aquí tienes lo que dejaron atrás quienes vinieron antes que tú.',
       questProgress:s=>(s.bossDefeated['behemot_marte']?1:0)+(s.bossDefeated['kraken_europa']?1:0), questTarget:2,
-      unlockCosmeticId:'aura_vacio_susurrante', unlockCosmeticName:'Aura del Vacío Susurrante'},
+      questAchievementId:'quest_voss'},
     {id:'n_p3_2',name:'Zeta',color:'#a855f7',x:400,y:400,role:'merchant',
       lines:['Aquí ni la luz escapa fácil, imagina los peces.','Cuidado con el agua cerca del centro del mapa. No es solo profunda: es infinita.']},
   ],
@@ -1236,8 +1243,13 @@ const WORLDS = [
   boss:{id:'primer_ser',name:'El Primer Ser',shape:'whale',color:'#fff7ed',accent:'#fbbf24',
     minKg:4000,maxKg:8000,minCm:1200,maxCm:1800,desc:'Lo que existía antes de que hubiera algo que existir. No te ataca: simplemente, te recuerda que eres pequeño.'},
   npcs:[
-    {id:'n_p5_1',name:'Alma',color:'#fef08a',x:1650,y:1200,role:'story',
-      lines:['Atravesaste la oscuridad y llegaste a la luz del principio. No mucha gente lo consigue.','Aquí no hay grietas ni sombras: solo el primer amanecer, una y otra vez.','Sea lo que sea que hayas dejado atrás en la Tierra, ya no eres la misma persona que empezó este viaje.']},
+    {id:'n_p5_1',name:'Alma',color:'#fef08a',x:1650,y:1200,role:'loreQuest',
+      lines:['Atravesaste la oscuridad y llegaste a la luz del principio. No mucha gente lo consigue.','Aquí no hay grietas ni sombras: solo el primer amanecer, una y otra vez.','Sea lo que sea que hayas dejado atrás en la Tierra, ya no eres la misma persona que empezó este viaje.'],
+      questTitle:'La Última Prueba',
+      questIntro:'Has llegado hasta la luz del principio, pero aún no has terminado. En algún lugar de la Tierra y del Sistema Solar quedan guardianes que no has vencido. Derrótalos a todos y vuelve a mí.',
+      questDoneLine:'No queda ningún jefe que no hayas vencido. Toma esto — es lo último que puedo darte. El viaje es tuyo ahora.',
+      questProgress:s=>(s.achievements['corona_profundidades']?1:0)+(s.achievements['yelmo_vacio']?1:0), questTarget:2,
+      questAchievementId:'maestro_de_jefes'},
     {id:'n_p5_2',name:'Ren-Alba',color:'#fbbf24',x:400,y:400,role:'merchant',
       lines:['Los últimos suministros del universo conocido, con la luz más pura que existe.','Después de esto... ya solo queda explorar por explorar.']},
   ],
@@ -1399,6 +1411,15 @@ function findClearWaterSpot(world, baseX, baseY){
   ];
 })();
 
+// Grietas Negras: a fixed, permanent, high-luck fishing spot in every Solar System
+// world — swim into the black hole marker and your odds shoot way up while you're near it
+const RIFT_LUCK_MULT = 10;
+(function setupBlackHoleRifts(){
+  WORLDS.filter(w=>w.isSpace).forEach(w=>{
+    w.riftSpot = findClearWaterSpot(w, w.width-220, w.height-220);
+  });
+})();
+
 const EVENT_END = new Date('2026-08-05T23:59:59');
 function eventCountdownText(){
   const diff = EVENT_END.getTime() - Date.now();
@@ -1539,6 +1560,9 @@ const ACHIEVEMENTS = [
   {id:'explorador_eterno',name:'Explorador Eterno',desc:'Visita todos los mundos del juego',icon:'🧭',reward:80000,
     check:s=>(s.visitedWorlds||[]).length>=WORLDS.length,
     unlockCosmetic:{slot:'hat', id:'explorador_eterno', label:'Sombrero del Explorador Eterno'}},
+  {id:'maestro_de_jefes',name:'Maestro de Todos los Jefes',desc:'Derrota a todos los jefes de la Tierra y del Sistema Solar',icon:'🌟',reward:500000,
+    check:s=>!!s.achievements['corona_profundidades'] && !!s.achievements['yelmo_vacio'],
+    unlockRod:{id:'genesis_rod', label:'Caña del Génesis'}},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -1704,6 +1728,14 @@ function updateLuckySpot(dt){
     w._luckySpotCheckTimer = randRange(45,90);
     if(Math.random()<0.5) spawnLuckySpot(w);
   }
+  if(w.riftSpot){
+    const near = Math.hypot(w.riftSpot.x-player.x, w.riftSpot.y-player.y)<100;
+    if(near && !S._riftSeen) S._riftSeen = {};
+    if(near && !S._riftSeen[w.id]){
+      S._riftSeen[w.id] = true;
+      toast('🕳️ Entras en la Grieta Negra — la suerte se multiplica x'+RIFT_LUCK_MULT+' aquí.');
+    }
+  }
 }
 function spawnLuckySpot(w){
   let x,y, tries=0;
@@ -1717,9 +1749,16 @@ function spawnLuckySpot(w){
   }
 }
 function activeLuckySpotMultiplier(){
+  let mult = 1;
   const spot = curWorld._luckySpot;
-  if(!spot) return 1;
-  return Math.hypot(spot.x-player.x, spot.y-player.y)<90 ? spot.mult : 1;
+  if(spot && Math.hypot(spot.x-player.x, spot.y-player.y)<90) mult = Math.max(mult, spot.mult);
+  const rift = curWorld.riftSpot;
+  if(rift && Math.hypot(rift.x-player.x, rift.y-player.y)<100) mult = Math.max(mult, RIFT_LUCK_MULT);
+  return mult;
+}
+function inRiftSpot(){
+  const rift = curWorld.riftSpot;
+  return !!(rift && Math.hypot(rift.x-player.x, rift.y-player.y)<100);
 }
 
 /* ---------------------------- PORTAL / TRAVEL ---------------------------- */
@@ -1750,7 +1789,22 @@ function tryEnterLaunchPad(){
   if(S._traveling || !curWorld.launchPads) return;
   for(const pad of curWorld.launchPads){
     const d = Math.hypot(pad.spot.x-player.x, pad.spot.y-player.y);
-    if(d<70){ startTravel(pad.targetId); return; }
+    if(d<70){
+      const target = WORLDS.find(w=>w.id===pad.targetId);
+      // forward progression (deeper into the Solar System) is gated behind the
+      // current planet's boss — pads heading back to Earth are always free
+      const isForward = curWorld.isSpace && target && target.idx > curWorld.idx;
+      if(isForward && curWorld.boss && !S.bossDefeated[curWorld.boss.id]){
+        if(!S._launchWarned){
+          S._launchWarned = true;
+          toast('🔒 Derrota a '+curWorld.boss.name+' antes de avanzar más allá de '+curWorld.name+'.');
+          setTimeout(()=>{ S._launchWarned=false; }, 5000);
+        }
+        return;
+      }
+      startTravel(pad.targetId);
+      return;
+    }
   }
 }
 
@@ -2436,6 +2490,11 @@ function checkAchievements(){
         if(!S.cosmetics.owned.includes(ownId)) S.cosmetics.owned.push(ownId);
         setTimeout(()=>{ Audio1.sfx('achievement'); toast('🔓 ¡Desbloqueaste el '+uc.label+'!'); }, 600);
       }
+      if(a.unlockRod){
+        const targetIdx = RODS.findIndex(r=>r.id===a.unlockRod.id);
+        if(targetIdx>=0 && S.rodIndex<targetIdx) S.rodIndex = targetIdx;
+        setTimeout(()=>{ Audio1.sfx('achievement'); toast('🔓 ¡Desbloqueaste la '+a.unlockRod.label+'!'); }, 600);
+      }
     }
   }
   if(unlocked){ refreshHud(); }
@@ -2520,11 +2579,12 @@ function buildRocket(){
 }
 
 // generic NPC handler for one-off "bring me proof" style side quests that unlock a
-// mission-only cosmetic; each npc carries its own goal text and progress function
+// mission-only cosmetic or rod; each npc carries its own goal text, progress function,
+// and the id of the achievement that actually grants the reward
 function renderLoreQuestDialogue(npc, bonus){
   document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
   const box = document.getElementById('dlgBox');
-  const done = S.cosmetics.owned.includes(npc.unlockCosmeticId);
+  const done = !!S.achievements[npc.questAchievementId];
   if(done){
     box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${npc.questDoneLine}"</div>`;
     return;
@@ -2960,6 +3020,10 @@ function renderMinimap(){
     mctx.fillStyle = '#facc15';
     mctx.beginPath(); mctx.arc(curWorld._luckySpot.x*sx,curWorld._luckySpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
   }
+  if(curWorld.riftSpot){
+    mctx.fillStyle = '#a855f7';
+    mctx.beginPath(); mctx.arc(curWorld.riftSpot.x*sx,curWorld.riftSpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
+  }
   if(curWorld.launchPads){
     mctx.fillStyle = S.hasRocket? '#fbbf24' : '#64748b';
     curWorld.launchPads.forEach(pad=>{
@@ -3376,6 +3440,40 @@ function drawCube(x,y,size,color,bob,label,hat,aura,trail){
         ctx.beginPath(); ctx.arc(sx,sy,1.2,0,Math.PI*2); ctx.fill();
       }
       ctx.restore();
+    } else if(auraObj.color==='crystal'){
+      ctx.save();
+      for(let i=0;i<6;i++){
+        const ang = i*(Math.PI*2/6) + t*0.7;
+        const rad = size*0.8;
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.55;
+        const tw = 0.5+0.5*Math.sin(t*3+i*1.4);
+        ctx.save();
+        ctx.translate(sx,sy); ctx.rotate(ang+t);
+        ctx.globalAlpha = 0.5+0.4*tw;
+        ctx.fillStyle = i%2===0? '#a5f3fc':'#67e8f9';
+        ctx.beginPath(); ctx.moveTo(0,-5-tw*2); ctx.lineTo(3,0); ctx.lineTo(0,5+tw*2); ctx.lineTo(-3,0); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    } else if(auraObj.color==='solar'){
+      ctx.save();
+      ctx.globalAlpha = 0.3+0.1*Math.sin(t*2);
+      const grad = ctx.createRadialGradient(0,4,size*0.2,0,4,size*1.1);
+      grad.addColorStop(0,'#fef9c3'); grad.addColorStop(0.6,'#fbbf24'); grad.addColorStop(1,'rgba(251,191,36,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,4,size*1.1,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 0.8;
+      for(let i=0;i<8;i++){
+        const ang = i*(Math.PI*2/8) + t*0.5;
+        const pulse = 0.6+0.4*Math.sin(t*3+i);
+        const rIn = size*0.6, rOut = size*(0.95+pulse*0.3);
+        ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang)*rIn, 4+Math.sin(ang)*rIn*0.55);
+        ctx.lineTo(Math.cos(ang)*rOut, 4+Math.sin(ang)*rOut*0.55);
+        ctx.stroke();
+      }
+      ctx.restore();
     } else {
       ctx.save();
       ctx.globalAlpha = 0.35+0.15*Math.sin(t*2);
@@ -3612,6 +3710,34 @@ function drawTrailParticles(){
       ctx.beginPath(); ctx.moveTo(4.5,0); ctx.lineTo(6.5,-1.8); ctx.lineTo(6.5,1.8); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
+    else if(t.type==='cometa'){
+      const rot = (t.seed||0)*Math.PI*2;
+      ctx.save();
+      ctx.translate(screen.x,screen.y+10); ctx.rotate(rot);
+      const grad = ctx.createLinearGradient(-14,0,3,0);
+      grad.addColorStop(0,'rgba(165,243,252,0)'); grad.addColorStop(1,'#e0f2fe');
+      ctx.fillStyle = grad; ctx.globalAlpha = a*0.85;
+      ctx.beginPath(); ctx.ellipse(-5,0,10,2.4,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.arc(3,0,2.4,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    else if(t.type==='solar'){
+      const tw = 0.5+0.5*Math.sin((t.seed||0)*10+performance.now()/150);
+      ctx.globalAlpha = a*0.9;
+      ctx.shadowColor='#fde047'; ctx.shadowBlur = 6;
+      ctx.fillStyle='#fef08a';
+      ctx.beginPath(); ctx.arc(screen.x,screen.y+10,2+tw*2,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.strokeStyle='#fbbf24'; ctx.lineWidth=1; ctx.globalAlpha=a*0.6;
+      for(let i=0;i<4;i++){
+        const ang = i*(Math.PI/2)+(t.seed||0)*3;
+        ctx.beginPath();
+        ctx.moveTo(screen.x+Math.cos(ang)*3, screen.y+10+Math.sin(ang)*3);
+        ctx.lineTo(screen.x+Math.cos(ang)*(6+tw*3), screen.y+10+Math.sin(ang)*(6+tw*3));
+        ctx.stroke();
+      }
+    }
     ctx.restore();
   });
 }
@@ -3678,6 +3804,24 @@ function drawLuckySpot(){
   ctx.textAlign='center';
   ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=4;
   ctx.fillText('x'+spot.mult, screen.x, screen.y - (big?60:48));
+  ctx.restore();
+}
+
+function drawRiftSpot(){
+  const rift = curWorld.riftSpot;
+  if(!rift) return;
+  const screen = worldToScreen(rift.x, rift.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,20,42,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  drawBlackHoleAura(ctx, 34, t);
+  ctx.restore();
+  ctx.save();
+  ctx.font = 'bold 13px system-ui'; ctx.fillStyle='#c4b5fd'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText('Grieta Negra · x'+RIFT_LUCK_MULT, screen.x, screen.y-58);
   ctx.restore();
 }
 
@@ -3790,6 +3934,8 @@ function drawBoat(x,y,angle,boatIdx,bob,trailType){
     drawUfoHull(ctx, boat, size);
   } else if(boat.shape==='blackhole'){
     drawBlackHoleHull(ctx, boat, size);
+  } else if(boat.shape==='sunboat'){
+    drawSunboatHull(ctx, boat, size);
   } else {
     ctx.beginPath();
     ctx.moveTo(size*0.62,0);
@@ -3887,6 +4033,40 @@ function drawBlackHoleHull(ctx, boat, size){
   ctx.restore();
 }
 
+// a hull woven from pure light, used by the Amanecer Eterno — the finale boat
+function drawSunboatHull(ctx, boat, size){
+  const t = performance.now()/450;
+  ctx.save();
+  const glow = ctx.createRadialGradient(0,0,size*0.1,0,0,size*0.75);
+  glow.addColorStop(0,'rgba(254,240,138,0.6)'); glow.addColorStop(1,'rgba(254,240,138,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(0,0,size*0.75,0,Math.PI*2); ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(size*0.62,0);
+  ctx.quadraticCurveTo(size*0.3,-size*0.34,-size*0.5,-size*0.3);
+  ctx.quadraticCurveTo(-size*0.64,0,-size*0.5,size*0.3);
+  ctx.quadraticCurveTo(size*0.3,size*0.34,size*0.62,0);
+  ctx.closePath();
+  const hullGrad = ctx.createLinearGradient(0,-size*0.3,0,size*0.3);
+  hullGrad.addColorStop(0,'#fef9c3'); hullGrad.addColorStop(0.5,'#fde047'); hullGrad.addColorStop(1,'#f59e0b');
+  ctx.fillStyle = hullGrad; ctx.fill();
+  ctx.strokeStyle='#fff7ed'; ctx.lineWidth=Math.max(1.5,size*0.035); ctx.globalAlpha=0.9; ctx.stroke();
+  ctx.globalAlpha=1;
+
+  for(let i=0;i<8;i++){
+    const ang = i*(Math.PI*2/8) + t*0.6;
+    const pulse = 0.5+0.5*Math.sin(t*3+i);
+    ctx.strokeStyle='#fff7ed'; ctx.lineWidth=1.4; ctx.globalAlpha=0.4+pulse*0.4;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(ang)*size*0.5, Math.sin(ang)*size*0.22);
+    ctx.lineTo(Math.cos(ang)*size*(0.68+pulse*0.15), Math.sin(ang)*size*(0.3+pulse*0.07));
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
 function roundRect(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);
@@ -3909,6 +4089,7 @@ function render(){
   drawBossSpot();
   drawPortal();
   drawLuckySpot();
+  drawRiftSpot();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -3986,17 +4167,22 @@ function renderShop(){
     RODS.forEach((r,i)=>{
       const owned = i<=S.rodIndex;
       const equipped = i===S.rodIndex;
-      const canBuy = i===S.rodIndex+1;
+      const canBuy = i===S.rodIndex+1 && !r.locked;
       const isCrystal = r.priceCrystals!=null;
       const priceLabel = isCrystal? ('💎 '+fmtNum(r.priceCrystals)) : ('🪙 '+fmtNum(r.price));
       const affordable = isCrystal? (S.crystals||0)>=r.priceCrystals : S.coins>=r.price;
       const card = document.createElement('div'); card.className='card';
       card.innerHTML = `<div style="font-size:30px;">${r.icon}</div><div class="cname">${r.name}</div>
         <div class="cmeta">Suerte x${r.luck} · Precisión +${r.zoneBonus}</div>
-        <div class="cmeta">Hasta: ${rarityOf(RARITIES[Math.min(r.maxTier,RARITY_MAX_IDX)].id).name}</div>
-        <button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
+        <div class="cmeta">Hasta: ${rarityOf(RARITIES[Math.min(r.maxTier,RARITY_MAX_IDX)].id).name}</div>`;
+      if(r.locked && !owned){
+        card.innerHTML += `<div class="cmeta" style="margin-top:4px;font-size:11px;">${r.unlockDesc||'Se desbloquea completando una misión especial.'}</div>
+          <button class="shopBtn" disabled>🔒 Misión</button>`;
+      } else {
+        card.innerHTML += `<button class="shopBtn ${equipped?'equipped':''}" ${owned?'disabled':(canBuy?'':'disabled')}>
           ${equipped?'Equipada':(owned?'Obtenida':(canBuy?priceLabel:'Bloqueada'))}
         </button>`;
+      }
       if(canBuy){
         card.querySelector('button').addEventListener('click', ()=>{
           if(!affordable){ toast(isCrystal? 'No tienes suficientes cristales cósmicos.' : 'No tienes suficientes monedas.'); return; }
@@ -4568,7 +4754,7 @@ function renderCustom(){
       cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
       if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
       if(customTab==='aura' && item.color){
-        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033'};
+        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033',crystal:'#67e8f9',solar:'#fbbf24'};
         cctx.save(); cctx.globalAlpha=0.4;
         cctx.fillStyle = previewColors[item.color] || item.color;
         cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
