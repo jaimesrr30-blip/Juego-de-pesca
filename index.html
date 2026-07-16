@@ -36,6 +36,18 @@ canvas{display:block;position:absolute;top:0;left:0;}
   box-shadow:0 10px 30px rgba(56,211,201,0.45),inset 0 -6px 10px rgba(0,0,0,0.25),inset 0 6px 10px rgba(255,255,255,0.35);
   margin-bottom:22px;animation:floaty 3s ease-in-out infinite;}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-12px) rotate(4deg);}}
+@keyframes chestShake{
+  0%,100%{transform:rotate(0deg) scale(1);}
+  10%{transform:rotate(-8deg) scale(1.02);} 20%{transform:rotate(8deg) scale(1.02);}
+  30%{transform:rotate(-8deg) scale(1.04);} 40%{transform:rotate(8deg) scale(1.04);}
+  50%{transform:rotate(-6deg) scale(1.06);} 60%{transform:rotate(6deg) scale(1.06);}
+  70%{transform:rotate(-4deg) scale(1.1);} 80%{transform:rotate(4deg) scale(1.1);}
+  90%{transform:rotate(-2deg) scale(1.15);}
+}
+.chestShaking{animation:chestShake .9s ease-in-out;}
+@keyframes petPop{0%{transform:scale(0) rotate(-30deg);opacity:0;}60%{transform:scale(1.15) rotate(8deg);opacity:1;}100%{transform:scale(1) rotate(0deg);}}
+.petPopIn{animation:petPop .5s cubic-bezier(.34,1.56,.64,1);}
+.petOddsRow{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,0.03);margin-bottom:4px;}
 .bigBtn{padding:14px 38px;font-size:17px;font-weight:600;border:none;border-radius:30px;cursor:pointer;
   background:linear-gradient(135deg,#38d3c9,#2596be);color:#04202a;box-shadow:0 8px 24px rgba(56,211,201,0.35);
   transition:transform .15s, box-shadow .15s;}
@@ -188,6 +200,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
 #catchResultBody{padding:22px 20px;display:flex;flex-direction:column;align-items:center;}
 #crCanvasWrap{width:190px;height:190px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
 #crCanvasWrap canvas{position:static;}
+#petChestResult canvas{position:static;display:block;margin:0 auto;}
 #crName{font-size:19px;font-weight:800;margin-top:6px;}
 #crRarity{margin:6px 0;}
 #crMeta{font-size:12px;color:var(--text-dim);line-height:1.6;}
@@ -318,6 +331,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <button class="tabBtn" data-shoptab="bait">Carnadas</button>
         <button class="tabBtn" data-shoptab="bag">Mochilas</button>
         <button class="tabBtn" data-shoptab="boats">Botes</button>
+        <button class="tabBtn" data-shoptab="pets">Mascotas</button>
       </div>
       <div class="modalBody"><div class="grid" id="shopGrid"></div></div>
     </div>
@@ -333,6 +347,8 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="grid bagList" id="bagGrid"></div>
         <h3 style="font-size:13px;color:var(--text-dim);margin-top:18px;">Carnadas</h3>
         <div class="grid" id="baitInvGrid"></div>
+        <h3 style="font-size:13px;color:var(--text-dim);margin-top:18px;">Mascotas</h3>
+        <div class="grid" id="petGrid"></div>
       </div>
     </div>
   </div>
@@ -422,6 +438,17 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="bdesc" id="biDesc"></div>
         <button class="bigBtn" style="padding:10px 26px;font-size:14px;" id="biStartBtn">Comenzar Desafío</button>
         <div><button class="modalClose" style="margin-top:12px;" data-close="mBossIntro">Cancelar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mPetChest">
+    <div class="modal" style="max-width:420px;">
+      <div class="modalHead"><h2>🎁 Cofre de Mascotas</h2><button class="modalClose" data-close="mPetChest">✕</button></div>
+      <div style="padding:26px 20px;text-align:center;">
+        <div id="petChestBox" style="font-size:70px;transition:transform .15s;">📦</div>
+        <div id="petChestResult" style="min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;"></div>
+        <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;display:none;" id="petChestContinueBtn">Continuar</button>
       </div>
     </div>
   </div>
@@ -599,6 +626,68 @@ const BOATS = [
   {id:'yate',     name:'Yate de Lujo',      price:60000,  speed:500, luck:3,    hullColor:'#fbbf24', accent:'#92400e', sail:true,  icon:'🛥️'},
   {id:'legendario_boat', name:'Buque Legendario', price:220000, speed:580, luck:4.2, hullColor:'#a855f7', accent:'#4c1d95', sail:true, icon:'🚢'},
 ];
+
+/* ---------------------------- PETS ---------------------------- */
+const PET_RARITIES = [
+  {id:'comun',      name:'Común',      color:'#9ca3af', glowIdx:0, weight:5000, speed:5,  luck:0.15, xpPct:0},
+  {id:'pocoComun',  name:'Poco Común', color:'#34d399', glowIdx:2, weight:2700, speed:10, luck:0.3,  xpPct:3},
+  {id:'raro',       name:'Raro',       color:'#38bdf8', glowIdx:4, weight:1500, speed:18, luck:0.55, xpPct:6},
+  {id:'epico',      name:'Épico',      color:'#a78bfa', glowIdx:6, weight:600,  speed:28, luck:0.9,  xpPct:12},
+  {id:'legendario', name:'Legendario', color:'#fbbf24', glowIdx:8, weight:180,  luck:1.4, speed:42, xpPct:20},
+  {id:'mitico',     name:'Mítico',     color:'#f472b6', glowIdx:9, weight:20,   speed:60, luck:2.2,  xpPct:35},
+];
+const PET_RARITY_INDEX = {}; PET_RARITIES.forEach((r,i)=>PET_RARITY_INDEX[r.id]=i);
+const PETS = [
+  {id:'cubito',          name:'Cubito',           rarity:'comun',      icon:'⬜'},
+  {id:'cubito_saltarin', name:'Cubito Saltarín',  rarity:'pocoComun',  icon:'🟩'},
+  {id:'cubito_veloz',    name:'Cubito Veloz',     rarity:'raro',       icon:'🟦'},
+  {id:'cubito_brillante',name:'Cubito Brillante', rarity:'epico',      icon:'🟪'},
+  {id:'cubito_dorado',   name:'Cubito Dorado',    rarity:'legendario', icon:'🟨'},
+  {id:'cubito_cosmico',  name:'Cubito Cósmico',   rarity:'mitico',     icon:'✨'},
+];
+const PET_CHEST_PRICE = 5000;
+function petRarityOf(pet){ return PET_RARITIES[PET_RARITY_INDEX[pet.rarity]]; }
+function petSellValue(pet){ const idx=PET_RARITY_INDEX[pet.rarity]; return [40,150,500,2000,8000,30000][idx]||40; }
+function rollPetRarity(){
+  const total = PET_RARITIES.reduce((a,r)=>a+r.weight,0);
+  let r = Math.random()*total;
+  for(const rar of PET_RARITIES){ r-=rar.weight; if(r<=0) return rar.id; }
+  return PET_RARITIES[0].id;
+}
+function ownedPetObj(entry){ return PETS.find(p=>p.id===entry.petId); }
+function equippedPet(){
+  if(!S.equippedPetUid) return null;
+  const entry = S.pets.find(p=>p.uid===S.equippedPetUid);
+  return entry? ownedPetObj(entry) : null;
+}
+function petStatBonus(){
+  const pet = equippedPet();
+  if(!pet) return {speed:0, luck:0, xpPct:0};
+  const r = petRarityOf(pet);
+  return {speed:r.speed, luck:r.luck, xpPct:r.xpPct};
+}
+
+/* ---------------------------- LUCKY SPOTS ---------------------------- */
+const LUCKY_SPOT_TIERS = [
+  {mult:2,   weight:5000},
+  {mult:3,   weight:3000},
+  {mult:4,   weight:1800},
+  {mult:5,   weight:900},
+  {mult:8,   weight:400},
+  {mult:10,  weight:200},
+  {mult:20,  weight:60},
+  {mult:50,  weight:15},
+  {mult:100, weight:4},
+  {mult:500, weight:0.6},
+  {mult:1000,weight:0.08},
+];
+function rollLuckyMult(){
+  const total = LUCKY_SPOT_TIERS.reduce((a,t)=>a+t.weight,0);
+  let r = Math.random()*total;
+  for(const t of LUCKY_SPOT_TIERS){ r-=t.weight; if(r<=0) return t.mult; }
+  return LUCKY_SPOT_TIERS[0].mult;
+}
+
 const COLORS = [
   {id:'celeste',name:'Celeste',price:0,hex:'#38bdf8'},
   {id:'coral',name:'Coral',price:100,hex:'#f87171'},
@@ -1098,6 +1187,9 @@ const ACHIEVEMENTS = [
   {id:'primer_bote',name:'Marinero de Agua Dulce',desc:'Compra tu primer bote',icon:'🛶',reward:200,check:s=>s.boatIndex>=0},
   {id:'capitan_legendario',name:'Capitán Legendario',desc:'Consigue el Buque Legendario',icon:'🚢',reward:20000,check:s=>s.boatIndex>=BOATS.length-1},
   {id:'cruza_portal',name:'Explorador de Mares',desc:'Cruza tu primer portal en bote',icon:'🌀',reward:1500,check:s=>(s.stats.portalsCrossed||0)>=1},
+  {id:'primera_mascota',name:'Nuevo Amigo',desc:'Consigue tu primera mascota',icon:'🐾',reward:300,check:s=>s.pets.length>=1},
+  {id:'mascota_mitica',name:'Compañero Mítico',desc:'Consigue una mascota Mítica',icon:'✨',reward:15000,check:s=>s.pets.some(p=>{const pet=PETS.find(x=>x.id===p.petId); return pet&&pet.rarity==='mitico';})},
+  {id:'zona_suerte',name:'Con Suerte',desc:'Pesca dentro de una zona de suerte',icon:'🍀',reward:1000,check:s=>(s.stats.luckySpotCatches||0)>=1},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
 ];
@@ -1133,12 +1225,13 @@ function defaultState(){
     bossKeys:{}, bossDefeated:{},
     rodIndex:0, baits, selectedBait:null,
     boatIndex:0, isOnBoat:false,
+    pets:[], equippedPetUid:null,
     backpackCap:15, keepnet:[],
     dex:{},
     quests,
     achievements:{},
     cosmetics:{owned:['celeste','none_hat','none_aura','none_trail'],color:'celeste',hat:'none',aura:'none',trail:'none'},
-    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0,portalsCrossed:0},
+    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},totalSold:0,portalsCrossed:0,luckySpotCatches:0},
     npcMet:{},
     settings:{musicOn:true,sfxOn:true},
     playerPos:{},
@@ -1249,6 +1342,33 @@ function updateEventBanner(){
   } else {
     banner.style.display = 'none';
   }
+}
+
+/* ---------------------------- LUCKY SPOTS ---------------------------- */
+function updateLuckySpot(dt){
+  const w = curWorld;
+  if(w._luckySpot && Date.now()>w._luckySpot.expiresAt){ w._luckySpot = null; }
+  w._luckySpotCheckTimer = (w._luckySpotCheckTimer==null? randRange(30,60) : w._luckySpotCheckTimer) - dt;
+  if(!w._luckySpot && w._luckySpotCheckTimer<=0){
+    w._luckySpotCheckTimer = randRange(45,90);
+    if(Math.random()<0.5) spawnLuckySpot(w);
+  }
+}
+function spawnLuckySpot(w){
+  let x,y, tries=0;
+  do{ x=randRange(150,w.width-150); y=randRange(150,w.height-150); tries++; } while(isLand(w,x,y) && tries<60);
+  if(tries>=60) return;
+  const mult = rollLuckyMult();
+  w._luckySpot = {x, y, mult, expiresAt: Date.now()+75000};
+  if(w.id===curWorld.id){
+    if(mult>=100) toast('🎉 ¡ZONA DE SUERTE ÉPICA x'+mult+' ha aparecido!');
+    else toast('🍀 Zona de suerte x'+mult+' ha aparecido.');
+  }
+}
+function activeLuckySpotMultiplier(){
+  const spot = curWorld._luckySpot;
+  if(!spot) return 1;
+  return Math.hypot(spot.x-player.x, spot.y-player.y)<90 ? spot.mult : 1;
 }
 
 /* ---------------------------- PORTAL / TRAVEL ---------------------------- */
@@ -1385,7 +1505,7 @@ function updatePlayer(dt){
   const moving = inputHeld && fishing.state==='idle';
   isBoatMoving = S.isOnBoat && inputHeld;
   const boat = currentBoat();
-  const speed = S.isOnBoat && boat? boat.speed : PLAYER_WALK_SPEED;
+  const speed = (S.isOnBoat && boat? boat.speed : PLAYER_WALK_SPEED) + petStatBonus().speed;
 
   if(moving){
     const len = Math.hypot(mx,my)||1;
@@ -1522,11 +1642,14 @@ function updateActionUI(){
     promptEl.textContent = 'Detente para pescar'; promptEl.classList.add('show');
     btn.textContent='Pescar'; btn.disabled=true; return;
   }
+  const spotMult = activeLuckySpotMultiplier();
   if(canFish){
-    promptEl.classList.remove('show');
+    if(spotMult>1){ promptEl.textContent='🍀 Zona de suerte x'+spotMult+' activa'; promptEl.classList.add('show'); }
+    else promptEl.classList.remove('show');
     btn.textContent='Pescar'; btn.disabled=false; return;
   }
-  promptEl.classList.remove('show');
+  if(spotMult>1){ promptEl.textContent='🍀 Zona de suerte x'+spotMult+' activa'; promptEl.classList.add('show'); }
+  else promptEl.classList.remove('show');
   btn.textContent='Pescar'; btn.disabled=true;
 }
 
@@ -1551,6 +1674,8 @@ function weightedPickFish(){
   const baitObj = S.selectedBait? BAITS.find(b=>b.id===S.selectedBait): null;
   const boat = S.isOnBoat? currentBoat() : null;
   const depthFactor = boat? clamp(nearestIslandGap(curWorld,player.x,player.y)/500,0,1) : 0;
+  const petLuck = petStatBonus().luck;
+  const spotMult = activeLuckySpotMultiplier();
   let entries = curWorld.fish.map(f=>{
     const isEventFish = f.rarity==='mundial';
     const rIdx = isEventFish? 8 : RARITY_INDEX[f.rarity];
@@ -1567,6 +1692,8 @@ function weightedPickFish(){
       w *= 1 + (boat.luck-1) * (rIdx/9);
       w *= 1 + depthFactor*0.7*(rIdx/9);
     }
+    if(petLuck>0) w *= 1 + petLuck*(rIdx/9);
+    if(spotMult>1) w *= 1 + (spotMult-1)*(rIdx/9);
     return {f,w};
   });
   let total = entries.reduce((a,e)=>a+e.w,0);
@@ -1600,6 +1727,7 @@ function fishUpdate(dt){
       fishing.state='biting';
       fishing.bitePromptTimer=0;
       fishing.target = fishing.isBoss? ALL_SPECIES[curWorld.boss.id].fish : weightedPickFish();
+      fishing.caughtInLuckySpot = !fishing.isBoss && activeLuckySpotMultiplier()>1;
       Audio1.sfx('bite');
     }
   } else if(fishing.state==='biting'){
@@ -1741,6 +1869,7 @@ function resolveCatch(fish, isBoss){
   S.stats.totalCatches++;
   S.stats.rarityCaught[fish.rarity] = (S.stats.rarityCaught[fish.rarity]||0)+1;
   S.stats.shapeCaught[fish.shape] = (S.stats.shapeCaught[fish.shape]||0)+1;
+  if(fishing.caughtInLuckySpot){ S.stats.luckySpotCatches = (S.stats.luckySpotCatches||0)+1; }
 
   if(isBoss){
     S.bossDefeated[fish.id]=true;
@@ -1772,6 +1901,8 @@ function resolveCatch(fish, isBoss){
 }
 
 function addXp(xp){
+  const petBonus = petStatBonus().xpPct;
+  if(petBonus>0) xp = Math.round(xp * (1+petBonus/100));
   S.xp += xp;
   let needed = 100 + (S.level-1)*60;
   let leveled=false;
@@ -2286,6 +2417,10 @@ function renderMinimap(){
     mctx.fillStyle = '#fbbf24';
     mctx.beginPath(); mctx.arc(curWorld.extraPortal.spot.x*sx,curWorld.extraPortal.spot.y*sy,3,0,Math.PI*2); mctx.fill();
   }
+  if(curWorld._luckySpot){
+    mctx.fillStyle = '#facc15';
+    mctx.beginPath(); mctx.arc(curWorld._luckySpot.x*sx,curWorld._luckySpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
+  }
   // player
   mctx.fillStyle='#38d3c9';
   mctx.beginPath(); mctx.arc(player.x*sx,player.y*sy,3.4,0,Math.PI*2); mctx.fill();
@@ -2601,6 +2736,60 @@ function drawBossSpot(){
   ctx.restore();
 }
 
+function drawLuckySpot(){
+  const spot = curWorld._luckySpot;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-100||screen.x>canvas.width+100||screen.y<-100||screen.y>canvas.height+100) return;
+  const t = performance.now()/1000;
+  const big = spot.mult>=100;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,18,38,14,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  const pulse = 0.7+0.3*Math.sin(t*3);
+  const radius = (big?46:34)*pulse;
+  const grad = ctx.createRadialGradient(0,0,4,0,0,radius);
+  grad.addColorStop(0, big? '#fff9db' : '#fef9c3');
+  grad.addColorStop(0.5, big? '#fbbf24' : '#facc15');
+  grad.addColorStop(1, 'rgba(250,204,21,0)');
+  ctx.fillStyle=grad;
+  ctx.beginPath(); ctx.arc(0,0,radius,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = big? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 2;
+  for(let i=0;i<(big?3:2);i++){
+    ctx.beginPath(); ctx.arc(0,0, (big?20:16)+i*8, t*1.5+i, t*1.5+i+Math.PI*1.4); ctx.stroke();
+  }
+  ctx.fillStyle='#fff'; ctx.font=(big?'26px':'20px')+' system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🍀', 0, 2);
+  ctx.restore();
+  ctx.save();
+  ctx.font = big? 'bold 15px system-ui' : 'bold 12px system-ui';
+  ctx.fillStyle = big? '#fde047' : '#fff';
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=4;
+  ctx.fillText('x'+spot.mult, screen.x, screen.y - (big?60:48));
+  ctx.restore();
+}
+
+function drawPetCompanion(px, py, t){
+  const pet = equippedPet();
+  if(!pet) return;
+  const r = petRarityOf(pet);
+  const orbitAngle = t*1.2;
+  const ox = px + Math.cos(orbitAngle)*36;
+  const oy = py + Math.sin(orbitAngle)*20 + 26;
+  const screen = worldToScreen(ox,oy);
+  ctx.save(); ctx.translate(screen.x,screen.y);
+  if(r.glowIdx>=4){ drawRarityGlow(ctx, r.glowIdx, r.color, 16, t); }
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,9,9,3.5,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  const grad = ctx.createLinearGradient(-9,-9,9,9);
+  grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
+  ctx.fillStyle=grad;
+  roundRect(ctx,-8,-8,16,16,5); ctx.fill();
+  ctx.restore();
+}
+
 function drawPortalMarker(spot, label, unlocked, colorA, colorB, icon){
   const screen = worldToScreen(spot.x,spot.y);
   if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
@@ -2705,6 +2894,7 @@ function render(){
   curWorld.decor.forEach(drawDecor);
   drawBossSpot();
   drawPortal();
+  drawLuckySpot();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -2715,6 +2905,7 @@ function render(){
     const col = COLORS.find(c=>c.id===S.cosmetics.color);
     drawCube(player.x,player.y,44,col?col.hex:'#38bdf8', player.bob, null, S.cosmetics.hat, S.cosmetics.aura, S.cosmetics.trail);
   }
+  drawPetCompanion(player.x, player.y, performance.now()/1000);
 
   renderWeather();
   renderMinimap();
@@ -2847,7 +3038,83 @@ function renderShop(){
       }
       grid.appendChild(card);
     });
+  } else if(shopTab==='pets'){
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;';
+    const chestCard = document.createElement('div'); chestCard.className='card'; chestCard.style.cssText='width:180px;';
+    chestCard.innerHTML = `<div style="font-size:44px;">🎁</div><div class="cname">Cofre de Mascotas</div>
+      <div class="cmeta">Cubitos compañeros con bonus de velocidad, suerte y XP</div>
+      <button class="shopBtn" id="buyPetChestBtn">🪙 ${fmtNum(PET_CHEST_PRICE)}</button>`;
+    wrap.appendChild(chestCard);
+    const oddsBox = document.createElement('div');
+    oddsBox.style.cssText = 'flex:1;min-width:220px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;';
+    const total = PET_RARITIES.reduce((a,r)=>a+r.weight,0);
+    oddsBox.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">Probabilidades del cofre</div>` +
+      PET_RARITIES.slice().reverse().map(r=>{
+        const pct = (r.weight/total*100);
+        const pctText = pct<0.1? pct.toFixed(3) : (pct<1? pct.toFixed(2) : pct.toFixed(1));
+        return `<div class="petOddsRow"><span class="rbadge" style="background:${r.color};">${r.name}</span><span>${pctText}%</span></div>`;
+      }).join('');
+    wrap.appendChild(oddsBox);
+    grid.appendChild(wrap);
+    document.getElementById('buyPetChestBtn').addEventListener('click', openPetChest);
   }
+}
+
+/* ---------------------------- PET CHEST ---------------------------- */
+function openPetChest(){
+  if(S.coins<PET_CHEST_PRICE){ toast('No tienes suficientes monedas.'); return; }
+  S.coins -= PET_CHEST_PRICE;
+  refreshHud(); saveGame();
+  openModal('mPetChest');
+  const box = document.getElementById('petChestBox');
+  const resultBox = document.getElementById('petChestResult');
+  const continueBtn = document.getElementById('petChestContinueBtn');
+  box.textContent = '📦'; box.classList.remove('chestShaking');
+  resultBox.innerHTML = '';
+  continueBtn.style.display = 'none';
+  void box.offsetWidth;
+  box.classList.add('chestShaking');
+  Audio1.sfx('chest');
+  setTimeout(()=>{
+    const rarityId = rollPetRarity();
+    const rarityPets = PETS.filter(p=>p.rarity===rarityId);
+    const pet = rarityPets[Math.floor(Math.random()*rarityPets.length)] || PETS[0];
+    const r = petRarityOf(pet);
+    const entry = {uid:uid(), petId:pet.id};
+    S.pets.push(entry);
+    if(!S.equippedPetUid) S.equippedPetUid = entry.uid;
+    box.textContent = '✨';
+    box.classList.remove('chestShaking');
+    Audio1.sfx(r.glowIdx>=6? 'achievement' : 'success');
+    const canvasWrap = document.createElement('canvas'); canvasWrap.width=110; canvasWrap.height=110;
+    canvasWrap.className='petPopIn';
+    resultBox.innerHTML = '';
+    resultBox.appendChild(canvasWrap);
+    const nameDiv = document.createElement('div');
+    nameDiv.innerHTML = `<div style="font-weight:800;font-size:16px;margin-top:8px;">${pet.name}</div>
+      <span class="rbadge" style="background:${r.color};">${r.name}</span>
+      <div class="cmeta" style="margin-top:6px;">Velocidad +${r.speed} · Suerte +${r.luck} · XP +${r.xpPct}%</div>`;
+    resultBox.appendChild(nameDiv);
+    const cctx = canvasWrap.getContext('2d');
+    let animId;
+    function drawPetReveal(){
+      cctx.clearRect(0,0,110,110);
+      cctx.save(); cctx.translate(55,55);
+      const t = performance.now()/300;
+      if(r.glowIdx>=4) drawRarityGlow(cctx, r.glowIdx, r.color, 32, t);
+      const grad = cctx.createLinearGradient(-24,-24,24,24);
+      grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
+      cctx.fillStyle=grad; roundRect(cctx,-24,-24,48,48,12); cctx.fill();
+      cctx.restore();
+      if(document.getElementById('mPetChest').classList.contains('show')) animId = requestAnimationFrame(drawPetReveal);
+    }
+    drawPetReveal();
+    continueBtn.style.display = 'inline-block';
+    continueBtn.onclick = ()=>{ cancelAnimationFrame(animId); closeModal('mPetChest'); renderShop(); };
+    checkAchievements();
+    saveGame();
+  }, 950);
 }
 
 /* ---------------------------- BACKPACK ---------------------------- */
@@ -2934,6 +3201,56 @@ function renderBag(){
     const card=document.createElement('div'); card.className='card';
     card.innerHTML=`<div style="font-size:26px;">${b.icon}</div><div class="cname">${b.name}</div><div class="cmeta">x${owned}</div>`;
     baitGrid.appendChild(card);
+  });
+  renderPetGrid();
+}
+
+let petCardEntries = [];
+function renderPetGrid(){
+  const grid = document.getElementById('petGrid');
+  grid.innerHTML = '';
+  petCardEntries = [];
+  if(!S.pets.length){
+    grid.innerHTML = `<div class="cmeta" style="grid-column:1/-1;">Aún no tienes mascotas. Cómpralas en la Tienda.</div>`;
+    return;
+  }
+  S.pets.forEach(entry=>{
+    const pet = ownedPetObj(entry); if(!pet) return;
+    const r = petRarityOf(pet);
+    const equipped = S.equippedPetUid===entry.uid;
+    const card = document.createElement('div'); card.className='card';
+    const c = document.createElement('canvas'); c.width=70; c.height=70;
+    card.appendChild(c);
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="cname">${pet.name}</div>
+      <span class="rbadge" style="background:${r.color};">${r.name}</span>
+      <div class="cmeta" style="margin-top:4px;">Vel +${r.speed} · Suerte +${r.luck} · XP +${r.xpPct}%</div>
+      <button class="shopBtn ${equipped?'equipped':''}" data-act="equip">${equipped?'Equipada':'Equipar'}</button>
+      <button class="shopBtn" data-act="sell" style="margin-top:4px;background:var(--danger);">Vender (🪙${fmtNum(petSellValue(pet))})</button>`;
+    card.appendChild(info);
+    grid.appendChild(card);
+    const drawPetCard = ()=>{
+      cctx2.clearRect(0,0,70,70); cctx2.save(); cctx2.translate(35,35);
+      const t = performance.now()/300;
+      if(r.glowIdx>=4) drawRarityGlow(cctx2, r.glowIdx, r.color, 20, t);
+      const grad = cctx2.createLinearGradient(-15,-15,15,15);
+      grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
+      cctx2.fillStyle=grad; roundRect(cctx2,-15,-15,30,30,8); cctx2.fill();
+      cctx2.restore();
+    };
+    const cctx2 = c.getContext('2d');
+    drawPetCard();
+    petCardEntries.push({draw:drawPetCard});
+    info.querySelector('[data-act="equip"]').addEventListener('click', ()=>{
+      S.equippedPetUid = equipped? null : entry.uid;
+      saveGame(); renderPetGrid();
+    });
+    info.querySelector('[data-act="sell"]').addEventListener('click', ()=>{
+      if(S.equippedPetUid===entry.uid) S.equippedPetUid=null;
+      S.pets = S.pets.filter(p=>p.uid!==entry.uid);
+      S.coins += petSellValue(pet);
+      Audio1.sfx('coin'); refreshHud(); saveGame(); renderPetGrid();
+    });
   });
 }
 
@@ -3150,6 +3467,7 @@ function update(dt){
   updatePlayer(dt);
   fishUpdate(dt);
   updateWeather(dt);
+  updateLuckySpot(dt);
   updateActionUI();
   updateHpUI();
   S.stats.totalPlaytimeSec += dt;
@@ -3175,6 +3493,7 @@ function tickCreatureCanvases(){
   }
   if(document.getElementById('mBag').classList.contains('show')){
     bagCardEntries.forEach(e=>drawCreatureCard(e.canvas, e.fish, e.discovered, e.size));
+    petCardEntries.forEach(e=>e.draw());
   }
   if(crCardEntry && document.getElementById('catchResultBackdrop').classList.contains('show')){
     drawCreatureCard(crCardEntry.canvas, crCardEntry.fish, crCardEntry.discovered, crCardEntry.size);
