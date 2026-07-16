@@ -36,6 +36,22 @@ canvas{display:block;position:absolute;top:0;left:0;}
   box-shadow:0 10px 30px rgba(56,211,201,0.45),inset 0 -6px 10px rgba(0,0,0,0.25),inset 0 6px 10px rgba(255,255,255,0.35);
   margin-bottom:22px;animation:floaty 3s ease-in-out infinite;}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-12px) rotate(4deg);}}
+.solar3DScene{position:relative;height:340px;perspective:900px;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, #1e1b4b 0%, #0a0118 75%);border-radius:16px;overflow:hidden;}
+.solarSun{position:absolute;font-size:44px;filter:drop-shadow(0 0 22px #fbbf24);animation:sunPulse 3s ease-in-out infinite;z-index:5;}
+@keyframes sunPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+#solarOrbits{position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:rotateX(55deg);}
+.orbitRing{position:absolute;top:50%;left:50%;border:1px dashed rgba(255,255,255,0.15);border-radius:50%;transform:translate(-50%,-50%);}
+.orbitSpin{position:absolute;top:50%;left:50%;width:0;height:0;animation-name:orbitSpin;animation-timing-function:linear;animation-iteration-count:infinite;}
+@keyframes orbitSpin{from{transform:translate(-50%,-50%) rotate(0deg);}to{transform:translate(-50%,-50%) rotate(360deg);}}
+@keyframes counterSpin{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
+.orbitPlanet{position:absolute;border-radius:50%;cursor:pointer;box-shadow:inset -6px -6px 12px rgba(0,0,0,0.4), inset 4px 4px 10px rgba(255,255,255,0.25), 0 0 14px rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;font-size:14px;transition:filter .15s;}
+.orbitPlanet:hover{filter:brightness(1.3);}
+.orbitPlanet.locked{filter:grayscale(1) brightness(0.5);cursor:default;}
+.orbitLabel{position:absolute;top:100%;left:50%;transform:translateX(-50%) rotateX(-55deg);white-space:nowrap;font-size:10px;
+  color:#fff;margin-top:6px;text-shadow:0 1px 3px #000;pointer-events:none;}
+
 @keyframes chestShake{
   0%,100%{transform:rotate(0deg) scale(1);}
   10%{transform:rotate(-8deg) scale(1.02);} 20%{transform:rotate(8deg) scale(1.02);}
@@ -305,6 +321,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <div style="display:flex;align-items:center;gap:10px;">
         <button id="boatToggleBtn" class="menuBtn" title="Bote (B)" style="display:none;">⛵</button>
         <button id="actionBtn">Pescar</button>
+        <button id="rocketToggleBtn" class="menuBtn" title="Cohete (R)" style="display:none;">🚀</button>
       </div>
     </div>
   </div>
@@ -342,6 +359,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <div class="modalHead"><h2>🎒 Mochila</h2><button class="modalClose" data-close="mBag">✕</button></div>
       <div class="modalBody">
         <div id="boatBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;"></div>
+        <div id="rocketBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;display:none;"></div>
         <div id="backpackMeta"></div>
         <button class="shopBtn" id="sellAllBtn" style="margin-bottom:10px;">Vender todo</button>
         <div class="grid bagList" id="bagGrid"></div>
@@ -356,6 +374,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="modalBackdrop" id="mAquarium">
     <div class="modal">
       <div class="modalHead"><h2>🐠 Acuario · <span id="aqProgress"></span></h2><button class="modalClose" data-close="mAquarium">✕</button></div>
+      <div id="solarProgressBanner" class="panel" style="margin:0 20px 12px;padding:10px 14px;font-size:11.5px;line-height:1.5;"></div>
       <div class="tabs" id="aqTabs"></div>
       <div class="modalBody"><div class="grid" id="aqGrid"></div></div>
     </div>
@@ -378,7 +397,23 @@ canvas{display:block;position:absolute;top:0;left:0;}
   <div class="modalBackdrop" id="mMap">
     <div class="modal">
       <div class="modalHead"><h2>🗺️ Mundos</h2><button class="modalClose" data-close="mMap">✕</button></div>
-      <div class="modalBody"><div id="worldMapGrid"></div></div>
+      <div class="modalBody">
+        <button class="bigBtn" id="openSolarMapBtn" style="display:none;margin-bottom:14px;padding:9px 20px;font-size:13px;">🌌 Ver Mapa del Sistema Solar</button>
+        <div id="worldMapGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modalBackdrop" id="mSolarMap">
+    <div class="modal" style="max-width:640px;">
+      <div class="modalHead"><h2>🌌 Sistema Solar</h2><button class="modalClose" data-close="mSolarMap">✕</button></div>
+      <div class="modalBody">
+        <div id="solar3D" class="solar3DScene">
+          <div class="solarSun">☀️</div>
+          <div id="solarOrbits"></div>
+        </div>
+        <div class="cmeta" style="text-align:center;margin-top:8px;">Toca un planeta para viajar (si ya lo has visitado)</div>
+      </div>
     </div>
   </div>
 
@@ -462,9 +497,9 @@ canvas{display:block;position:absolute;top:0;left:0;}
     <div class="travelFish" style="left:90%;animation-delay:0.2s;">🐙</div>
     <div class="travelCore">
       <div class="travelIcon" id="travelIcon">🌊</div>
-      <div class="travelText">Viajando a <span id="travelWorldName">otro mundo</span>&hellip;</div>
+      <div class="travelText" id="travelLead">Viajando a <span id="travelWorldName">otro mundo</span>&hellip;</div>
       <div class="travelBarOuter"><div class="travelBarFill" id="travelBarFill"></div></div>
-      <div class="travelHint">Navegando a través del portal</div>
+      <div class="travelHint" id="travelHint">Navegando a través del portal</div>
     </div>
   </div>
 
@@ -752,6 +787,9 @@ const WORLDS = [
     F('siluro_dorado','Siluro Dorado','legendario','comun','fish','#e8c34a','#a9871f'),
     F('lucio_plateado','Lucio Plateado','pocoComun','comun','fish','#94a3b8','#475569'),
     F('espiritu_lago','Espíritu del Lago','mitico','fantasma','ghost','#a5f3fc','#0891b2'),
+    F('renacuajo_gigante','Renacuajo Gigante','comun','comun','fish','#65a30d','#365314'),
+    F('nayade_lago','Náyade del Lago','epico','fantasma','ghost','#67e8f9','#0e7490'),
+    F('rey_carpa','Rey Carpa Imperial','omega','comun','fish','#f59e0b','#7c2d12'),
   ],
   boss:{id:'siluro_ancestral',name:'Siluro Ancestral',shape:'fish',color:'#d9a441',accent:'#7a5c17',
     minKg:180,maxKg:340,minCm:280,maxCm:380,desc:'Un siluro colosal que ha dormido en el fondo del lago durante generaciones.'},
@@ -774,6 +812,9 @@ const WORLDS = [
     F('espiritu_rio','Espíritu del Río','legendario','fantasma','ghost','#a5f3fc','#22d3ee'),
     F('barbo_dorado','Barbo Dorado','pocoComun','comun','fish','#eab308','#854d0e'),
     F('guardian_rapido','Guardián del Rápido','mitico','crustaceo','dragon','#16a34a','#14532d'),
+    F('pez_arcoiris_rio','Pez Arcoíris del Río','comun','comun','tropical','#38bdf8','#0369a1'),
+    F('nutria_rapido','Nutria del Rápido','raro','comun','fish','#92400e','#451a03'),
+    F('serpiente_dorada_rio','Serpiente Dorada del Río','omega','crustaceo','dragon','#ca8a04','#3f6212'),
   ],
   boss:{id:'serpiente_rio',name:'Serpiente del Río',shape:'dragon',color:'#3f8f5b',accent:'#204a30',
     minKg:90,maxKg:200,minCm:320,maxCm:420,desc:'Una serpiente acuática que domina la corriente principal.'},
@@ -796,6 +837,9 @@ const WORLDS = [
     F('estrella_coral','Estrella de Coral','legendario','molusco','starfish','#fb7185','#9f1239'),
     F('pez_angel','Pez Ángel','pocoComun','comun','tropical','#38bdf8','#f472b6'),
     F('manta_gigante','Manta Gigante','mitico','molusco','shark','#1e3a8a','#0f172a'),
+    F('pez_globo_tropical','Pez Globo Tropical','comun','comun','pufferfish','#fde047','#a16207'),
+    F('caballito_real','Caballito de Mar Real','raro','molusco','fish','#2dd4bf','#a16207'),
+    F('kraken_coral','Kraken de Coral','omega','molusco','octopus','#fb923c','#9a3412'),
   ],
   boss:{id:'tiburon_alfa',name:'Tiburón Alfa',shape:'shark',color:'#475569',accent:'#1e293b',
     minKg:400,maxKg:900,minCm:380,maxCm:520,desc:'El depredador más temido del arrecife, cazador solitario y despiadado.'},
@@ -818,6 +862,9 @@ const WORLDS = [
     F('dragon_hielo','Dragón de Hielo','legendario','cristal','dragon','#e0f2fe','#7dd3fc'),
     F('pez_nieve','Pez Nieve','pocoComun','comun','fish','#dbeafe','#93c5fd'),
     F('yeti_marino','Yeti Marino','mitico','fantasma','dragon','#f0f9ff','#38bdf8'),
+    F('pez_carambano','Pez Carámbano','comun','comun','fish','#bae6fd','#1e40af'),
+    F('foca_espectral','Foca Espectral','raro','fantasma','ghost','#e0f2fe','#7dd3fc'),
+    F('dragon_glaciar','Dragón del Glaciar Eterno','omega','cristal','dragon','#e0f2fe','#0c4a6e'),
   ],
   boss:{id:'serpiente_hielo',name:'Serpiente de Hielo',shape:'dragon',color:'#bae6fd','accent2':'#0369a1',accent:'#0369a1',
     minKg:200,maxKg:380,minCm:400,maxCm:500,desc:'Nace del hielo eterno y congela el agua a su paso.'},
@@ -840,6 +887,9 @@ const WORLDS = [
     F('fenix_marino','Fénix Marino','legendario','fantasma','dragon','#fbbf24','#dc2626'),
     F('salamandra_fuego','Salamandra de Fuego','pocoComun','crustaceo','fish','#f97316','#7c2d12'),
     F('titan_obsidiana','Titán de Obsidiana','mitico','cristal','crab','#292524','#dc2626'),
+    F('pez_brasa','Pez Brasa','comun','crustaceo','fish','#f97316','#7c2d12'),
+    F('escorpion_lava','Escorpión de Lava','raro','crustaceo','crab','#1c1917','#dc2626'),
+    F('fenix_crater','Ave Fénix del Cráter','omega','fantasma','dragon','#fbbf24','#7f1d1d'),
   ],
   boss:{id:'cangrejo_magma',name:'Cangrejo de Magma',shape:'crab',color:'#dc2626',accent:'#450a0a',
     minKg:250,maxKg:520,minCm:260,maxCm:340,desc:'Sus pinzas fluyen con lava líquida; toda la costa tiembla cuando emerge.'},
@@ -862,6 +912,9 @@ const WORLDS = [
     F('ballena_dorada','Ballena Dorada','mitico','comun','whale','#fde68a','#d97706'),
     F('pez_pluma','Pez Pluma','pocoComun','comun','tropical','#fef3c7','#fcd34d'),
     F('fenix_celeste','Fénix Celeste','omega','fantasma','dragon','#fde68a','#f97316'),
+    F('pez_nimbo','Pez Nimbo','comun','comun','fish','#e2e8f0','#94a3b8'),
+    F('serafin_alado','Serafín Alado','legendario','fantasma','dragon','#fefce8','#eab308'),
+    F('titan_tormentas','Titán de las Tormentas','prohibido','fantasma','whale','#334155','#0f172a'),
   ],
   boss:{id:'ballena_colosal',name:'Ballena Colosal',shape:'whale',color:'#c7d2fe',accent:'#4338ca',
     minKg:2000,maxKg:5200,minCm:900,maxCm:1400,desc:'Flota entre las nubes como si el cielo fuera un océano más.'},
@@ -884,6 +937,9 @@ const WORLDS = [
     F('pez_vacio','Pez del Vacío','secreto','espacial','ghost','#0f0a1e','#a855f7'),
     F('medusa_cuantica','Medusa Cuántica','epico','espacial','jellyfish','#a78bfa','#4c1d95'),
     F('titan_nebular','Titán Nebular','mitico','espacial','whale','#818cf8','#1e1b4b'),
+    F('pez_cuasar','Pez Cuásar','pocoComun','espacial','space','#93c5fd','#1e3a8a'),
+    F('calamar_horizonte','Calamar del Horizonte','raro','espacial','squid','#4c1d95','#1e1033'),
+    F('devorador_estrellas','Devorador de Estrellas','legendario','espacial','dragon','#7c3aed','#1e1033'),
   ],
   boss:{id:'devorador_cosmico',name:'Devorador Cósmico',shape:'octopus',color:'#4c1d95',accent:'#a855f7',
     minKg:600,maxKg:1400,minCm:500,maxCm:700,desc:'Una masa de tentáculos nacida del vacío entre las estrellas.'},
@@ -906,6 +962,9 @@ const WORLDS = [
     F('kraken','Kraken','legendario','molusco','octopus','#3f3a2f','#1a1712'),
     F('vibora_fango','Víbora de Fango','pocoComun','fantasma','fish','#4d5b2a','#232b13'),
     F('amo_pantano','Amo del Pantano','mitico','fantasma','octopus','#1a2e05','#65a30d'),
+    F('rana_toro_mutante','Rana Toro Mutante','raro','crustaceo','crab','#4d7c0f','#1a2e05'),
+    F('espectro_raices','Espectro de las Raíces','epico','fantasma','ghost','#84cc16','#1a2e05'),
+    F('senor_cienagas','Señor de las Ciénagas','omega','fantasma','octopus','#1a1a05','#052e16'),
   ],
   boss:{id:'hidra_pantano',name:'Hidra del Pantano',shape:'dragon',color:'#4d7c0f',accent:'#1a2e05',
     minKg:300,maxKg:650,minCm:420,maxCm:560,desc:'Múltiples cabezas emergen del lodo, cada una más hambrienta que la anterior.'},
@@ -928,6 +987,9 @@ const WORLDS = [
     F('serpiente_cristal','Serpiente de Cristal','legendario','cristal','dragon','#e0f2fe','#0891b2'),
     F('pez_prisma','Pez Prisma','pocoComun','cristal','tropical','#fbcfe8','#f0abfc'),
     F('fenix_cuarzo','Fénix de Cuarzo','mitico','cristal','dragon','#f5f3ff','#c4b5fd'),
+    F('pez_facetado','Pez Facetado','comun','cristal','fish','#a5f3fc','#0e7490'),
+    F('escarabajo_cuarzo','Escarabajo de Cuarzo','raro','cristal','crab','#f0abfc','#701a75'),
+    F('coloso_diamante','Coloso de Diamante','omega','cristal','dragon','#f8fafc','#94a3b8'),
   ],
   boss:{id:'golem_cristal',name:'Golem de Cristal',shape:'crab',color:'#67e8f9',accent:'#0e7490',
     minKg:500,maxKg:1100,minCm:340,maxCm:460,desc:'Una criatura formada enteramente de cuarzo viviente, dura como la roca.'},
@@ -951,6 +1013,9 @@ const WORLDS = [
     F('entidad_divina','Entidad Divina','divino','fantasma','space','#fef9c3','#ffffff'),
     F('calamar_sombrio','Calamar Sombrío','legendario','fantasma','squid','#312e81','#1e1b4b'),
     F('susurro_eterno','Susurro Eterno','omega','fantasma','ghost','#4c1d95','#a78bfa'),
+    F('pez_eclipse','Pez Eclipse','pocoComun','fantasma','fish','#312e81','#0f0a24'),
+    F('centinela_noche','Centinela de la Noche','epico','fantasma','shark','#1e293b','#94a3b8'),
+    F('susurro_estelar','Susurro Estelar','mitico','fantasma','space','#a78bfa','#312e81'),
   ],
   boss:{id:'leviatan_sombras',name:'Leviatán de las Sombras',shape:'shark',color:'#111827',accent:'#7f1d1d',
     minKg:1500,maxKg:3200,minCm:700,maxCm:950,desc:'La criatura más antigua del mar nocturno; sus ojos brillan como brasas.'},
@@ -959,6 +1024,8 @@ const WORLDS = [
       lines:['Bajo la luna llena, hasta el agua parece respirar.','Pocos han visto al Leviatán y vivido para contarlo.']},
     {id:'n_mn_2',name:'Suri',color:'#cbd5e1',x:400,y:400,role:'merchant',
       lines:['La última tienda antes de la oscuridad total.','Buena suerte ahí fuera, la vas a necesitar.']},
+    {id:'n_mn_3',name:'Ingeniera Kel',color:'#f97316',x:900,y:1400,role:'rocketEngineer',
+      lines:['Construyo cohetes, no milagros. Necesito piezas de todas partes.','El Sistema Solar espera a quien complete su viaje por la Tierra.']},
   ],
 },
 {
@@ -1000,6 +1067,52 @@ const WORLDS = [
       lines:['¡La final está cerca, se siente en el agua!','Dicen que España y Argentina son imposibles de pescar.','Si sacas la Copa Dorada, eres leyenda.']},
     {id:'n_rm_2',name:'Marta Gol',color:'#f59e0b',x:400,y:400,role:'merchant',
       lines:['Carnadas frescas para la temporada del Mundial.','¡Vamos, a por esa camiseta dorada!']},
+  ],
+},
+{
+  id:'planeta_uno', idx:11, name:'Marte Rojo', icon:'🔴', unlockCost:0, isSpace:true,
+  palette:{water:'#7c2d92',waterDeep:'#2e1065',land:'#c2410c',landDetail:'#9a3412',fog:'#4c1d95'},
+  weatherPool:['soleado','tormenta','meteoros','eclipse'], decorType:'marsrocks',
+  fish:[
+    F('pez_polvo_rojo','Pez de Polvo Rojo','comun','espacial','fish','#dc6b3f','#7c2d12'),
+    F('escarabajo_marciano','Escarabajo Marciano','pocoComun','espacial','crab','#b91c1c','#450a0a'),
+    F('medusa_ozono','Medusa de Ozono','raro','espacial','jellyfish','#f0abfc','#a21caf'),
+    F('dragon_fobos','Dragón de Fobos','epico','espacial','dragon','#94a3b8','#78350f'),
+    F('coloso_deimos','Coloso de Deimos','legendario','espacial','whale','#a8a29e','#7c2d12'),
+    F('emperador_marciano','Emperador Marciano','mitico','espacial','octopus','#dc2626','#7c2d12', {glowIdx:5}),
+    F('guardian_nucleo_rojo','Guardián del Núcleo Rojo','omega','espacial','dragon','#f97316','#450a0a', {glowIdx:6}),
+    F('divinidad_ares','Divinidad de Ares','divino','espacial','space','#fecaca','#dc2626', {glowIdx:9}),
+  ],
+  boss:{id:'behemot_marte',name:'Behemot de Marte',shape:'dragon',color:'#b91c1c',accent:'#450a0a',
+    minKg:800,maxKg:1800,minCm:600,maxCm:820,desc:'Una bestia que emerge del polvo rojo, tan antigua como el propio planeta.'},
+  npcs:[
+    {id:'n_p1_1',name:'Rho-9',color:'#dc6b3f',x:1650,y:1200,role:'story',
+      lines:['Bienvenido a Marte, viajero de la Tierra.','El polvo rojo esconde criaturas que ni los científicos imaginaron.','Más allá, dicen que hay lunas heladas repletas de vida.']},
+    {id:'n_p1_2',name:'Vex',color:'#a855f7',x:400,y:400,role:'merchant',
+      lines:['Suministros interplanetarios, recién traídos de la Tierra.','La gravedad aquí es rara, pero se pesca genial.']},
+  ],
+},
+{
+  id:'planeta_dos', idx:12, name:'Europa Helada', icon:'🌕', unlockCost:0, isSpace:true,
+  palette:{water:'#4c1d95',waterDeep:'#1e1033',land:'#e0e7ff',landDetail:'#c7d2fe',fog:'#312e81'},
+  weatherPool:['niebla','lunaLlena','aurora','meteoros'], decorType:'crystal',
+  fish:[
+    F('pez_hielo_lunar','Pez de Hielo Lunar','comun','cristal','fish','#dbeafe','#3730a3'),
+    F('cangrejo_criogenico','Cangrejo Criogénico','pocoComun','cristal','crab','#93c5fd','#1e3a8a'),
+    F('medusa_vacio_helado','Medusa del Vacío Helado','raro','espacial','jellyfish','#c4b5fd','#4c1d95'),
+    F('serpiente_europa','Serpiente de Europa','epico','cristal','dragon','#818cf8','#312e81'),
+    F('titan_glacial_cosmico','Titán Glacial Cósmico','legendario','cristal','whale','#a5b4fc','#312e81'),
+    F('oraculo_hielo_eterno','Oráculo del Hielo Eterno','mitico','espacial','ghost','#e0e7ff','#4338ca', {glowIdx:5}),
+    F('devorador_abismo_helado','Devorador del Abismo Helado','omega','espacial','octopus','#312e81','#0f0a24', {glowIdx:6}),
+    F('divinidad_europa','Divinidad de Europa','divino','espacial','space','#f0f9ff','#818cf8', {glowIdx:9}),
+  ],
+  boss:{id:'kraken_europa',name:'Kraken de Europa',shape:'octopus',color:'#4338ca',accent:'#1e1033',
+    minKg:1200,maxKg:2600,minCm:700,maxCm:950,desc:'Vive bajo el hielo eterno de la luna, donde ningún telescopio ha podido verlo.'},
+  npcs:[
+    {id:'n_p2_1',name:'Isa-3',color:'#c4b5fd',x:1650,y:1200,role:'story',
+      lines:['El hielo de Europa nunca se derrite. Ni el frío detiene a lo que vive debajo.','Cada vez que miro las estrellas en el agua, me pregunto qué habrá más allá.']},
+    {id:'n_p2_2',name:'Nova',color:'#818cf8',x:400,y:400,role:'merchant',
+      lines:['Última parada conocida del Sistema Solar... por ahora.','Cuida tu cohete, aquí no hay talleres.']},
   ],
 },
 ];
@@ -1102,6 +1215,42 @@ WORLDS.forEach(w=>{
   rioMundial.extraPortal = {spot:{x:rx,y:ry}, targetId:'lago_inicial', targetName:lago.name, targetIcon:lago.icon};
 })();
 
+// rocket launch pads: Mar Nocturno -> Marte Rojo -> Europa Helada, with return pads back to Earth
+function findClearWaterSpot(world, baseX, baseY){
+  let x=baseX, y=baseY;
+  for(let tries=0; tries<40; tries++){
+    let onLand=false;
+    for(const isl of world.islands){
+      const dx=x-isl.x, dy=y-isl.y;
+      if((dx*dx)/((isl.rx+90)*(isl.rx+90))+(dy*dy)/((isl.ry+90)*(isl.ry+90))<=1){ onLand=true; break; }
+    }
+    if(!onLand) break;
+    x = baseX + (tries%2===0? tries*20 : -tries*20);
+    y = baseY + (tries%2===0? -tries*30 : tries*30);
+  }
+  return {x,y};
+}
+(function setupLaunchPads(){
+  const marNocturno = WORLDS.find(w=>w.id==='mar_nocturno');
+  const p1 = WORLDS.find(w=>w.id==='planeta_uno');
+  const p2 = WORLDS.find(w=>w.id==='planeta_dos');
+  if(!marNocturno || !p1 || !p2) return;
+  const mnSpot = findClearWaterSpot(marNocturno, marNocturno.width-220, 220);
+  marNocturno.launchPads = [
+    {spot:mnSpot, targetId:'planeta_uno', targetName:p1.name, targetIcon:p1.icon, label:'Lanzar hacia '+p1.name},
+  ];
+  const p1Fwd = findClearWaterSpot(p1, p1.width-220, 220);
+  const p1Back = findClearWaterSpot(p1, 220, p1.height-220);
+  p1.launchPads = [
+    {spot:p1Fwd, targetId:'planeta_dos', targetName:p2.name, targetIcon:p2.icon, label:'Lanzar hacia '+p2.name},
+    {spot:p1Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+  const p2Back = findClearWaterSpot(p2, 220, p2.height-220);
+  p2.launchPads = [
+    {spot:p2Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+})();
+
 const EVENT_END = new Date('2026-08-05T23:59:59');
 function eventCountdownText(){
   const diff = EVENT_END.getTime() - Date.now();
@@ -1164,6 +1313,20 @@ WORLDS.forEach(w=>{
     minKg:b.minKg,maxKg:b.maxKg,minCm:b.minCm,maxCm:b.maxCm}, world:w, isBoss:true};
 });
 
+/* ---------------------------- SOLAR SYSTEM UNLOCK ---------------------------- */
+const EARTH_WORLDS = WORLDS.filter(w=>!w.isEvent && !w.isSpace);
+const FINAL_BOSS_ID = 'leviatan_sombras';
+function earthDexPercent(){
+  let total=0, discovered=0;
+  EARTH_WORLDS.forEach(w=>{
+    w.fish.forEach(f=>{ total++; if(S.dex[f.id]&&S.dex[f.id].discovered) discovered++; });
+  });
+  return total? discovered/total : 0;
+}
+function finalBossDefeated(){ return !!S.bossDefeated[FINAL_BOSS_ID]; }
+function solarSystemEligible(){ return earthDexPercent()>=0.8 && finalBossDefeated(); }
+const ROCKET_PARTS_NEEDED = 8;
+
 /* ---------------------------- ACHIEVEMENTS ---------------------------- */
 const ACHIEVEMENTS = [
   {id:'primer_pez',name:'Primer Pez',desc:'Captura tu primera criatura',icon:'🐟',reward:50,check:s=>s.stats.totalCatches>=1},
@@ -1190,6 +1353,13 @@ const ACHIEVEMENTS = [
   {id:'primera_mascota',name:'Nuevo Amigo',desc:'Consigue tu primera mascota',icon:'🐾',reward:300,check:s=>s.pets.length>=1},
   {id:'mascota_mitica',name:'Compañero Mítico',desc:'Consigue una mascota Mítica',icon:'✨',reward:15000,check:s=>s.pets.some(p=>{const pet=PETS.find(x=>x.id===p.petId); return pet&&pet.rarity==='mitico';})},
   {id:'zona_suerte',name:'Con Suerte',desc:'Pesca dentro de una zona de suerte',icon:'🍀',reward:1000,check:s=>(s.stats.luckySpotCatches||0)>=1},
+  {id:'cohete_listo',name:'Rumbo a las Estrellas',desc:'Construye tu cohete',icon:'🚀',reward:20000,check:s=>s.hasRocket},
+  {id:'primer_planeta',name:'Nuevo Mundo',desc:'Pisa tu primer planeta',icon:'🔴',reward:10000,check:s=>(s.visitedWorlds||[]).includes('planeta_uno')},
+  {id:'segundo_planeta',name:'Luna Helada',desc:'Llega a Europa Helada',icon:'🌕',reward:20000,check:s=>(s.visitedWorlds||[]).includes('planeta_dos')},
+  {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
+    const ids=['divinidad_ares','divinidad_europa'];
+    return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
+  }},
   {id:'mundo_completo',name:'Coleccionista Regional',desc:'Completa el acuario de un mundo',icon:'📘',reward:5000,check:null},
   {id:'acuario_completo',name:'Maestro del Acuario',desc:'Completa el acuario completo',icon:'📖',reward:1000000,check:null},
 ];
@@ -1226,6 +1396,7 @@ function defaultState(){
     rodIndex:0, baits, selectedBait:null,
     boatIndex:0, isOnBoat:false,
     pets:[], equippedPetUid:null,
+    hasRocket:false, isOnRocket:false, rocketParts:0,
     backpackCap:15, keepnet:[],
     dex:{},
     quests,
@@ -1310,6 +1481,9 @@ function setWorld(worldId, opts){
   if(opts.viaPortal){
     player.x = w.boatSpawn.x; player.y = w.boatSpawn.y;
     S.isOnBoat = true;
+  } else if(opts.viaLaunch){
+    player.x = w.spawn.x; player.y = w.spawn.y;
+    S.isOnRocket = true;
   } else if(!opts.keepPos){
     const p = S.playerPos[worldId];
     if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
@@ -1395,25 +1569,41 @@ function tryEnterPortal(){
   }
 }
 
-function startTravel(worldId){
+function tryEnterLaunchPad(){
+  if(S._traveling || !curWorld.launchPads) return;
+  for(const pad of curWorld.launchPads){
+    const d = Math.hypot(pad.spot.x-player.x, pad.spot.y-player.y);
+    if(d<70){ startTravel(pad.targetId); return; }
+  }
+}
+
+function startTravel(worldId, mode){
   const w = WORLDS.find(x=>x.id===worldId); if(!w) return;
+  mode = mode || (w.isSpace || curWorld.isSpace ? 'launch' : 'portal');
   S._traveling = true;
   Audio1.sfx('chest');
-  showLoadingScreen(w);
+  showLoadingScreen(w, mode);
   setTimeout(()=>{
-    setWorld(worldId, {viaPortal:true});
+    setWorld(worldId, mode==='launch'? {viaLaunch:true} : {viaPortal:true});
     hideLoadingScreen();
     S._traveling = false;
-    S.stats.portalsCrossed = (S.stats.portalsCrossed||0)+1;
-    toast('⛵ Has llegado a '+w.icon+' '+w.name+'.');
+    if(mode==='launch'){
+      S.stats.rocketTrips = (S.stats.rocketTrips||0)+1;
+      toast('🚀 Has llegado a '+w.icon+' '+w.name+'.');
+    } else {
+      S.stats.portalsCrossed = (S.stats.portalsCrossed||0)+1;
+      toast('⛵ Has llegado a '+w.icon+' '+w.name+'.');
+    }
     checkAchievements();
     saveGame();
   }, 2400);
 }
 
-function showLoadingScreen(w){
-  document.getElementById('travelIcon').textContent = w.icon;
+function showLoadingScreen(w, mode){
+  document.getElementById('travelIcon').textContent = mode==='launch'? '🚀' : w.icon;
   document.getElementById('travelWorldName').textContent = w.name;
+  document.getElementById('travelLead').firstChild.textContent = mode==='launch'? 'Lanzando cohete hacia ' : 'Viajando a ';
+  document.getElementById('travelHint').textContent = mode==='launch'? 'Encendiendo motores...' : 'Navegando a través del portal';
   const fill = document.getElementById('travelBarFill');
   fill.style.transition='none'; fill.style.width='0%';
   const overlay = document.getElementById('travelOverlay');
@@ -1442,6 +1632,7 @@ window.addEventListener('keydown', e=>{
   if(e.key===' '){ e.preventDefault(); onActionPress(); }
   if(e.key.toLowerCase()==='e'){ onActionPress(); }
   if(e.key.toLowerCase()==='b'){ toggleBoat(); }
+  if(e.key.toLowerCase()==='r'){ toggleRocket(); }
   if(e.key==='Escape'){ closeAllModals(); }
 });
 window.addEventListener('keyup', e=>{
@@ -1453,6 +1644,7 @@ actionBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); onActionPress
 actionBtn.addEventListener('pointerup', e=>{ onActionRelease(); });
 actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
 document.getElementById('boatToggleBtn').addEventListener('click', ()=>toggleBoat());
+document.getElementById('rocketToggleBtn').addEventListener('click', ()=>toggleRocket());
 
 // always-available boat launch/stow: finds the nearest usable water/land spot itself,
 // so it works reliably from any shoreline (or if you're stuck somewhere awkward).
@@ -1474,6 +1666,14 @@ function toggleBoat(){
 }
 
 function currentBoat(){ return S.boatIndex>=0? BOATS[S.boatIndex] : null; }
+
+function toggleRocket(){
+  if(!started || !S.hasRocket) return;
+  if(fishing.state!=='idle') return;
+  S.isOnRocket = !S.isOnRocket;
+  toast(S.isOnRocket? '🚀 Sacas tu cohete, listo para el lanzamiento.' : '🎒 Guardas el cohete en la mochila.');
+  saveGame();
+}
 
 function onActionPress(){
   if(!started) return;
@@ -1576,6 +1776,7 @@ function updatePlayer(dt){
 
   if(nearChest){ tryOpenChest(nearChest); }
   if(S.isOnBoat) tryEnterPortal();
+  if(S.isOnRocket) tryEnterLaunchPad();
 }
 
 function handleDrowning(){
@@ -1601,6 +1802,15 @@ function updateActionUI(){
     boatBtn.disabled = fishing.state!=='idle';
   } else {
     boatBtn.style.display = 'none';
+  }
+  const rocketBtn = document.getElementById('rocketToggleBtn');
+  if(S.hasRocket){
+    rocketBtn.style.display = 'flex';
+    rocketBtn.textContent = S.isOnRocket? '🎒' : '🚀';
+    rocketBtn.title = S.isOnRocket? 'Guardar cohete (R)' : 'Sacar cohete (R)';
+    rocketBtn.disabled = fishing.state!=='idle';
+  } else {
+    rocketBtn.style.display = 'none';
   }
   if(fishing.state==='minigame'){
     promptEl.classList.remove('show');
@@ -1936,21 +2146,26 @@ function tryOpenChest(chest){
   if(S._chestCooldown[key] && now<S._chestCooldown[key]) return;
   S._chestCooldown[key] = now + 5*60*1000;
   S.stats.chestsOpened++;
+  const chestMult = curWorld.isSpace? (18 + (curWorld.idx-11)*10) : (1 + curWorld.idx*0.7);
   const roll = Math.random();
   let msg;
   if(roll<0.55){
-    const coins = randInt(30,120)*(1+curWorld.idx*0.4)|0;
+    const coins = Math.round(randInt(50,180)*chestMult);
     S.coins += coins; msg = `🧰 Cofre: +${fmtNum(coins)} monedas`;
   } else if(roll<0.85){
     const b = pick(BAITS.slice(0,5));
     S.baits[b.id] = (S.baits[b.id]||0)+randInt(2,5);
     msg = `🧰 Cofre: +carnadas (${b.name})`;
   } else {
-    const coins = randInt(200,500);
+    const coins = Math.round(randInt(280,650)*chestMult);
     S.coins += coins; msg = `🧰 ¡Cofre raro! +${fmtNum(coins)} monedas`;
   }
   toast(msg);
   Audio1.sfx('chest');
+  if(!curWorld.isSpace && solarSystemEligible() && !S.hasRocket && S.rocketParts<ROCKET_PARTS_NEEDED && Math.random()<0.3){
+    S.rocketParts++;
+    setTimeout(()=>toast(`🔩 Encontraste una pieza de cohete (${S.rocketParts}/${ROCKET_PARTS_NEEDED})`), 500);
+  }
   progressQuests('open_chest',1);
   checkAchievements();
   saveGame();
@@ -2017,6 +2232,11 @@ function openDialogue(npc){
     bonus = `<div style="color:var(--accent2);font-weight:700;margin-bottom:10px;">¡${npc.name} te regala 20 monedas por conocerte!</div>`;
     saveGame(); refreshHud();
   }
+  if(npc.role==='rocketEngineer'){
+    renderRocketEngineerDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
@@ -2027,6 +2247,52 @@ function openDialogue(npc){
     box.innerHTML += `<button class="bigBtn" style="padding:8px 20px;font-size:13px;" onclick="closeModal('mDialogue');openShopTab('boats');">Ver Botes</button>`;
   }
   openModal('mDialogue');
+}
+
+function renderRocketEngineerDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  if(S.hasRocket){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Tu cohete sigue firme. El espacio te espera, viajero."</div>
+      <div class="cmeta">🚀 Ya tienes tu cohete — sácalo desde la Mochila cuando quieras volar.</div>`;
+    openModal('mDialogue');
+    return;
+  }
+  if(!solarSystemEligible()){
+    const pct = Math.min(100, Math.round(earthDexPercent()*100));
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Aún no puedo construir nada. Necesito ver que dominas este planeta."</div>
+      <div class="cmeta" style="margin-top:6px;">📖 Acuario de la Tierra: ${pct}% / 80%</div>
+      <div class="cmeta">👑 Jefe final (Leviatán de las Sombras): ${finalBossDefeated()?'✔ Derrotado':'Pendiente'}</div>`;
+    openModal('mDialogue');
+    return;
+  }
+  const remaining = Math.max(0, ROCKET_PARTS_NEEDED - S.rocketParts);
+  if(remaining>0){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"¡Por fin, alguien que puede ayudarme! Reúne piezas de cohete y tráemelas."</div>
+      <div class="cmeta" style="margin-top:6px;">🔩 Piezas recolectadas: ${S.rocketParts}/${ROCKET_PARTS_NEEDED}</div>
+      <div class="cmeta">Aparecen a veces dentro de cofres, en cualquier mundo de la Tierra.</div>`;
+  } else {
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"¡Tienes todas las piezas! Dame la señal y lo construyo ahora mismo."</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="buildRocket();">🚀 Construir Cohete</button>`;
+  }
+  openModal('mDialogue');
+}
+
+function buildRocket(){
+  if(S.rocketParts<ROCKET_PARTS_NEEDED || S.hasRocket) return;
+  S.rocketParts -= ROCKET_PARTS_NEEDED;
+  S.hasRocket = true;
+  S.isOnRocket = false;
+  if(!S.unlockedWorlds.includes('planeta_uno')) S.unlockedWorlds.push('planeta_uno');
+  Audio1.sfx('achievement');
+  toast('🚀 ¡Tu cohete está listo! Sácalo desde la Mochila para viajar.');
+  checkAchievements();
+  saveGame();
+  closeModal('mDialogue');
 }
 
 /* ---------------------------- BOSS INTRO ---------------------------- */
@@ -2421,6 +2687,12 @@ function renderMinimap(){
     mctx.fillStyle = '#facc15';
     mctx.beginPath(); mctx.arc(curWorld._luckySpot.x*sx,curWorld._luckySpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
   }
+  if(curWorld.launchPads){
+    mctx.fillStyle = S.hasRocket? '#fbbf24' : '#64748b';
+    curWorld.launchPads.forEach(pad=>{
+      mctx.beginPath(); mctx.arc(pad.spot.x*sx,pad.spot.y*sy,3.2,0,Math.PI*2); mctx.fill();
+    });
+  }
   // player
   mctx.fillStyle='#38d3c9';
   mctx.beginPath(); mctx.arc(player.x*sx,player.y*sy,3.4,0,Math.PI*2); mctx.fill();
@@ -2519,6 +2791,7 @@ function renderWeather(){
 function worldToScreen(x,y){ return {x: x-camera.x+canvas.width/2, y: y-camera.y+canvas.height/2}; }
 
 function drawWater(){
+  if(curWorld.isSpace){ drawGalaxyWater(); return; }
   const p = curWorld.palette;
   ctx.fillStyle = p.waterDeep;
   ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -2533,6 +2806,48 @@ function drawWater(){
     ctx.beginPath();
     for(let x=-spacing; x<canvas.width+spacing; x+=14){
       const wave = Math.sin((x+camera.x)*0.02 + t*1.4 + y*0.05)*4;
+      if(x===-spacing) ctx.moveTo(x,y+wave); else ctx.lineTo(x,y+wave);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawGalaxyWater(){
+  const p = curWorld.palette;
+  const t = performance.now()/1000;
+  const grad = ctx.createRadialGradient(canvas.width/2,canvas.height/2,40,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*0.75);
+  grad.addColorStop(0, p.water);
+  grad.addColorStop(1, p.waterDeep);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(!curWorld._stars){
+    const rnd = mulberry32(hashStr(curWorld.id+'_stars'));
+    curWorld._stars = [];
+    for(let i=0;i<240;i++){
+      curWorld._stars.push({x:rnd()*curWorld.width, y:rnd()*curWorld.height, r:0.6+rnd()*1.7, tw:rnd()*Math.PI*2, speed:0.5+rnd()*1.6, hue:rnd()<0.15});
+    }
+  }
+  curWorld._stars.forEach(s=>{
+    const screen = worldToScreen(s.x,s.y);
+    if(screen.x<-10||screen.x>canvas.width+10||screen.y<-10||screen.y>canvas.height+10) return;
+    const alpha = 0.35+0.65*Math.abs(Math.sin(t*s.speed+s.tw));
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = s.hue? '#f0abfc' : '#ffffff';
+    ctx.beginPath(); ctx.arc(screen.x,screen.y,s.r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  ctx.save();
+  ctx.globalAlpha=0.22;
+  ctx.strokeStyle = p.water;
+  ctx.lineWidth=2;
+  const spacing=60;
+  for(let y=-(camera.y%spacing)-spacing; y<canvas.height+spacing; y+=spacing){
+    ctx.beginPath();
+    for(let x=-spacing; x<canvas.width+spacing; x+=16){
+      const wave = Math.sin((x+camera.x)*0.015 + t*0.8 + y*0.04)*6;
       if(x===-spacing) ctx.moveTo(x,y+wave); else ctx.lineTo(x,y+wave);
     }
     ctx.stroke();
@@ -2600,6 +2915,16 @@ function drawDecor(d){
       ctx.beginPath(); ctx.moveTo(s*0.04,-s*0.55); ctx.lineTo(s*0.5,-s*0.42); ctx.lineTo(s*0.04,-s*0.28); ctx.closePath(); ctx.fill();
       ctx.fillStyle=fc[1];
       ctx.beginPath(); ctx.moveTo(s*0.04,-s*0.48); ctx.lineTo(s*0.32,-s*0.42); ctx.lineTo(s*0.04,-s*0.35); ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'marsrocks': {
+      ctx.fillStyle='#c2410c';
+      ctx.beginPath(); ctx.ellipse(0,4,s*0.4,s*0.24,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#9a3412';
+      ctx.beginPath(); ctx.ellipse(s*0.1,-s*0.12,s*0.24,s*0.18,0.4,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=0.5; ctx.fillStyle='#7c2d12';
+      ctx.beginPath(); ctx.arc(-s*0.16,s*0.08,s*0.1,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
       break;
     }
     default:
@@ -2825,6 +3150,45 @@ function drawPortal(){
   if(curWorld.extraPortal){
     drawPortalMarker(curWorld.extraPortal.spot, curWorld.extraPortal.targetIcon+' '+curWorld.extraPortal.targetName, true, '#fbbf24', '#92400e', curWorld.extraPortal.targetIcon);
   }
+  if(curWorld.launchPads){
+    curWorld.launchPads.forEach(pad=>drawLaunchPadMarker(pad));
+  }
+}
+
+function drawLaunchPadMarker(pad){
+  const screen = worldToScreen(pad.spot.x, pad.spot.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  const usable = S.hasRocket;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,18,42,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  // platform ring
+  ctx.strokeStyle = usable? '#fbbf24' : '#64748b';
+  ctx.lineWidth=4;
+  ctx.beginPath(); ctx.ellipse(0,10,38,13,0,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = usable? 'rgba(251,191,36,0.18)' : 'rgba(100,116,139,0.15)';
+  ctx.beginPath(); ctx.ellipse(0,10,38,13,0,0,Math.PI*2); ctx.fill();
+  // light beams
+  if(usable){
+    for(let i=0;i<3;i++){
+      const bx = -24+i*24;
+      ctx.globalAlpha = 0.25+0.15*Math.sin(t*3+i);
+      const grad = ctx.createLinearGradient(bx,10,bx,-70);
+      grad.addColorStop(0,'rgba(251,191,36,0.6)'); grad.addColorStop(1,'rgba(251,191,36,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(bx-4,-70,8,80);
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.font='24px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(usable? '🚀':'🔒', 0, -6);
+  ctx.restore();
+  ctx.save();
+  ctx.font='11px system-ui'; ctx.fillStyle= usable? '#fde047' : 'rgba(255,255,255,0.7)'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=4;
+  ctx.fillText(pad.label, screen.x, screen.y-58);
+  ctx.restore();
 }
 
 function drawBoat(x,y,angle,boatIdx,bob,trailType){
@@ -3157,9 +3521,30 @@ function renderBoatBagSection(){
   }
 }
 
+function renderRocketBagSection(){
+  const box = document.getElementById('rocketBagSection');
+  if(!S.hasRocket){
+    box.style.display='none';
+    return;
+  }
+  box.style.display='block';
+  box.innerHTML = `<div style="font-size:30px;">🚀</div><div class="cname">Cohete</div>
+    <div class="cmeta">Piezas de repuesto: ${S.rocketParts}/${ROCKET_PARTS_NEEDED}</div>
+    <button class="shopBtn" id="rocketDeployBtn">${S.isOnRocket? 'Ya lo llevas contigo':'🚀 Sacar cohete'}</button>
+    ${S.isOnRocket? `<button class="shopBtn" id="rocketStowBtn" style="margin-top:6px;background:var(--danger);">🎒 Guardar cohete</button>`:''}
+    <div class="cmeta" style="margin-top:6px;">Con el cohete fuera, camina hasta una plataforma de lanzamiento para viajar.</div>`;
+  if(!S.isOnRocket){
+    document.getElementById('rocketDeployBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
+  } else {
+    document.getElementById('rocketDeployBtn').disabled = true;
+    document.getElementById('rocketStowBtn').addEventListener('click', ()=>{ toggleRocket(); closeModal('mBag'); });
+  }
+}
+
 let bagCardEntries = [];
 function renderBag(){
   renderBoatBagSection();
+  renderRocketBagSection();
   document.getElementById('backpackMeta').textContent = `Capacidad: ${S.keepnet.length}/${S.backpackCap}`;
   const grid = document.getElementById('bagGrid');
   grid.innerHTML='';
@@ -3259,13 +3644,28 @@ let aqTab='all';
 document.getElementById('btnAquarium').addEventListener('click', ()=>{ renderAquariumTabs(); renderAquarium(); openModal('mAquarium'); });
 function renderAquariumTabs(){
   const tabs = document.getElementById('aqTabs');
+  const visibleWorlds = WORLDS.filter(w=>!w.isSpace || S.hasRocket);
   tabs.innerHTML = `<button class="tabBtn ${aqTab==='all'?'active':''}" data-aq="all">Todos</button>` +
-    WORLDS.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+    visibleWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
+}
+function renderSolarProgressBanner(){
+  const banner = document.getElementById('solarProgressBanner');
+  if(S.hasRocket){
+    banner.innerHTML = `🚀 <strong>Dimensión 2 · Sistema Solar</strong> desbloqueada. ¡Sigue explorando entre planetas!`;
+    return;
+  }
+  const pct = Math.min(100, Math.round(earthDexPercent()*100));
+  const bossOk = finalBossDefeated();
+  banner.innerHTML = `🌍 <strong>Dimensión 1 · La Tierra.</strong> Completa el 80% de la colección terrestre y vence al jefe final
+    para desbloquear la <strong>Dimensión del Sistema Solar</strong>.<br>
+    📖 Colección: ${pct}/80% &nbsp;·&nbsp; 👑 Leviatán de las Sombras: ${bossOk?'✔ Derrotado':'Pendiente'}
+    ${solarSystemEligible()?'<br>✨ ¡Ya puedes hablar con la Ingeniera Kel en Mar Nocturno para construir tu cohete!':''}`;
 }
 let aqCardEntries = [];
 function renderAquarium(){
-  const all = Object.values(ALL_SPECIES).filter(s=> aqTab==='all' || s.world.id===aqTab);
+  renderSolarProgressBanner();
+  const all = Object.values(ALL_SPECIES).filter(s=> (aqTab==='all' || s.world.id===aqTab) && (!s.world.isSpace || S.hasRocket));
   const discoveredCount = all.filter(s=>S.dex[s.fish.id]&&S.dex[s.fish.id].discovered).length;
   document.getElementById('aqProgress').textContent = `${discoveredCount}/${all.length}`;
   const grid = document.getElementById('aqGrid');
@@ -3347,9 +3747,11 @@ function renderAchievements(){
 /* ---------------------------- WORLD MAP MODAL ---------------------------- */
 document.getElementById('btnMap').addEventListener('click', ()=>{ renderWorldMap(); openModal('mMap'); });
 function renderWorldMap(){
+  document.getElementById('openSolarMapBtn').style.display = S.hasRocket? 'block' : 'none';
   const grid = document.getElementById('worldMapGrid');
   grid.innerHTML='';
   WORLDS.forEach((w,i)=>{
+    if(w.isSpace && !S.hasRocket) return; // hidden until you've built the rocket
     const unlocked = S.unlockedWorlds.includes(w.id);
     const visited = (S.visitedWorlds||[]).includes(w.id);
     const isCurrent = w.id===curWorld.id;
@@ -3359,19 +3761,22 @@ function renderWorldMap(){
     card.className = 'worldCard ' + (unlocked?'':'locked') + (isCurrent?' current':'');
     card.style.background = `linear-gradient(160deg, ${w.palette.water}, ${w.palette.waterDeep})`;
     let sub;
-    if(w.isEvent){
+    if(w.isSpace){
+      sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Usa una plataforma de lanzamiento');
+    } else if(w.isEvent){
       sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Zona libre · portal en Lago Inicial');
     } else if(isCurrent) sub='Estás aquí';
     else if(unlocked && visited) sub='Viaje rápido disponible';
     else if(unlocked) sub='Desbloqueado · navega hasta el portal';
     else if(hasKey) sub='🪙 '+fmtNum(w.unlockCost);
     else sub='Requiere llave del jefe anterior';
-    card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}${w.isEvent?' 🏆':''}</div>
+    card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}${w.isEvent?' 🏆':''}${w.isSpace?' 🚀':''}</div>
       <div class="wSub">${sub}</div>
       ${w.isEvent?`<div class="wSub" style="margin-top:2px;font-weight:700;">${eventCountdownText()}</div>`:''}
-      ${(!unlocked && !w.isEvent)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
+      ${(!unlocked && !w.isEvent && !w.isSpace)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
     card.addEventListener('click', ()=>{
-      if(unlocked && visited){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(visited){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(w.isSpace){ toast('Debes llegar en cohete por una plataforma de lanzamiento primero.'); return; }
       if(w.isEvent && !visited){ toast('Ve al portal dorado en el lado izquierdo de Lago Inicial para llegar por primera vez.'); return; }
       if(unlocked && !visited){ toast('Primero debes llegar navegando por el portal desde '+(prevWorld?prevWorld.name:'tu mundo actual')+'.'); return; }
       if(!hasKey){ toast('Necesitas la llave del jefe de '+prevWorld.name); return; }
@@ -3382,6 +3787,52 @@ function renderWorldMap(){
       } else toast('No tienes suficientes monedas.');
     });
     grid.appendChild(card);
+  });
+}
+
+document.getElementById('openSolarMapBtn').addEventListener('click', ()=>{
+  renderSolarMap();
+  openModal('mSolarMap');
+});
+
+function renderSolarMap(){
+  const container = document.getElementById('solarOrbits');
+  container.innerHTML = '';
+  const planets = WORLDS.filter(w=>w.isSpace);
+  planets.forEach((w,i)=>{
+    const radius = 95 + i*75;
+    const duration = 16 + i*11;
+    const ring = document.createElement('div');
+    ring.className='orbitRing';
+    ring.style.width = (radius*2)+'px'; ring.style.height=(radius*2)+'px';
+    container.appendChild(ring);
+    const spin = document.createElement('div');
+    spin.className='orbitSpin';
+    spin.style.animationDuration = duration+'s';
+    const planetWrap = document.createElement('div');
+    planetWrap.style.cssText = `position:absolute; left:${radius}px; top:0;`;
+    const visited = (S.visitedWorlds||[]).includes(w.id);
+    const locked = !visited;
+    const size = 34+i*5;
+    const planetEl = document.createElement('div');
+    planetEl.className = 'orbitPlanet'+(locked?' locked':'');
+    planetEl.style.width = size+'px'; planetEl.style.height = size+'px';
+    planetEl.style.marginLeft = (-size/2)+'px'; planetEl.style.marginTop=(-size/2)+'px';
+    planetEl.style.background = `radial-gradient(circle at 32% 28%, ${shade(w.palette.land,60)}, ${w.palette.land} 45%, ${w.palette.landDetail} 100%)`;
+    planetEl.style.animation = `counterSpin ${duration}s linear infinite`;
+    planetEl.textContent = locked? '🔒' : '';
+    planetEl.title = w.name;
+    const label = document.createElement('div');
+    label.className='orbitLabel';
+    label.textContent = w.icon+' '+w.name;
+    planetWrap.appendChild(planetEl);
+    planetWrap.appendChild(label);
+    spin.appendChild(planetWrap);
+    container.appendChild(spin);
+    planetEl.addEventListener('click', ()=>{
+      if(locked) return;
+      setWorld(w.id); closeModal('mSolarMap'); closeModal('mMap'); renderQuestTracker();
+    });
   });
 }
 
