@@ -1537,6 +1537,29 @@ const WORLDS = [
     {id:'n_carcel_1',name:'Guardia de la Celda',color:'#57534e',x:1650,y:1200,role:'jailGuard'},
   ],
 },
+{
+  // the escape gauntlet behind Sector Cero's locked door — lasers, mines, sweeping
+  // cameras and patrol guards between you and the exit; the mission here isn't to
+  // fight, it's to get out
+  id:'dimension_tres_fuga', idx:19, name:'Vector de Fuga', icon:'🚨', unlockCost:0, isDimension:true, hidden:true,
+  hugeWorld:true, indoor:true, isEscape:true,
+  palette:{water:'#1e1b4b', waterDeep:'#0a0920', land:'#312e5c', landDetail:'#1e1b3a', fog:'#818cf8'},
+  weatherPool:['distorsion'], decorType:'labtank',
+  fish:[
+    F('fragmento_errante','Fragmento Errante','comun','clasificado','fish','#c7d2fe','#3730a3'),
+    F('larva_evasiva','Larva Evasiva','pocoComun','clasificado','jellyfish','#a5b4fc','#312e81'),
+    F('anguila_camuflada','Anguila Camuflada','raro','clasificado','dragon','#818cf8','#1e1b4b'),
+    F('cangrejo_sigiloso','Cangrejo Sigiloso','epico','clasificado','crab','#6366f1','#1e1b4b', {glowIdx:3}),
+    F('medusa_de_alarma','Medusa de Alarma','legendario','clasificado','jellyfish','#f472b6','#500724', {glowIdx:4}),
+    F('eco_de_sirena','Eco de Sirena','mitico','clasificado','ghost','#fca5a5','#450a0a', {glowIdx:5}),
+    F('centinela_roto','Centinela Roto','omega','clasificado','octopus','#0f172a','#f87171', {glowIdx:6}),
+    F('sombra_liquida','Sombra Líquida','divino','clasificado','space','#000000','#818cf8', {glowIdx:9}),
+    F('fugitivo_cero','Fugitivo Cero','singularidad','clasificado','space','#000000','#f472b6'),
+  ],
+  boss:{id:'unidad_contencion_movil',name:'Unidad de Contención Móvil',shape:'octopus',color:'#1e1b4b',accent:'#818cf8',
+    minKg:1800,maxKg:3600,minCm:700,maxCm:1100,desc:'No está aquí para retenerte. Está aquí para que nadie más entere de lo que viste.'},
+  npcs:[],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -1946,17 +1969,21 @@ let sectorState = { inBlackout:false, nextBlackoutAt:0, blackoutEndsAt:0, detect
   const sc = WORLDS.find(w=>w.id==='dimension_tres');
   if(!sc) return;
   sc.hasBlackouts = true;
-  sc.sealedTank = findNearestSpot(sc, sc.width*0.5, sc.height*0.5, true);
-  const gSpots = [
-    findNearestSpot(sc, sc.sealedTank.x-280, sc.sealedTank.y+40, true),
-    findNearestSpot(sc, sc.sealedTank.x+300, sc.sealedTank.y-120, true),
-    findNearestSpot(sc, sc.sealedTank.x-60, sc.sealedTank.y+320, true),
-  ];
-  sc.guards = [
-    {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'x', range:170, speed:0.55},
-    {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'y', range:140, speed:0.45},
-    {baseX:gSpots[2].x, baseY:gSpots[2].y, axis:'x', range:190, speed:0.65},
-  ];
+  // 3 separate tanks spread across the facility, each robbable once — one guard posted
+  // near each so the heist stays risky no matter which tank you go for
+  const tankFracs = [{x:0.24,y:0.28},{x:0.74,y:0.32},{x:0.5,y:0.8}];
+  const guardOffsets = [{dx:-260,dy:60,axis:'x',range:170,speed:0.55},{dx:270,dy:-100,axis:'y',range:140,speed:0.45},{dx:-40,dy:260,axis:'x',range:190,speed:0.65}];
+  sc.sealedTanks = tankFracs.map(f=>findNearestSpot(sc, sc.width*f.x, sc.height*f.y, true));
+  sc.guards = sc.sealedTanks.map((tank,i)=>{
+    const o = guardOffsets[i%guardOffsets.length];
+    const spot = findNearestSpot(sc, tank.x+o.dx, tank.y+o.dy, true);
+    return {baseX:spot.x, baseY:spot.y, axis:o.axis, range:o.range, speed:o.speed};
+  });
+  // the kid who takes the stolen experiments off your hands, and the locked door he
+  // opens once you've delivered all 3 and beaten the boss — tucked in a far corner
+  sc.kidSpot = findNearestSpot(sc, sc.width*0.9, sc.height*0.12, true);
+  sc.escapeDoor = findNearestSpot(sc, sc.width*0.94, sc.height*0.9, true);
+  sc.npcs.push({id:'n_d3_kid', name:'Milo', color:'#fbbf24', x:sc.kidSpot.x, y:sc.kidSpot.y, role:'kidQuest'});
   const carcel = WORLDS.find(w=>w.id==='dimension_tres_carcel');
   if(carcel) carcel.contrabandBox = findNearestSpot(carcel, carcel.width*0.5, carcel.height*0.5, true);
 })();
@@ -2007,6 +2034,8 @@ function updateSectorSecurity(dt){
 }
 function tryStealFromTank(){
   if(!sectorState.inBlackout) return;
+  const idx = nearSealedTankIdx;
+  if(idx==null || idx<0 || S.sectorTanksRobbed[idx]) return;
   const now = Date.now();
   if(now<sectorState.tankCooldownUntil) return;
   sectorState.tankCooldownUntil = now + 4000;
@@ -2018,8 +2047,10 @@ function tryStealFromTank(){
     S.dex[EXPERIMENTO_FALLIDO.id].recordWeight = Math.max(S.dex[EXPERIMENTO_FALLIDO.id].recordWeight, item.weightKg);
     S.dex[EXPERIMENTO_FALLIDO.id].recordSize = Math.max(S.dex[EXPERIMENTO_FALLIDO.id].recordSize, item.sizeCm);
     if(S.keepnet.length<S.backpackCap) S.keepnet.push(item); else S.coins += item.value;
+    S.sectorTanksRobbed[idx] = true;
     Audio1.sfx('achievement');
-    toast('🫙 ¡Has robado el Experimento Fallido! Una entre mil millones.');
+    const left = 3 - Object.keys(S.sectorTanksRobbed).length;
+    toast(left>0? '🫙 ¡Has robado un Experimento Fallido! Quedan '+left+' tanques.' : '🫙 ¡Has vaciado los 3 tanques! Llévaselos al chico.');
     checkAchievements();
     saveGame();
   } else if(Math.random() < STEAL_FAIL_CAPTURE_CHANCE){
@@ -2096,6 +2127,210 @@ function tryStealContraband(){
   } else {
     toast('📦 La caja está vacía esta vez.');
   }
+}
+// the kid who takes the 3 stolen experiments off your hands — his dialogue tracks
+// how many you've handed over and reminds you what's still needed to earn the escape door
+function renderKidDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  const have = S.keepnet.filter(i=>i.speciesId===EXPERIMENTO_FALLIDO.id).length;
+  const given = S.experimentsGivenToKid||0;
+  if(given>=3){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Ya tengo los 3. Vence al Espécimen 0 si no lo has hecho, y la puerta del fondo se abrirá."</div>`;
+    return;
+  }
+  if(have<=0){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Necesito ${3-given} experimento(s) más de los tanques sellados. Solo se abren en un apagón."</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+    <div class="dlgLine">"¿Trajiste algo? Llevas ${have} contigo. Me faltan ${3-given}."</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="giveExperimentsToKid();">🫙 Entregar</button>`;
+}
+function giveExperimentsToKid(){
+  const idx = S.keepnet.findIndex(i=>i.speciesId===EXPERIMENTO_FALLIDO.id);
+  if(idx<0) return;
+  S.keepnet.splice(idx,1);
+  S.experimentsGivenToKid = Math.min(3, (S.experimentsGivenToKid||0)+1);
+  Audio1.sfx('coin');
+  toast('🫙 Le entregas un Experimento Fallido. ('+S.experimentsGivenToKid+'/3)');
+  if(S.experimentsGivenToKid>=3) toast('🔑 El chico ya tiene los 3. Vence al jefe y la puerta se abrirá.');
+  refreshHud();
+  const npc = curWorld.npcs.find(n=>n.role==='kidQuest');
+  if(npc) openDialogue(npc);
+  checkAchievements();
+  saveGame();
+}
+function tryEnterEscapeDoor(){
+  if(!(S.bossDefeated['especimen_cero'] && S.experimentsGivenToKid>=3)){
+    toast('🔒 Esta puerta necesita al jefe derrotado y los 3 experimentos entregados.');
+    return;
+  }
+  toast('🚪 La puerta se abre hacia la oscuridad...');
+  Audio1.sfx('portal');
+  setWorld('dimension_tres_fuga', {keepPos:false});
+  checkAchievements();
+  saveGame();
+}
+
+/* ---------------------------- VECTOR DE FUGA: ESCAPE GAUNTLET ---------------------------- */
+const FUGA_CAMERA_RANGE = 260, FUGA_CAMERA_ARC = 0.55, FUGA_CAM_RATE = 30;
+const FUGA_GUARD_RATE = 32, FUGA_GUARD_DECAY = 20;
+const FUGA_IDLE_THRESHOLD = 9000, FUGA_IDLE_RATE = 14;
+const FUGA_LASER_HIT_COOLDOWN = 1400, FUGA_BOMB_COOLDOWN = 12000;
+let fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, bombCooldowns:{} };
+(function setupFugaSecurity(){
+  const f = WORLDS.find(w=>w.id==='dimension_tres_fuga');
+  if(!f) return;
+  f.spawn = findNearestSpot(f, f.width*0.08, f.height*0.5, true);
+  f.boatSpawn = f.spawn; f.dockSpot = f.spawn;
+  f.escapeExit = findNearestSpot(f, f.width*0.94, f.height*0.5, true);
+  // rotating laser turrets: fixed pivots, a beam sweeps a full circle at its own speed
+  f.lasers = [
+    {x:f.width*0.32, y:f.height*0.3, len:340, speed:0.7, angle0:0},
+    {x:f.width*0.55, y:f.height*0.68, len:380, speed:-0.5, angle0:2.1},
+    {x:f.width*0.78, y:f.height*0.35, len:320, speed:0.9, angle0:4.2},
+  ];
+  // static pressure mines scattered along the route — one-time trigger per approach, then
+  // a long cooldown, so a single mistake doesn't lock off a whole path forever
+  f.bombs = [
+    findNearestSpot(f, f.width*0.4, f.height*0.5, true),
+    findNearestSpot(f, f.width*0.62, f.height*0.25, true),
+    findNearestSpot(f, f.width*0.62, f.height*0.75, true),
+    findNearestSpot(f, f.width*0.85, f.height*0.55, true),
+  ];
+  // sweeping wall cameras — a visible cone that oscillates back and forth
+  f.cameras = [
+    {x:f.width*0.25, y:f.height*0.55, baseAngle:0, sweep:0.9, speed:0.5},
+    {x:f.width*0.48, y:f.height*0.2, baseAngle:1.6, sweep:0.8, speed:0.4},
+    {x:f.width*0.7, y:f.height*0.65, baseAngle:-0.7, sweep:1.0, speed:0.35},
+    {x:f.width*0.87, y:f.height*0.3, baseAngle:3.4, sweep:0.7, speed:0.6},
+  ];
+  // dark patches you can duck into to go invisible to cameras, guards and the idle timer
+  f.shadowSpots = [
+    findNearestSpot(f, f.width*0.3, f.height*0.75, true),
+    findNearestSpot(f, f.width*0.58, f.height*0.45, true),
+    findNearestSpot(f, f.width*0.8, f.height*0.7, true),
+  ].map(s=>({x:s.x, y:s.y, rx:130, ry:110}));
+  // patrol guards blocking the route ahead, reusing the same oscillating-patrol system
+  // as Sector Cero's blackout guards
+  const gSpots = [
+    findNearestSpot(f, f.width*0.45, f.height*0.4, true),
+    findNearestSpot(f, f.width*0.68, f.height*0.5, true),
+  ];
+  f.guards = [
+    {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'y', range:160, speed:0.5},
+    {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'x', range:180, speed:0.4},
+  ];
+})();
+function inShadow(w,x,y){
+  return !!(w.shadowSpots && w.shadowSpots.some(s=>{
+    const dx=x-s.x, dy=y-s.y;
+    return (dx*dx)/(s.rx*s.rx)+(dy*dy)/(s.ry*s.ry)<=1;
+  }));
+}
+function fugaHidden(){
+  return inShadow(curWorld, player.x, player.y) || (S.isDiving && !isLand(curWorld, player.x, player.y));
+}
+function fugaLaserAngle(laser){
+  const t = performance.now()/1000;
+  return laser.angle0 + t*laser.speed;
+}
+function fugaCameraAngle(cam){
+  const t = performance.now()/1000;
+  return cam.baseAngle + Math.sin(t*cam.speed)*cam.sweep;
+}
+function updateFugaSecurity(dt){
+  if(!curWorld.isEscape) return;
+  const now = Date.now();
+  const hidden = fugaHidden();
+
+  // idle timer: camping in one spot too long eventually gets a guard sent to check it out
+  const moved = Math.hypot(player.x-fugaState.lastX, player.y-fugaState.lastY) > 12;
+  if(moved){ fugaState.lastX = player.x; fugaState.lastY = player.y; fugaState.idleSince = now; }
+  const idleFor = now - (fugaState.idleSince||now);
+  let rise = 0;
+  if(!hidden && idleFor>FUGA_IDLE_THRESHOLD) rise += FUGA_IDLE_RATE*dt;
+
+  if(!hidden){
+    // sweeping cameras: in range and inside the current cone angle
+    for(const cam of curWorld.cameras||[]){
+      const dx=player.x-cam.x, dy=player.y-cam.y, dist=Math.hypot(dx,dy);
+      if(dist>FUGA_CAMERA_RANGE) continue;
+      const ang = Math.atan2(dy,dx);
+      let diff = Math.abs(ang - fugaCameraAngle(cam));
+      diff = Math.min(diff, Math.PI*2-diff);
+      if(diff < FUGA_CAMERA_ARC*0.5){ rise += FUGA_CAM_RATE*dt; break; }
+    }
+    // patrol guards, same proximity model as Sector Cero
+    for(const g of guardPositions(curWorld)){
+      if(Math.hypot(g.x-player.x, g.y-player.y)<DETECTION_RADIUS){ rise += FUGA_GUARD_RATE*dt; break; }
+    }
+  }
+
+  if(rise>0){
+    fugaState.detection = Math.min(100, fugaState.detection + rise);
+  } else {
+    fugaState.detection = Math.max(0, fugaState.detection - FUGA_GUARD_DECAY*dt);
+  }
+
+  // rotating laser turrets: a direct hit costs HP and spikes detection, with a short
+  // per-laser cooldown so standing in a beam doesn't melt you instantly
+  for(const laser of curWorld.lasers||[]){
+    const dx=player.x-laser.x, dy=player.y-laser.y, dist=Math.hypot(dx,dy);
+    if(dist>laser.len) continue;
+    const ang = Math.atan2(dy,dx);
+    let diff = Math.abs(ang - fugaLaserAngle(laser));
+    diff = Math.min(diff, Math.PI*2-diff);
+    if(diff<0.05 && now>fugaState.laserHitUntil){
+      fugaState.laserHitUntil = now + FUGA_LASER_HIT_COOLDOWN;
+      S.hp = Math.max(0, S.hp - 14);
+      fugaState.detection = Math.min(100, fugaState.detection + 25);
+      S._hurtFlash = 0.25;
+      toast('⚡ ¡Te roza un láser!');
+      Audio1.sfx('fail');
+    }
+  }
+  // static mines: one hit per cooldown window
+  for(let i=0;i<(curWorld.bombs||[]).length;i++){
+    const b = curWorld.bombs[i];
+    if(now < (fugaState.bombCooldowns[i]||0)) continue;
+    if(Math.hypot(b.x-player.x,b.y-player.y)<45){
+      fugaState.bombCooldowns[i] = now + FUGA_BOMB_COOLDOWN;
+      S.hp = Math.max(0, S.hp - 22);
+      fugaState.detection = Math.min(100, fugaState.detection + 35);
+      S._hurtFlash = 0.35;
+      toast('💥 ¡Una mina de presión explota cerca!');
+      Audio1.sfx('fail');
+    }
+  }
+
+  if(S.hp<=0){
+    toast('🚔 Herido y rodeado, te capturan.');
+    captureToJail();
+    return;
+  }
+  if(fugaState.detection>=100){
+    captureToJail();
+    return;
+  }
+  if(curWorld.escapeExit && Math.hypot(curWorld.escapeExit.x-player.x, curWorld.escapeExit.y-player.y)<70){
+    completeEscape();
+  }
+}
+function completeEscape(){
+  const first = !S.achievements['fuga_completada'];
+  toast(first? '🏁 ¡Escapaste del Complejo Umbral! Nadie te vio salir.' : '🏁 Escapas de nuevo por el Vector de Fuga.');
+  Audio1.sfx('achievement');
+  S.coins += 500000; S.gems = (S.gems||0)+25;
+  S.stats.dimensionEscapes = (S.stats.dimensionEscapes||0)+1;
+  fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, bombCooldowns:{} };
+  setWorld('planeta_seis', {keepPos:false});
+  checkAchievements();
+  refreshHud();
+  saveGame();
 }
 function pickAbyssFish(){
   const pool = ABYSS_FISH_BY_WORLD[curWorld.id] || [];
@@ -2291,6 +2526,10 @@ const ACHIEVEMENTS = [
     check:s=>!!(s.dex['experimento_fallido']&&s.dex['experimento_fallido'].discovered)},
   {id:'fugitivo_de_la_celda',name:'Fugitivo',desc:'Sal de la Celda de Contención, pagando fianza o cumpliendo condena',icon:'🚪',reward:100000,
     check:s=>(s.stats.jailReleases||0)>=1},
+  {id:'los_tres_tanques',name:'Vaciados',desc:'Roba los 3 tanques sellados de Sector Cero',icon:'🫙',reward:1000000,rewardGems:30,
+    check:s=>Object.keys(s.sectorTanksRobbed||{}).length>=3},
+  {id:'fuga_completada',name:'Nadie Te Vio Salir',desc:'Escapa del Complejo Umbral por el Vector de Fuga · Dimensión 3',icon:'🏁',reward:800000,rewardGems:50,
+    check:s=>(s.stats.dimensionEscapes||0)>=1},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -2319,6 +2558,7 @@ function defaultState(){
     coins:50, xp:0, level:1, crystals:0, gems:0, gemWorldsBossed:{}, worldLuckTier:{},
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
     inAbyss:false, abyssDepth:0, abyssBestDepth:{}, checkpointPassed:false,
+    sectorTanksRobbed:{}, experimentsGivenToKid:0, sectorDoorUnlocked:false,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -2392,7 +2632,7 @@ let camera={x:0,y:0};
 let keys = {};
 let lastTs = 0;
 let toastQueue = [];
-let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, nearSealedTank = false, nearContrabandBox = false, canFish = false;
+let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, nearSealedTank = false, nearSealedTankIdx = -1, nearContrabandBox = false, nearEscapeDoor = false, canFish = false;
 let started = false;
 
 const fishing = {
@@ -2688,6 +2928,7 @@ function onActionPress(){
     if(nearAbyssRift){ enterAbyss(); return; }
     if(nearSealedTank){ tryStealFromTank(); return; }
     if(nearContrabandBox){ tryStealContraband(); return; }
+    if(nearEscapeDoor){ tryEnterEscapeDoor(); return; }
     if(curWorld._nearBoss){ startCastWrapper(true); return; }
     if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
     if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
@@ -2773,8 +3014,16 @@ function updatePlayer(dt){
   }
   nearTower = !!(curWorld.towerSpot && Math.hypot(curWorld.towerSpot.x-player.x, curWorld.towerSpot.y-player.y)<60);
   nearAbyssRift = !!(S.isDiving && !S.inAbyss && curWorld.abyssRift && Math.hypot(curWorld.abyssRift.x-player.x, curWorld.abyssRift.y-player.y)<60);
-  nearSealedTank = !!(sectorState.inBlackout && curWorld.sealedTank && Math.hypot(curWorld.sealedTank.x-player.x, curWorld.sealedTank.y-player.y)<70);
+  nearSealedTank = false; nearSealedTankIdx = -1;
+  if(sectorState.inBlackout && curWorld.sealedTanks){
+    for(let i=0;i<curWorld.sealedTanks.length;i++){
+      if(S.sectorTanksRobbed[i]) continue;
+      const tank = curWorld.sealedTanks[i];
+      if(Math.hypot(tank.x-player.x, tank.y-player.y)<70){ nearSealedTank=true; nearSealedTankIdx=i; break; }
+    }
+  }
   nearContrabandBox = !!(curWorld.contrabandBox && Math.hypot(curWorld.contrabandBox.x-player.x, curWorld.contrabandBox.y-player.y)<70);
+  nearEscapeDoor = !!(curWorld.escapeDoor && Math.hypot(curWorld.escapeDoor.x-player.x, curWorld.escapeDoor.y-player.y)<70);
 
   // pressure damage while descending the Abismo Infinito — the deeper you go, the faster it
   // drains, outpacing the passive HP_REGEN above so depth is a real risk from the very start
@@ -2787,15 +3036,15 @@ function updatePlayer(dt){
   canBoard=false; canDisembark=false; boardTargetPoint=null;
 
   if(S.isOnBoat){
-    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && fishing.state==='idle' && isLand(curWorld,fx,fy)){
       canDisembark = true; boardTargetPoint = {x:fx,y:fy};
     }
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !canDisembark && !isBoatMoving;
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !canDisembark && !isBoatMoving;
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
   }
@@ -2904,6 +3153,12 @@ function updateActionUI(){
     promptEl.textContent = onCd? '📦 Caja de contrabando... espera' : '📦 Caja de contrabando';
     promptEl.classList.add('show');
     btn.textContent='Registrar'; btn.disabled=onCd; return;
+  }
+  if(nearEscapeDoor){
+    const ready = S.bossDefeated['especimen_cero'] && S.experimentsGivenToKid>=3;
+    promptEl.textContent = ready? '🚪 Puerta de escape · desbloqueada' : '🔒 Puerta sellada · vence al jefe y entrega los 3 experimentos';
+    promptEl.classList.add('show');
+    btn.textContent = ready? 'Entrar' : 'Bloqueada'; btn.disabled=!ready; return;
   }
   if(curWorld._nearBoss){
     const hasDefeated = S.bossDefeated[curWorld.boss.id];
@@ -3503,6 +3758,11 @@ function openDialogue(npc){
   }
   if(npc.role==='jailGuard'){
     renderJailGuardDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
+  if(npc.role==='kidQuest'){
+    renderKidDialogue(npc, bonus);
     openModal('mDialogue');
     return;
   }
@@ -5396,12 +5656,15 @@ function drawCheckpointBuilding(){
 // the sealed containment cylinder at the heart of Sector Cero — only openable during a
 // blackout, when the guards can't see the alarm panel either
 function drawSealedTank(){
-  const spot = curWorld.sealedTank;
-  if(!spot) return;
+  if(!curWorld.sealedTanks) return;
+  curWorld.sealedTanks.forEach((spot,i)=>drawOneSealedTank(spot, i));
+}
+function drawOneSealedTank(spot, idx){
   const screen = worldToScreen(spot.x, spot.y);
   if(screen.x<-140||screen.x>canvas.width+140||screen.y<-160||screen.y>canvas.height+140) return;
   const t = performance.now()/1000;
-  const active = sectorState.inBlackout;
+  const robbed = !!S.sectorTanksRobbed[idx];
+  const active = sectorState.inBlackout && !robbed;
   ctx.save(); ctx.translate(screen.x, screen.y);
   ctx.globalAlpha=0.3; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,34,44,14,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
@@ -5410,27 +5673,59 @@ function drawSealedTank(){
   ctx.save();
   roundRect(ctx,-24,-64,48,92,8); ctx.clip();
   const fluidGrad = ctx.createLinearGradient(0,-64,0,28);
-  fluidGrad.addColorStop(0, active? '#4ade80' : '#166534');
-  fluidGrad.addColorStop(1, active? '#052e16' : '#020806');
+  fluidGrad.addColorStop(0, robbed? '#292524' : (active? '#4ade80' : '#166534'));
+  fluidGrad.addColorStop(1, robbed? '#0c0a09' : (active? '#052e16' : '#020806'));
   ctx.fillStyle = fluidGrad;
   ctx.fillRect(-24,-64,48,92);
-  ctx.globalAlpha = active? (0.55+0.35*Math.sin(t*4)) : 0.25;
-  ctx.fillStyle = '#bbf7d0';
-  ctx.beginPath(); ctx.ellipse(-6+Math.sin(t*1.3)*6,-10+Math.sin(t*2)*20,7,10,0,0,Math.PI*2); ctx.fill();
+  if(!robbed){
+    ctx.globalAlpha = active? (0.55+0.35*Math.sin(t*4)) : 0.25;
+    ctx.fillStyle = '#bbf7d0';
+    ctx.beginPath(); ctx.ellipse(-6+Math.sin(t*1.3)*6,-10+Math.sin(t*2)*20,7,10,0,0,Math.PI*2); ctx.fill();
+  }
   ctx.globalAlpha=1;
   ctx.restore();
   ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=3;
   roundRect(ctx,-30,-70,60,104,10); ctx.stroke();
-  ctx.globalAlpha = active? (0.6+0.4*Math.sin(t*5)) : 0.5;
-  ctx.fillStyle = active? '#4ade80' : '#7f1d1d';
-  ctx.shadowColor = active? '#4ade80' : '#7f1d1d'; ctx.shadowBlur=10;
+  ctx.globalAlpha = robbed? 0.4 : (active? (0.6+0.4*Math.sin(t*5)) : 0.5);
+  ctx.fillStyle = robbed? '#57534e' : (active? '#4ade80' : '#7f1d1d');
+  ctx.shadowColor = robbed? '#57534e' : (active? '#4ade80' : '#7f1d1d'); ctx.shadowBlur=10;
   ctx.beginPath(); ctx.arc(0,-80,5,0,Math.PI*2); ctx.fill();
   ctx.shadowBlur=0; ctx.globalAlpha=1;
   ctx.restore();
   ctx.save();
-  ctx.font='bold 12px system-ui'; ctx.fillStyle= active? '#4ade80' : '#94a3b8'; ctx.textAlign='center';
+  ctx.font='bold 12px system-ui'; ctx.fillStyle= robbed? '#78716c' : (active? '#4ade80' : '#94a3b8'); ctx.textAlign='center';
   ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
-  ctx.fillText(active? '🫙 Tanque sellado · ¡ábrelo ahora!' : '🫙 Tanque sellado', screen.x, screen.y-98);
+  ctx.fillText(robbed? '🫙 Tanque vacío' : (active? '🫙 Tanque sellado · ¡ábrelo ahora!' : '🫙 Tanque sellado'), screen.x, screen.y-98);
+  ctx.restore();
+}
+// the sealed door out of the facility, in the far corner — locked until the boss is
+// dead and the kid has all 3 experiments, then it swings open onto the escape zone
+function drawEscapeDoor(){
+  const spot = curWorld.escapeDoor;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-140||screen.x>canvas.width+140||screen.y<-160||screen.y>canvas.height+140) return;
+  const t = performance.now()/1000;
+  const unlocked = S.bossDefeated['especimen_cero'] && S.experimentsGivenToKid>=3;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,42,54,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#1e293b';
+  roundRect(ctx,-46,-84,92,120,6); ctx.fill();
+  ctx.fillStyle = unlocked? '#134e2a' : '#3f1212';
+  roundRect(ctx,-38,-76,76,104,5); ctx.fill();
+  ctx.strokeStyle = unlocked? 'rgba(74,222,128,0.5)' : 'rgba(239,68,68,0.5)'; ctx.lineWidth=2;
+  for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(i*14,-70); ctx.lineTo(i*14,22); ctx.stroke(); }
+  ctx.globalAlpha = 0.5+0.5*Math.sin(t*(unlocked?4:2));
+  ctx.fillStyle = unlocked? '#4ade80' : '#ef4444';
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur=12;
+  ctx.beginPath(); ctx.arc(0,-90,5,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 12px system-ui'; ctx.fillStyle= unlocked? '#4ade80' : '#f87171'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText(unlocked? '🚪 Puerta de escape' : '🔒 Puerta sellada', screen.x, screen.y-96);
   ctx.restore();
 }
 
@@ -5462,7 +5757,7 @@ function drawContrabandBox(){
 
 // roaming security guards, only rendered (and only dangerous) during a Sector Cero blackout
 function drawGuards(){
-  if(!curWorld.hasBlackouts || !sectorState.inBlackout) return;
+  if(!(curWorld.hasBlackouts && sectorState.inBlackout) && !curWorld.isEscape) return;
   const t = performance.now()/1000;
   for(const g of guardPositions(curWorld)){
     const screen = worldToScreen(g.x, g.y);
@@ -5480,6 +5775,124 @@ function drawGuards(){
     ctx.globalAlpha=1;
     ctx.restore();
   }
+}
+
+// dark patches of floor where cameras, guards and the idle timer can't see you
+function drawShadowSpots(){
+  if(!curWorld.shadowSpots) return;
+  curWorld.shadowSpots.forEach(s=>{
+    const screen = worldToScreen(s.x, s.y);
+    if(screen.x<-s.rx-40||screen.x>canvas.width+s.rx+40||screen.y<-s.ry-40||screen.y>canvas.height+s.ry+40) return;
+    ctx.save();
+    ctx.globalAlpha=0.55; ctx.fillStyle='#020617';
+    ctx.beginPath(); ctx.ellipse(screen.x,screen.y,s.rx,s.ry,0,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(129,140,248,0.35)'; ctx.lineWidth=2; ctx.setLineDash([6,8]);
+    ctx.beginPath(); ctx.ellipse(screen.x,screen.y,s.rx,s.ry,0,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  });
+  if(fugaHidden()){
+    const screen = worldToScreen(player.x, player.y);
+    ctx.save();
+    ctx.font='bold 12px system-ui'; ctx.fillStyle='#a5b4fc'; ctx.textAlign='center';
+    ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=4;
+    ctx.fillText('👁️‍🗨️ Oculto', screen.x, screen.y-58);
+    ctx.restore();
+  }
+}
+// rotating laser turrets — the visible beam matches the actual hit-detection math exactly,
+// so a careful player can read and dodge it
+function drawLasers(){
+  if(!curWorld.lasers) return;
+  curWorld.lasers.forEach(laser=>{
+    const screen = worldToScreen(laser.x, laser.y);
+    if(screen.x<-laser.len-40||screen.x>canvas.width+laser.len+40||screen.y<-laser.len-40||screen.y>canvas.height+laser.len+40) return;
+    const ang = fugaLaserAngle(laser);
+    const ex = screen.x+Math.cos(ang)*laser.len, ey = screen.y+Math.sin(ang)*laser.len;
+    ctx.save();
+    ctx.fillStyle='#1e1b4b';
+    ctx.beginPath(); ctx.arc(screen.x,screen.y,10,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(248,113,113,0.9)'; ctx.lineWidth=3;
+    ctx.shadowColor='#f87171'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(screen.x,screen.y); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#ef4444'; ctx.globalAlpha=0.5+0.5*Math.sin(performance.now()/120);
+    ctx.beginPath(); ctx.arc(screen.x,screen.y,5,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.restore();
+  });
+}
+// static pressure mines — small blinking floor devices, one-time trip then a long cooldown
+function drawBombs(){
+  if(!curWorld.bombs) return;
+  const now = Date.now();
+  curWorld.bombs.forEach((b,i)=>{
+    const screen = worldToScreen(b.x, b.y);
+    if(screen.x<-40||screen.x>canvas.width+40||screen.y<-40||screen.y>canvas.height+40) return;
+    const armed = now >= (fugaState.bombCooldowns[i]||0);
+    ctx.save(); ctx.translate(screen.x,screen.y);
+    ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(0,8,16,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle = armed? '#3f3f46' : '#1c1917';
+    ctx.beginPath(); ctx.arc(0,0,11,0,Math.PI*2); ctx.fill();
+    if(armed){
+      ctx.globalAlpha=0.5+0.5*Math.sin(performance.now()/220);
+      ctx.fillStyle='#ef4444'; ctx.shadowColor='#ef4444'; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(0,0,3.5,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0; ctx.globalAlpha=1;
+    }
+    ctx.restore();
+  });
+}
+// sweeping wall cameras — the drawn cone matches the detection cone exactly
+function drawCameras(){
+  if(!curWorld.cameras) return;
+  curWorld.cameras.forEach(cam=>{
+    const screen = worldToScreen(cam.x, cam.y);
+    if(screen.x<-FUGA_CAMERA_RANGE-40||screen.x>canvas.width+FUGA_CAMERA_RANGE+40||screen.y<-FUGA_CAMERA_RANGE-40||screen.y>canvas.height+FUGA_CAMERA_RANGE+40) return;
+    const ang = fugaCameraAngle(cam);
+    ctx.save(); ctx.translate(screen.x, screen.y);
+    ctx.fillStyle='#1e293b';
+    ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+    ctx.rotate(ang);
+    const grad = ctx.createRadialGradient(0,0,0,0,0,FUGA_CAMERA_RANGE);
+    grad.addColorStop(0,'rgba(248,113,113,0.28)'); grad.addColorStop(1,'rgba(248,113,113,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,FUGA_CAMERA_RANGE, -FUGA_CAMERA_ARC*0.5, FUGA_CAMERA_ARC*0.5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha=0.5+0.5*Math.sin(performance.now()/300);
+    ctx.fillStyle='#ef4444'; ctx.shadowColor='#ef4444'; ctx.shadowBlur=6;
+    ctx.beginPath(); ctx.arc(screen.x,screen.y,3,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+    ctx.restore();
+  });
+}
+// the exit at the far end of the gauntlet — reach this to complete the escape mission
+function drawEscapeExit(){
+  const spot = curWorld.escapeExit;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,26,50,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  const grad = ctx.createRadialGradient(0,0,4,0,0,44);
+  grad.addColorStop(0,'#fff'); grad.addColorStop(0.5,'#4ade80'); grad.addColorStop(1,'rgba(74,222,128,0)');
+  ctx.fillStyle=grad;
+  const pulse = 0.8+0.2*Math.sin(t*2);
+  ctx.beginPath(); ctx.arc(0,0,40*pulse,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 14px system-ui'; ctx.fillStyle='#4ade80'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText('🏁 Salida', screen.x, screen.y-56);
+  ctx.restore();
 }
 
 function drawBossSpot(){
@@ -5913,6 +6326,7 @@ function render(){
 
   drawWater();
   curWorld.islands.forEach(drawIsland);
+  drawShadowSpots();
   curWorld.decor.forEach(drawDecor);
   drawBossSpot();
   drawPortal();
@@ -5925,7 +6339,12 @@ function render(){
   drawCheckpointBuilding();
   drawSealedTank();
   drawContrabandBox();
+  drawEscapeDoor();
   drawGuards();
+  drawCameras();
+  drawLasers();
+  drawBombs();
+  drawEscapeExit();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -5942,7 +6361,33 @@ function render(){
   drawUnderwaterOverlay();
   drawIndoorAmbience();
   drawBlackoutOverlay();
+  drawFugaHud();
   renderMinimap();
+}
+
+// always-visible alert meter for the escape gauntlet — no full blackout here, just a
+// running readout of how close the cameras/guards are to catching you
+function drawFugaHud(){
+  if(!curWorld.isEscape) return;
+  const danger = fugaState.detection/100;
+  wctx.save();
+  wctx.font='bold 13px system-ui'; wctx.textAlign='center'; wctx.fillStyle='#fff';
+  wctx.shadowColor='rgba(0,0,0,0.8)'; wctx.shadowBlur=4;
+  wctx.fillText('🚨 Vector de Fuga · Alerta', wcanvas.width/2, 74);
+  wctx.shadowBlur=0;
+  const barW=220, barX=wcanvas.width/2-barW/2, barY=80;
+  wctx.fillStyle='rgba(0,0,0,0.5)'; roundRect(wctx,barX,barY,barW,12,6); wctx.fill();
+  wctx.fillStyle = danger>0.7? '#ef4444' : (danger>0.4? '#f59e0b' : '#4ade80');
+  roundRect(wctx,barX,barY,barW*clamp(danger,0,1),12,6); wctx.fill();
+  if(danger>0.05){
+    wctx.globalAlpha = danger*0.35;
+    const vg = wctx.createRadialGradient(wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.3,wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.75);
+    vg.addColorStop(0,'rgba(239,68,68,0)');
+    vg.addColorStop(1,'rgba(239,68,68,0.6)');
+    wctx.fillStyle = vg; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+    wctx.globalAlpha=1;
+  }
+  wctx.restore();
 }
 
 // a soft industrial vignette + flickering strip-light tint for indoor facilities like
@@ -6732,7 +7177,10 @@ function renderWorldMap(){
   grid.innerHTML='';
   WORLDS.forEach((w,i)=>{
     if(w.isSpace && !S.hasRocket) return; // hidden until you've built the rocket
-    if(w.hidden) return; // reached only through its own narrative gate, never listed here
+    // Sector Cero shows up on the map once you've earned your way past the checkpoint —
+    // every other narrative-gated world (the jail, the escape zone) stays off the map entirely
+    const isCheckpointMap = w.id==='dimension_tres' && S.checkpointPassed;
+    if(w.hidden && !isCheckpointMap) return;
     const unlocked = S.unlockedWorlds.includes(w.id);
     const visited = (S.visitedWorlds||[]).includes(w.id);
     const isCurrent = w.id===curWorld.id;
@@ -6740,8 +7188,8 @@ function renderWorldMap(){
     const hasKey = i===0 || (prevWorld && S.bossKeys[prevWorld.id]);
     const card = document.createElement('div');
     // space worlds don't use the coin/key unlock system at all — they're gated by having
-    // physically visited them via a launch pad, so the dark "locked" look must follow that instead
-    const cardLocked = w.isSpace? !visited : !unlocked;
+    // physically visited them via a launch pad, and Sector Cero by the checkpoint instead
+    const cardLocked = w.isSpace? !visited : (isCheckpointMap? !visited : !unlocked);
     card.className = 'worldCard ' + (cardLocked?'locked':'') + (isCurrent?' current':'');
     card.style.background = `linear-gradient(160deg, ${w.palette.water}, ${w.palette.waterDeep})`;
     let sub;
@@ -6749,6 +7197,8 @@ function renderWorldMap(){
       sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Usa una plataforma de lanzamiento');
     } else if(w.isEvent){
       sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Zona libre · portal en Lago Inicial');
+    } else if(isCheckpointMap){
+      sub = isCurrent? 'Estás aquí' : (visited? 'Viaje rápido disponible' : 'Entra por primera vez en Planeta Seis');
     } else if(isCurrent) sub='Estás aquí';
     else if(unlocked && visited) sub='Viaje rápido disponible';
     else if(unlocked) sub='Desbloqueado · navega hasta el portal';
@@ -6757,11 +7207,12 @@ function renderWorldMap(){
     card.innerHTML = `<div class="wIcon">${w.icon}</div><div class="wName">${w.name}${w.isEvent?' 🏆':''}${w.isSpace?' 🚀':''}</div>
       <div class="wSub">${sub}</div>
       ${w.isEvent?`<div class="wSub" style="margin-top:2px;font-weight:700;">${eventCountdownText()}</div>`:''}
-      ${(!unlocked && !w.isEvent && !w.isSpace)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
+      ${(!unlocked && !w.isEvent && !w.isSpace && !isCheckpointMap)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
     card.addEventListener('click', ()=>{
       if(visited){ setWorld(w.id, {viaMap:true}); closeModal('mMap'); renderQuestTracker(); return; }
       if(w.isSpace){ toast('Debes llegar en cohete por una plataforma de lanzamiento primero.'); return; }
       if(w.isEvent && !visited){ toast('Ve al portal dorado en el lado izquierdo de Lago Inicial para llegar por primera vez.'); return; }
+      if(isCheckpointMap){ toast('Habla con el Agente Rook en Planeta Seis para entrar por primera vez.'); return; }
       if(unlocked && !visited){ toast('Primero debes llegar navegando por el portal desde '+(prevWorld?prevWorld.name:'tu mundo actual')+'.'); return; }
       if(!hasKey){ toast('Necesitas la llave del jefe de '+prevWorld.name); return; }
       if(S.coins>=w.unlockCost){
@@ -6989,6 +7440,7 @@ function update(dt){
   updateWeather(dt);
   updateLuckySpot(dt);
   updateSectorSecurity(dt);
+  updateFugaSecurity(dt);
   updateActionUI();
   updateHpUI();
   S.stats.totalPlaytimeSec += dt;
