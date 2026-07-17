@@ -2114,10 +2114,16 @@ const JAIL_SENTENCE_MS = 90000, JAIL_BAIL_COST = 50000;
 function captureToJail(){
   sectorState.inBlackout = false;
   sectorState.detection = 0;
+  // reset the escape-gauntlet alert too, so coming back to the same sector doesn't
+  // immediately re-trigger a capture from leftover detection
+  fugaState.detection = 0; fugaState.idleSince = Date.now(); fugaState.lastX = player.x; fugaState.lastY = player.y;
   Audio1.sfx('fail');
   toast('🚔 ¡Te han pillado! Te llevan a la Celda de Contención.');
   S.stats.timesCaught = (S.stats.timesCaught||0)+1;
   S.jailReleaseAt = Date.now() + JAIL_SENTENCE_MS;
+  // remember where you were caught so release/bail sends you back to that sector's
+  // spawn — never back to the exact spot you got caught at
+  S.jailReturnWorld = curWorld.id;
   setWorld('dimension_tres_carcel', {keepPos:false});
   checkAchievements();
   saveGame();
@@ -2140,8 +2146,9 @@ function renderJailGuardDialogue(npc, bonus){
 function releaseFromJail(){
   if((S.jailReleaseAt||0) > Date.now()) return;
   S.stats.jailReleases = (S.stats.jailReleases||0)+1;
-  setWorld('dimension_tres', {keepPos:false});
-  toast('🚪 Vuelves a Sector Cero. Con más cuidado esta vez.');
+  const backTo = S.jailReturnWorld || 'dimension_tres';
+  setWorld(backTo, {keepPos:false, forceSpawn:true});
+  toast('🚪 Vuelves a '+curWorld.name+'. Con más cuidado esta vez.');
   checkAchievements();
   saveGame();
 }
@@ -2151,8 +2158,9 @@ function payBailAndLeave(){
   S.jailReleaseAt = 0;
   S.stats.jailReleases = (S.stats.jailReleases||0)+1;
   refreshHud();
-  setWorld('dimension_tres', {keepPos:false});
-  toast('🪙 Pagas la fianza y sales de la celda.');
+  const backTo = S.jailReturnWorld || 'dimension_tres';
+  setWorld(backTo, {keepPos:false, forceSpawn:true});
+  toast('🪙 Pagas la fianza y sales de '+curWorld.name+'.');
   checkAchievements();
   saveGame();
 }
@@ -2758,7 +2766,7 @@ function defaultState(){
     coins:50, xp:0, level:1, crystals:0, gems:0, gemWorldsBossed:{}, worldLuckTier:{},
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
     inAbyss:false, abyssDepth:0, abyssBestDepth:{}, checkpointPassed:false,
-    sectorTanksRobbed:{}, experimentsGivenToKid:0, sectorDoorUnlocked:false,
+    sectorTanksRobbed:{}, experimentsGivenToKid:0, sectorDoorUnlocked:false, jailReturnWorld:null,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -2862,8 +2870,12 @@ function setWorld(worldId, opts){
     // never mid-boat/mid-rocket, so a stale saved position near a portal or launch pad
     // can't immediately re-trigger a second, unintended trip right after arriving
     if(opts.viaMap){ S.isOnBoat = false; S.isOnRocket = false; }
-    const p = S.playerPos[worldId];
-    if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
+    if(opts.forceSpawn){
+      player.x = w.spawn.x; player.y = w.spawn.y;
+    } else {
+      const p = S.playerPos[worldId];
+      if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
+    }
     // safety: older saves (or edge cases) may place the player in the water on foot
     if(!S.isOnBoat && !isLand(w, player.x, player.y)){ player.x=w.spawn.x; player.y=w.spawn.y; }
   }
