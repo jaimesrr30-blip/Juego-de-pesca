@@ -71,21 +71,6 @@ canvas{display:block;position:absolute;top:0;left:0;}
   box-shadow:0 10px 30px rgba(56,211,201,0.45),inset 0 -6px 10px rgba(0,0,0,0.25),inset 0 6px 10px rgba(255,255,255,0.35);
   margin-bottom:22px;animation:floaty 3s ease-in-out infinite;}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-12px) rotate(4deg);}}
-.solar3DScene{position:relative;height:340px;perspective:900px;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(ellipse at center, #1e1b4b 0%, #0a0118 75%);border-radius:16px;overflow:hidden;}
-.solarSun{position:absolute;font-size:44px;filter:drop-shadow(0 0 22px #fbbf24);animation:sunPulse 3s ease-in-out infinite;z-index:5;}
-@keyframes sunPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
-#solarOrbits{position:relative;width:100%;height:100%;transform-style:preserve-3d;transform:rotateX(55deg);}
-.orbitRing{position:absolute;top:50%;left:50%;border:1px dashed rgba(255,255,255,0.15);border-radius:50%;transform:translate(-50%,-50%);}
-.orbitSpin{position:absolute;top:50%;left:50%;width:0;height:0;animation-name:orbitSpin;animation-timing-function:linear;animation-iteration-count:infinite;}
-@keyframes orbitSpin{from{transform:translate(-50%,-50%) rotate(0deg);}to{transform:translate(-50%,-50%) rotate(360deg);}}
-@keyframes counterSpin{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
-.orbitPlanet{position:absolute;border-radius:50%;cursor:pointer;box-shadow:inset -6px -6px 12px rgba(0,0,0,0.4), inset 4px 4px 10px rgba(255,255,255,0.25), 0 0 14px rgba(255,255,255,0.15);
-  display:flex;align-items:center;justify-content:center;font-size:14px;transition:filter .15s;}
-.orbitPlanet:hover{filter:brightness(1.3);}
-.orbitPlanet.locked{filter:grayscale(1) brightness(0.5);cursor:default;}
-.orbitLabel{position:absolute;top:100%;left:50%;transform:translateX(-50%) rotateX(-55deg);white-space:nowrap;font-size:10px;
-  color:#fff;margin-top:6px;text-shadow:0 1px 3px #000;pointer-events:none;}
 
 @keyframes chestShake{
   0%,100%{transform:rotate(0deg) scale(1);}
@@ -529,21 +514,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
     <div class="modal">
       <div class="modalHead"><h2>🗺️ Mundos</h2><button class="modalClose" data-close="mMap">✕</button></div>
       <div class="modalBody">
-        <button class="bigBtn" id="openSolarMapBtn" style="display:none;margin-bottom:14px;padding:9px 20px;font-size:13px;">🌌 Ver Mapa del Sistema Solar</button>
         <div id="worldMapGrid"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modalBackdrop" id="mSolarMap">
-    <div class="modal" style="max-width:640px;">
-      <div class="modalHead"><h2>🌌 Sistema Solar</h2><button class="modalClose" data-close="mSolarMap">✕</button></div>
-      <div class="modalBody">
-        <div id="solar3D" class="solar3DScene">
-          <div class="solarSun">☀️</div>
-          <div id="solarOrbits"></div>
-        </div>
-        <div class="cmeta" style="text-align:center;margin-top:8px;">Toca un planeta para viajar (si ya lo has visitado)</div>
       </div>
     </div>
   </div>
@@ -848,21 +819,28 @@ const PET_RARITIES = [
   {id:'epico',      name:'Épico',      color:'#a78bfa', glowIdx:6, weight:600,  speed:28, luck:0.9,  xpPct:12},
   {id:'legendario', name:'Legendario', color:'#fbbf24', glowIdx:8, weight:180,  luck:1.4, speed:42, xpPct:20},
   {id:'mitico',     name:'Mítico',     color:'#f472b6', glowIdx:9, weight:20,   speed:60, luck:2.2,  xpPct:35},
+  {id:'divino',     name:'Divino',     color:'#fde047', glowIdx:9, weight:3,    speed:85, luck:3.2,  xpPct:50},
 ];
 const PET_RARITY_INDEX = {}; PET_RARITIES.forEach((r,i)=>PET_RARITY_INDEX[r.id]=i);
 const PETS = [
   {id:'cubito',          name:'Cubito',           rarity:'comun',      icon:'⬜'},
   {id:'cubito_saltarin', name:'Cubito Saltarín',  rarity:'pocoComun',  icon:'🟩'},
   {id:'cubito_veloz',    name:'Cubito Veloz',     rarity:'raro',       icon:'🟦'},
+  {id:'cubito_arcoiris', name:'Cubito Arcoíris',  rarity:'raro',       icon:'🌈'},
   {id:'cubito_brillante',name:'Cubito Brillante', rarity:'epico',      icon:'🟪'},
+  {id:'cubito_tormenta', name:'Cubito de Tormenta',rarity:'epico',     icon:'⚡'},
   {id:'cubito_dorado',   name:'Cubito Dorado',    rarity:'legendario', icon:'🟨'},
   {id:'cubito_cosmico',  name:'Cubito Cósmico',   rarity:'mitico',     icon:'✨'},
+  {id:'cubito_celestial',name:'Cubito Celestial', rarity:'divino',     icon:'👑'},
   {id:'cubito_nova',          name:'Cubito Nova',          rarity:'comun',      icon:'🌑', origin:'space'},
   {id:'cubito_cometa',        name:'Cubito Cometa',        rarity:'pocoComun',  icon:'☄️', origin:'space'},
   {id:'cubito_nebulosa',      name:'Cubito Nebulosa',      rarity:'raro',       icon:'🪐', origin:'space'},
+  {id:'cubito_cristalino',    name:'Cubito Cristalino',    rarity:'raro',       icon:'💠', origin:'space'},
   {id:'cubito_supernova',     name:'Cubito Supernova',     rarity:'epico',      icon:'💥', origin:'space'},
+  {id:'cubito_plasmatico',    name:'Cubito Plasmático',    rarity:'epico',      icon:'🔥', origin:'space'},
   {id:'cubito_estelar',       name:'Cubito Estelar',       rarity:'legendario', icon:'🌟', origin:'space'},
   {id:'cubito_agujero_negro', name:'Cubito Agujero Negro', rarity:'mitico',     icon:'⚫', origin:'space'},
+  {id:'cubito_supremo',       name:'Cubito Supremo',       rarity:'divino',     icon:'🌌', origin:'space'},
 ];
 const PET_CHEST_PRICE = 5000;
 const COSMIC_PET_CHEST_PRICE = 400;
@@ -871,7 +849,7 @@ const PET_CHEST_PREMIUM_GEMS = 8;
 const COSMIC_CHEST_PREMIUM_GEMS = 15;
 const PET_CHEST_PREMIUM_MIN_IDX = PET_RARITY_INDEX['raro'];
 function petRarityOf(pet){ return PET_RARITIES[PET_RARITY_INDEX[pet.rarity]]; }
-function petSellValue(pet){ const idx=PET_RARITY_INDEX[pet.rarity]; return [40,150,500,2000,8000,30000][idx]||40; }
+function petSellValue(pet){ const idx=PET_RARITY_INDEX[pet.rarity]; return [40,150,500,2000,8000,30000,120000][idx]||40; }
 function rollPetRarity(minIdx){
   const pool = minIdx? PET_RARITIES.slice(minIdx) : PET_RARITIES;
   const total = pool.reduce((a,r)=>a+r.weight,0);
@@ -992,6 +970,10 @@ const TRAILS = [
     unlockDesc:'Habla con Old Mott en Lago Inicial y vende 25 criaturas.'},
   {id:'plasma',name:'Rastro de Plasma',locked:true,priceGems:50,
     unlockDesc:'Disponible en la Tienda Premium a cambio de Gemas.'},
+  {id:'arcoiris',name:'Rastro Arcoíris',price:15000},
+  {id:'nieve',name:'Rastro de Nieve',price:3000},
+  {id:'vacio',name:'Rastro del Vacío',locked:true,
+    unlockDesc:'Alcanza la profundidad 15 en el Abismo Infinito de cualquier planeta.'},
 ];
 
 /* ---------------------------- WEATHER ---------------------------- */
@@ -1989,6 +1971,9 @@ const ACHIEVEMENTS = [
       return p2fish.every(f=>s.dex[f.id]&&s.dex[f.id].discovered);
     },
     unlockCosmetic:{slot:'hat', id:'corona_hielo_eterno', label:'Corona de Hielo Eterno'}},
+  {id:'abismo_susurro',name:'El Vacío Responde',desc:'Alcanza la profundidad 15 en el Abismo Infinito de cualquier planeta',icon:'🌑',reward:150000,rewardGems:10,
+    check:s=>maxAbyssDepth(s)>=15,
+    unlockCosmetic:{slot:'trail', id:'vacio', label:'Rastro del Vacío'}},
   {id:'abismo_explorador',name:'Explorador del Abismo',desc:'Alcanza la profundidad 10 en el Abismo Infinito de cualquier planeta',icon:'🌀',reward:300000,rewardGems:15,
     check:s=>maxAbyssDepth(s)>=10},
   {id:'abismo_maestro',name:'Señor del Abismo Infinito',desc:'Alcanza la profundidad 20 en el Abismo Infinito de cualquier planeta',icon:'🕳️',reward:800000,rewardGems:35,
@@ -4735,6 +4720,42 @@ function drawTrailParticles(){
       ctx.strokeRect(-3,-3,6,6);
       ctx.restore();
     }
+    else if(t.type==='arcoiris'){
+      const colors = ['#f87171','#fbbf24','#4ade80','#38bdf8','#a78bfa','#f472b6'];
+      const ci = Math.floor(((t.seed||0)*997)%colors.length);
+      ctx.globalAlpha = a*0.9;
+      ctx.fillStyle = colors[ci];
+      ctx.shadowColor = colors[ci]; ctx.shadowBlur = 5;
+      ctx.beginPath(); ctx.arc(screen.x,screen.y+10,3.5,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    else if(t.type==='nieve'){
+      const rot = (t.seed||0)*Math.PI*2;
+      ctx.save();
+      ctx.translate(screen.x,screen.y+10); ctx.rotate(rot);
+      ctx.globalAlpha = a*0.9;
+      ctx.strokeStyle = '#f0f9ff'; ctx.lineWidth = 1.2;
+      for(let i=0;i<3;i++){
+        const ang = i*(Math.PI/3);
+        ctx.save(); ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(0,4); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    else if(t.type==='vacio'){
+      ctx.save();
+      ctx.translate(screen.x,screen.y+10);
+      ctx.globalAlpha = a*0.5;
+      const grad = ctx.createRadialGradient(0,0,0,0,0,7);
+      grad.addColorStop(0,'#c4b5fd'); grad.addColorStop(1,'rgba(30,16,51,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = a*0.9;
+      ctx.fillStyle = '#1e1033';
+      ctx.beginPath(); ctx.arc(0,0,2.6,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
     ctx.restore();
   });
 }
@@ -5942,7 +5963,6 @@ function renderAchievements(){
 /* ---------------------------- WORLD MAP MODAL ---------------------------- */
 document.getElementById('btnMap').addEventListener('click', ()=>{ renderWorldMap(); openModal('mMap'); });
 function renderWorldMap(){
-  document.getElementById('openSolarMapBtn').style.display = S.hasRocket? 'block' : 'none';
   const grid = document.getElementById('worldMapGrid');
   grid.innerHTML='';
   WORLDS.forEach((w,i)=>{
@@ -5982,53 +6002,6 @@ function renderWorldMap(){
       } else toast('No tienes suficientes monedas.');
     });
     grid.appendChild(card);
-  });
-}
-
-document.getElementById('openSolarMapBtn').addEventListener('click', ()=>{
-  renderSolarMap();
-  openModal('mSolarMap');
-});
-
-function renderSolarMap(){
-  const container = document.getElementById('solarOrbits');
-  container.innerHTML = '';
-  const planets = WORLDS.filter(w=>w.isSpace);
-  const ringStep = planets.length>4? 58 : 75;
-  planets.forEach((w,i)=>{
-    const radius = 85 + i*ringStep;
-    const duration = 16 + i*11;
-    const ring = document.createElement('div');
-    ring.className='orbitRing';
-    ring.style.width = (radius*2)+'px'; ring.style.height=(radius*2)+'px';
-    container.appendChild(ring);
-    const spin = document.createElement('div');
-    spin.className='orbitSpin';
-    spin.style.animationDuration = duration+'s';
-    const planetWrap = document.createElement('div');
-    planetWrap.style.cssText = `position:absolute; left:${radius}px; top:0;`;
-    const visited = (S.visitedWorlds||[]).includes(w.id);
-    const locked = !visited;
-    const size = 34+i*5;
-    const planetEl = document.createElement('div');
-    planetEl.className = 'orbitPlanet'+(locked?' locked':'');
-    planetEl.style.width = size+'px'; planetEl.style.height = size+'px';
-    planetEl.style.marginLeft = (-size/2)+'px'; planetEl.style.marginTop=(-size/2)+'px';
-    planetEl.style.background = `radial-gradient(circle at 32% 28%, ${shade(w.palette.land,60)}, ${w.palette.land} 45%, ${w.palette.landDetail} 100%)`;
-    planetEl.style.animation = `counterSpin ${duration}s linear infinite`;
-    planetEl.textContent = locked? '🔒' : '';
-    planetEl.title = w.name;
-    const label = document.createElement('div');
-    label.className='orbitLabel';
-    label.textContent = w.icon+' '+w.name;
-    planetWrap.appendChild(planetEl);
-    planetWrap.appendChild(label);
-    spin.appendChild(planetWrap);
-    container.appendChild(spin);
-    planetEl.addEventListener('click', ()=>{
-      if(locked) return;
-      setWorld(w.id); closeModal('mSolarMap'); closeModal('mMap'); renderQuestTracker();
-    });
   });
 }
 
