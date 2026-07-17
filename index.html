@@ -1541,8 +1541,8 @@ const WORLDS = [
   // the escape gauntlet behind Sector Cero's locked door — lasers, mines, sweeping
   // cameras and patrol guards between you and the exit; the mission here isn't to
   // fight, it's to get out
-  id:'dimension_tres_fuga', idx:19, name:'Vector de Fuga', icon:'🚨', unlockCost:0, isDimension:true, hidden:true,
-  hugeWorld:true, indoor:true, isEscape:true,
+  id:'dimension_tres_fuga', idx:19, name:'Vector de Fuga · Sector 2', icon:'🚨', unlockCost:0, isDimension:true, hidden:true,
+  hugeWorld:true, indoor:true, isEscape:true, nextSectorId:'dimension_tres_s3', nextSectorRequiresKey:false,
   palette:{water:'#1e1b4b', waterDeep:'#0a0920', land:'#312e5c', landDetail:'#1e1b3a', fog:'#818cf8'},
   weatherPool:['distorsion'], decorType:'labtank',
   fish:[
@@ -1558,6 +1558,50 @@ const WORLDS = [
   ],
   boss:{id:'unidad_contencion_movil',name:'Unidad de Contención Móvil',shape:'octopus',color:'#1e1b4b',accent:'#818cf8',
     minKg:1800,maxKg:3600,minCm:700,maxCm:1100,desc:'No está aquí para retenerte. Está aquí para que nadie más entere de lo que viste.'},
+  npcs:[],
+},
+{
+  // much harder than Sector 2: a single oversized guard with a huge detection radius,
+  // lasers that take half your HP per hit, and the key-for-fish NPC that opens Sector 4
+  id:'dimension_tres_s3', idx:20, name:'Vector de Fuga · Sector 3', icon:'☣️', unlockCost:0, isDimension:true, hidden:true,
+  hugeWorld:true, indoor:true, isEscape:true, nextSectorId:'dimension_tres_s4', nextSectorRequiresKey:true,
+  palette:{water:'#3b0764', waterDeep:'#1a0330', land:'#4c1d95', landDetail:'#2e1065', fog:'#c084fc'},
+  weatherPool:['distorsion'], decorType:'labtank',
+  fish:[
+    F('espora_furtiva','Espora Furtiva','comun','clasificado','fish','#e9d5ff','#4c1d95'),
+    F('larva_blindada','Larva Blindada','pocoComun','clasificado','jellyfish','#d8b4fe','#3b0764'),
+    F('sierpe_de_alarma','Sierpe de Alarma','raro','clasificado','dragon','#c084fc','#2e1065'),
+    F('cangrejo_acorazado','Cangrejo Acorazado','epico','clasificado','crab','#a855f7','#2e1065', {glowIdx:3}),
+    F('centinela_purpura','Centinela Púrpura','legendario','clasificado','octopus','#f0abfc','#581c87', {glowIdx:4}),
+    F('eco_del_alcaide','Eco del Alcaide','mitico','clasificado','ghost','#fbcfe8','#500724', {glowIdx:5}),
+    F('guardian_fallido','Guardián Fallido','omega','clasificado','octopus','#1e1b4b','#f0abfc', {glowIdx:6}),
+    F('nucleo_inestable','Núcleo Inestable','divino','clasificado','space','#000000','#c084fc', {glowIdx:9}),
+    F('llave_viviente','Llave Viviente','singularidad','clasificado','space','#000000','#fbcfe8'),
+  ],
+  boss:{id:'guardian_mayor',name:'Guardián Mayor',shape:'octopus',color:'#2e1065',accent:'#f0abfc',
+    minKg:4000,maxKg:8000,minCm:1200,maxCm:1800,desc:'Más grande que cualquier otra cosa en el Complejo Umbral. Ya no necesita órdenes.'},
+  npcs:[],
+},
+{
+  // the hardest sector — several mega guards and giant lasers; the far exit is a
+  // deliberate dead end for now, saved for a future session
+  id:'dimension_tres_s4', idx:21, name:'Vector de Fuga · Sector 4', icon:'☢️', unlockCost:0, isDimension:true, hidden:true,
+  hugeWorld:true, indoor:true, isEscape:true,
+  palette:{water:'#450a0a', waterDeep:'#1c0505', land:'#7f1d1d', landDetail:'#450a0a', fog:'#fca5a5'},
+  weatherPool:['distorsion'], decorType:'labtank',
+  fish:[
+    F('brasa_furtiva','Brasa Furtiva','comun','clasificado','fish','#fecaca','#7f1d1d'),
+    F('larva_incandescente','Larva Incandescente','pocoComun','clasificado','jellyfish','#fca5a5','#450a0a'),
+    F('sierpe_carmesi','Sierpe Carmesí','raro','clasificado','dragon','#f87171','#450a0a'),
+    F('cangrejo_de_hierro','Cangrejo de Hierro','epico','clasificado','crab','#ef4444','#450a0a', {glowIdx:3}),
+    F('centinela_ultimo','Centinela Último','legendario','clasificado','octopus','#fecaca','#7f1d1d', {glowIdx:4}),
+    F('eco_final','Eco Final','mitico','clasificado','ghost','#fee2e2','#450a0a', {glowIdx:5}),
+    F('guardian_supremo','Guardián Supremo','omega','clasificado','octopus','#1c0505','#ef4444', {glowIdx:6}),
+    F('umbral_desconocido','Umbral Desconocido','divino','clasificado','space','#000000','#f87171', {glowIdx:9}),
+    F('lo_que_espera','Lo Que Espera','singularidad','clasificado','space','#000000','#fee2e2'),
+  ],
+  boss:{id:'guardian_supremo_jefe',name:'Guardián Supremo',shape:'octopus',color:'#1c0505',accent:'#ef4444',
+    minKg:6000,maxKg:12000,minCm:1500,maxCm:2200,desc:'Lo último entre tú y lo que sea que estén escondiendo aquí abajo.'},
   npcs:[],
 },
 ];
@@ -1991,6 +2035,7 @@ function guardPositions(w){
   if(!w.guards) return [];
   const t = performance.now()/1000;
   return w.guards.map(g=>({
+    ...g,
     x: g.axis==='x'? g.baseX+Math.sin(t*g.speed)*g.range : g.baseX,
     y: g.axis==='y'? g.baseY+Math.sin(t*g.speed)*g.range : g.baseY,
   }));
@@ -2168,6 +2213,33 @@ function giveExperimentsToKid(){
   checkAchievements();
   saveGame();
 }
+// Sector 3's key NPC — hand over any 3 fish from your keepnet and he gives you the
+// key that opens the door into Sector 4
+function renderKeyQuestDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  if(S.fugaKeyS3){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Ya tienes la llave. Úsala en la puerta antes de que cambien de idea."</div>`;
+    return;
+  }
+  const have = S.keepnet.length;
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+    <div class="dlgLine">"Dame 3 peces, los que sean, y te doy la llave que me quitaron cuando me atraparon. Llevas ${have}."</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" ${have<3?'disabled':''} onclick="giveFishForKey();">🐟 Entregar 3 peces</button>`;
+}
+function giveFishForKey(){
+  if(S.keepnet.length<3 || S.fugaKeyS3) return;
+  S.keepnet.splice(0,3);
+  S.fugaKeyS3 = true;
+  Audio1.sfx('achievement');
+  toast('🔑 Consigues la llave. La puerta al Sector 4 ya puede abrirse.');
+  refreshHud();
+  const npc = curWorld.npcs.find(n=>n.role==='keyQuest');
+  if(npc) openDialogue(npc);
+  checkAchievements();
+  saveGame();
+}
 function tryEnterEscapeDoor(){
   if(!(S.bossDefeated['especimen_cero'] && S.experimentsGivenToKid>=3)){
     toast('🔒 Esta puerta necesita al jefe derrotado y los 3 experimentos entregados.');
@@ -2186,6 +2258,11 @@ const FUGA_GUARD_RATE = 32, FUGA_GUARD_DECAY = 20;
 const FUGA_IDLE_THRESHOLD = 9000, FUGA_IDLE_RATE = 14;
 const FUGA_LASER_HIT_COOLDOWN = 1400, FUGA_BOMB_COOLDOWN = 12000;
 let fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, bombCooldowns:{} };
+// a simple emergency-exit NPC placed near each sector's spawn — the escape gauntlet
+// has no other way back to safety once you commit to it
+function addRetreatNpc(w, spot){
+  w.npcs.push({id:'n_retreat_'+w.id, name:'Salida de Emergencia', color:'#94a3b8', x:spot.x, y:spot.y, role:'exitDoor'});
+}
 (function setupFugaSecurity(){
   const f = WORLDS.find(w=>w.id==='dimension_tres_fuga');
   if(!f) return;
@@ -2197,6 +2274,7 @@ let fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, b
     {x:f.width*0.32, y:f.height*0.3, len:340, speed:0.7, angle0:0},
     {x:f.width*0.55, y:f.height*0.68, len:380, speed:-0.5, angle0:2.1},
     {x:f.width*0.78, y:f.height*0.35, len:320, speed:0.9, angle0:4.2},
+    {x:f.width*0.42, y:f.height*0.62, len:300, speed:0.6, angle0:3.0},
   ];
   // static pressure mines scattered along the route — one-time trigger per approach, then
   // a long cooldown, so a single mistake doesn't lock off a whole path forever
@@ -2212,6 +2290,7 @@ let fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, b
     {x:f.width*0.48, y:f.height*0.2, baseAngle:1.6, sweep:0.8, speed:0.4},
     {x:f.width*0.7, y:f.height*0.65, baseAngle:-0.7, sweep:1.0, speed:0.35},
     {x:f.width*0.87, y:f.height*0.3, baseAngle:3.4, sweep:0.7, speed:0.6},
+    {x:f.width*0.35, y:f.height*0.42, baseAngle:2.4, sweep:0.85, speed:0.45},
   ];
   // dark patches you can duck into to go invisible to cameras, guards and the idle timer
   f.shadowSpots = [
@@ -2229,6 +2308,105 @@ let fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, b
     {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'y', range:160, speed:0.5},
     {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'x', range:180, speed:0.4},
   ];
+  addRetreatNpc(f, findNearestSpot(f, f.spawn.x+70, f.spawn.y+70, true));
+})();
+(function setupFugaSector3(){
+  const f = WORLDS.find(w=>w.id==='dimension_tres_s3');
+  if(!f) return;
+  f.spawn = findNearestSpot(f, f.width*0.08, f.height*0.5, true);
+  f.boatSpawn = f.spawn; f.dockSpot = f.spawn;
+  f.escapeExit = findNearestSpot(f, f.width*0.94, f.height*0.5, true);
+  // lasers here take half a full health bar per hit — a single mistake really hurts
+  f.lasers = [
+    {x:f.width*0.28, y:f.height*0.3, len:360, speed:0.8, angle0:0, dmg:50, detectionSpike:35},
+    {x:f.width*0.5, y:f.height*0.7, len:400, speed:-0.65, angle0:1.8, dmg:50, detectionSpike:35},
+    {x:f.width*0.72, y:f.height*0.32, len:380, speed:1.0, angle0:3.5, dmg:50, detectionSpike:35},
+    {x:f.width*0.4, y:f.height*0.55, len:340, speed:-0.9, angle0:5.0, dmg:50, detectionSpike:35},
+    {x:f.width*0.85, y:f.height*0.6, len:360, speed:0.75, angle0:2.6, dmg:50, detectionSpike:35},
+  ];
+  f.bombs = [
+    findNearestSpot(f, f.width*0.35, f.height*0.5, true),
+    findNearestSpot(f, f.width*0.5, f.height*0.25, true),
+    findNearestSpot(f, f.width*0.6, f.height*0.75, true),
+    findNearestSpot(f, f.width*0.78, f.height*0.4, true),
+    findNearestSpot(f, f.width*0.85, f.height*0.7, true),
+  ].map(s=>({x:s.x, y:s.y, dmg:32, detectionSpike:45}));
+  f.cameras = [
+    {x:f.width*0.2, y:f.height*0.4, baseAngle:0.3, sweep:1.0, speed:0.55},
+    {x:f.width*0.45, y:f.height*0.65, baseAngle:2.0, sweep:0.9, speed:0.45},
+    {x:f.width*0.63, y:f.height*0.25, baseAngle:-0.5, sweep:1.0, speed:0.5},
+    {x:f.width*0.8, y:f.height*0.55, baseAngle:3.6, sweep:0.85, speed:0.6},
+  ];
+  f.shadowSpots = [
+    findNearestSpot(f, f.width*0.3, f.height*0.72, true),
+    findNearestSpot(f, f.width*0.55, f.height*0.4, true),
+    findNearestSpot(f, f.width*0.75, f.height*0.75, true),
+  ].map(s=>({x:s.x, y:s.y, rx:120, ry:100}));
+  // a single "mega" guard — huge detection radius and a much faster rate, plus two
+  // normal ones so there's nowhere entirely safe to linger
+  const megaSpot = findNearestSpot(f, f.width*0.5, f.height*0.5, true);
+  const gSpots = [
+    findNearestSpot(f, f.width*0.3, f.height*0.35, true),
+    findNearestSpot(f, f.width*0.68, f.height*0.6, true),
+  ];
+  f.guards = [
+    {baseX:megaSpot.x, baseY:megaSpot.y, axis:'x', range:220, speed:0.35, big:true, radius:260, rate:55},
+    {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'y', range:170, speed:0.5},
+    {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'x', range:190, speed:0.45},
+  ];
+  addRetreatNpc(f, findNearestSpot(f, f.spawn.x+70, f.spawn.y+70, true));
+  // the key NPC — hand over any 3 fish and he'll open the door to Sector 4
+  const keySpot = findNearestSpot(f, f.width*0.2, f.height*0.8, true);
+  f.npcs.push({id:'n_s3_key', name:'Reo Nº 04', color:'#c084fc', x:keySpot.x, y:keySpot.y, role:'keyQuest'});
+})();
+(function setupFugaSector4(){
+  const f = WORLDS.find(w=>w.id==='dimension_tres_s4');
+  if(!f) return;
+  f.spawn = findNearestSpot(f, f.width*0.08, f.height*0.5, true);
+  f.boatSpawn = f.spawn; f.dockSpot = f.spawn;
+  f.escapeExit = findNearestSpot(f, f.width*0.94, f.height*0.5, true);
+  // no nextSectorId yet — reaching this spot is intentionally a dead end for now
+  f.lasers = [
+    {x:f.width*0.25, y:f.height*0.3, len:420, speed:0.9, angle0:0, dmg:40, detectionSpike:35},
+    {x:f.width*0.45, y:f.height*0.68, len:440, speed:-0.75, angle0:1.5, dmg:40, detectionSpike:35},
+    {x:f.width*0.62, y:f.height*0.28, len:420, speed:1.1, angle0:3.0, dmg:40, detectionSpike:35},
+    {x:f.width*0.35, y:f.height*0.5, len:400, speed:-1.0, angle0:4.4, dmg:40, detectionSpike:35},
+    {x:f.width*0.78, y:f.height*0.55, len:440, speed:0.85, angle0:2.0, dmg:40, detectionSpike:35},
+    {x:f.width*0.55, y:f.height*0.4, len:400, speed:-0.6, angle0:5.5, dmg:40, detectionSpike:35},
+    {x:f.width*0.88, y:f.height*0.35, len:400, speed:1.2, angle0:0.8, dmg:40, detectionSpike:35},
+  ];
+  f.bombs = [
+    findNearestSpot(f, f.width*0.32, f.height*0.55, true),
+    findNearestSpot(f, f.width*0.48, f.height*0.3, true),
+    findNearestSpot(f, f.width*0.58, f.height*0.7, true),
+    findNearestSpot(f, f.width*0.7, f.height*0.4, true),
+    findNearestSpot(f, f.width*0.82, f.height*0.6, true),
+  ].map(s=>({x:s.x, y:s.y, dmg:35, detectionSpike:45}));
+  f.cameras = [
+    {x:f.width*0.2, y:f.height*0.45, baseAngle:0, sweep:1.1, speed:0.6},
+    {x:f.width*0.4, y:f.height*0.65, baseAngle:2.2, sweep:1.0, speed:0.5},
+    {x:f.width*0.58, y:f.height*0.3, baseAngle:-0.6, sweep:1.1, speed:0.55},
+    {x:f.width*0.75, y:f.height*0.6, baseAngle:3.8, sweep:1.0, speed:0.65},
+    {x:f.width*0.88, y:f.height*0.4, baseAngle:1.2, sweep:0.9, speed:0.7},
+  ];
+  f.shadowSpots = [
+    findNearestSpot(f, f.width*0.3, f.height*0.7, true),
+    findNearestSpot(f, f.width*0.5, f.height*0.42, true),
+    findNearestSpot(f, f.width*0.68, f.height*0.72, true),
+    findNearestSpot(f, f.width*0.82, f.height*0.3, true),
+  ].map(s=>({x:s.x, y:s.y, rx:110, ry:95}));
+  // several mega guards — the hardest patrol in the facility
+  const gSpots = [
+    findNearestSpot(f, f.width*0.35, f.height*0.4, true),
+    findNearestSpot(f, f.width*0.55, f.height*0.6, true),
+    findNearestSpot(f, f.width*0.75, f.height*0.45, true),
+  ];
+  f.guards = [
+    {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'y', range:200, speed:0.4, big:true, radius:250, rate:55},
+    {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'x', range:220, speed:0.45, big:true, radius:250, rate:55},
+    {baseX:gSpots[2].x, baseY:gSpots[2].y, axis:'y', range:210, speed:0.5, big:true, radius:250, rate:55},
+  ];
+  addRetreatNpc(f, findNearestSpot(f, f.spawn.x+70, f.spawn.y+70, true));
 })();
 function inShadow(w,x,y){
   return !!(w.shadowSpots && w.shadowSpots.some(s=>{
@@ -2269,9 +2447,10 @@ function updateFugaSecurity(dt){
       diff = Math.min(diff, Math.PI*2-diff);
       if(diff < FUGA_CAMERA_ARC*0.5){ rise += FUGA_CAM_RATE*dt; break; }
     }
-    // patrol guards, same proximity model as Sector Cero
+    // patrol guards, same proximity model as Sector Cero — "mega" guards (Sector 3+)
+    // carry their own bigger radius/rate so a single one is a real threat on its own
     for(const g of guardPositions(curWorld)){
-      if(Math.hypot(g.x-player.x, g.y-player.y)<DETECTION_RADIUS){ rise += FUGA_GUARD_RATE*dt; break; }
+      if(Math.hypot(g.x-player.x, g.y-player.y)<(g.radius||DETECTION_RADIUS)){ rise += (g.rate||FUGA_GUARD_RATE)*dt; break; }
     }
   }
 
@@ -2291,10 +2470,10 @@ function updateFugaSecurity(dt){
     diff = Math.min(diff, Math.PI*2-diff);
     if(diff<0.05 && now>fugaState.laserHitUntil){
       fugaState.laserHitUntil = now + FUGA_LASER_HIT_COOLDOWN;
-      S.hp = Math.max(0, S.hp - 14);
-      fugaState.detection = Math.min(100, fugaState.detection + 25);
+      S.hp = Math.max(0, S.hp - (laser.dmg||14));
+      fugaState.detection = Math.min(100, fugaState.detection + (laser.detectionSpike||25));
       S._hurtFlash = 0.25;
-      toast('⚡ ¡Te roza un láser!');
+      toast(laser.dmg>=40? '⚡ ¡El láser te alcanza de lleno!' : '⚡ ¡Te roza un láser!');
       Audio1.sfx('fail');
     }
   }
@@ -2304,8 +2483,8 @@ function updateFugaSecurity(dt){
     if(now < (fugaState.bombCooldowns[i]||0)) continue;
     if(Math.hypot(b.x-player.x,b.y-player.y)<45){
       fugaState.bombCooldowns[i] = now + FUGA_BOMB_COOLDOWN;
-      S.hp = Math.max(0, S.hp - 22);
-      fugaState.detection = Math.min(100, fugaState.detection + 35);
+      S.hp = Math.max(0, S.hp - (b.dmg||22));
+      fugaState.detection = Math.min(100, fugaState.detection + (b.detectionSpike||35));
       S._hurtFlash = 0.35;
       toast('💥 ¡Una mina de presión explota cerca!');
       Audio1.sfx('fail');
@@ -2321,9 +2500,6 @@ function updateFugaSecurity(dt){
     captureToJail();
     return;
   }
-  if(curWorld.escapeExit && Math.hypot(curWorld.escapeExit.x-player.x, curWorld.escapeExit.y-player.y)<70){
-    completeEscape();
-  }
 }
 function completeEscape(){
   const first = !S.achievements['fuga_completada'];
@@ -2335,6 +2511,25 @@ function completeEscape(){
   setWorld('planeta_seis', {keepPos:false});
   checkAchievements();
   refreshHud();
+  saveGame();
+}
+// the door at the far end of each escape sector — either chains straight to the next
+// sector, requires a key first, or (Sector 4, for now) leads nowhere yet
+function trySectorExit(){
+  if(!curWorld.nextSectorId){
+    toast('🚧 Sientes que hay algo más allá de este punto... pero todavía no está listo. Vuelve en otra sesión.');
+    return;
+  }
+  if(curWorld.nextSectorRequiresKey && !S.fugaKeyS3){
+    toast('🔒 Esta puerta necesita una llave. Consíguela en este sector.');
+    return;
+  }
+  toast('🚪 Avanzas al siguiente sector...');
+  Audio1.sfx('portal');
+  if(curWorld.nextSectorRequiresKey) S.fugaKeyS3 = false;
+  fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, bombCooldowns:{} };
+  setWorld(curWorld.nextSectorId, {keepPos:false});
+  checkAchievements();
   saveGame();
 }
 function pickAbyssFish(){
@@ -2637,7 +2832,7 @@ let camera={x:0,y:0};
 let keys = {};
 let lastTs = 0;
 let toastQueue = [];
-let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, nearSealedTank = false, nearSealedTankIdx = -1, nearContrabandBox = false, nearEscapeDoor = false, canFish = false;
+let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, nearSealedTank = false, nearSealedTankIdx = -1, nearContrabandBox = false, nearEscapeDoor = false, nearSectorExit = false, canFish = false;
 let started = false;
 
 const fishing = {
@@ -2934,6 +3129,7 @@ function onActionPress(){
     if(nearSealedTank){ tryStealFromTank(); return; }
     if(nearContrabandBox){ tryStealContraband(); return; }
     if(nearEscapeDoor){ tryEnterEscapeDoor(); return; }
+    if(nearSectorExit){ trySectorExit(); return; }
     if(curWorld._nearBoss){ startCastWrapper(true); return; }
     if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
     if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
@@ -3029,6 +3225,7 @@ function updatePlayer(dt){
   }
   nearContrabandBox = !!(curWorld.contrabandBox && Math.hypot(curWorld.contrabandBox.x-player.x, curWorld.contrabandBox.y-player.y)<70);
   nearEscapeDoor = !!(curWorld.escapeDoor && Math.hypot(curWorld.escapeDoor.x-player.x, curWorld.escapeDoor.y-player.y)<70);
+  nearSectorExit = !!(curWorld.escapeExit && Math.hypot(curWorld.escapeExit.x-player.x, curWorld.escapeExit.y-player.y)<70);
 
   // pressure damage while descending the Abismo Infinito — the deeper you go, the faster it
   // drains, outpacing the passive HP_REGEN above so depth is a real risk from the very start
@@ -3041,15 +3238,15 @@ function updatePlayer(dt){
   canBoard=false; canDisembark=false; boardTargetPoint=null;
 
   if(S.isOnBoat){
-    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && fishing.state==='idle' && isLand(curWorld,fx,fy)){
       canDisembark = true; boardTargetPoint = {x:fx,y:fy};
     }
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !canDisembark && !isBoatMoving;
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !canDisembark && !isBoatMoving;
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
   }
@@ -3164,6 +3361,16 @@ function updateActionUI(){
     promptEl.textContent = ready? '🚪 Puerta de escape · desbloqueada' : '🔒 Puerta sellada · vence al jefe y entrega los 3 experimentos';
     promptEl.classList.add('show');
     btn.textContent = ready? 'Entrar' : 'Bloqueada'; btn.disabled=!ready; return;
+  }
+  if(nearSectorExit){
+    if(!curWorld.nextSectorId){
+      promptEl.textContent = '🚧 ??? · aún no hay nada aquí'; promptEl.classList.add('show');
+      btn.textContent='...'; btn.disabled=true; return;
+    }
+    const locked = curWorld.nextSectorRequiresKey && !S.fugaKeyS3;
+    promptEl.textContent = locked? '🔒 Puerta al siguiente sector · necesitas la llave' : '🚪 Siguiente Sector';
+    promptEl.classList.add('show');
+    btn.textContent = locked? 'Bloqueada' : 'Avanzar'; btn.disabled=locked; return;
   }
   if(curWorld._nearBoss){
     const hasDefeated = S.bossDefeated[curWorld.boss.id];
@@ -3768,6 +3975,11 @@ function openDialogue(npc){
   }
   if(npc.role==='kidQuest'){
     renderKidDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
+  if(npc.role==='keyQuest'){
+    renderKeyQuestDialogue(npc, bonus);
     openModal('mDialogue');
     return;
   }
@@ -5766,18 +5978,28 @@ function drawGuards(){
   const t = performance.now()/1000;
   for(const g of guardPositions(curWorld)){
     const screen = worldToScreen(g.x, g.y);
-    if(screen.x<-80||screen.x>canvas.width+80||screen.y<-80||screen.y>canvas.height+80) continue;
-    ctx.save(); ctx.translate(screen.x, screen.y);
+    const radius = g.radius||DETECTION_RADIUS;
+    const pad = g.big? radius+30 : 80;
+    if(screen.x<-pad||screen.x>canvas.width+pad||screen.y<-pad||screen.y>canvas.height+pad) continue;
+    const scale = g.big? 1.8 : 1;
+    ctx.save(); ctx.translate(screen.x, screen.y); ctx.scale(scale, scale);
     ctx.globalAlpha=0.28; ctx.fillStyle='#000';
     ctx.beginPath(); ctx.ellipse(0,24,20,7,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-    ctx.fillStyle='#57534e';
+    ctx.fillStyle = g.big? '#450a0a' : '#57534e';
     roundRect(ctx,-14,-24,28,44,6); ctx.fill();
     ctx.fillStyle='#dc2626';
     roundRect(ctx,-14,-24,28,10,6); ctx.fill();
+    ctx.restore();
+    ctx.save(); ctx.translate(screen.x, screen.y);
     ctx.globalAlpha=0.55+0.35*Math.sin(t*10);
-    ctx.strokeStyle='#ef4444'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(0,0,DETECTION_RADIUS,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = g.big? '#f87171' : '#ef4444'; ctx.lineWidth = g.big? 3 : 2;
+    ctx.beginPath(); ctx.arc(0,0,radius,0,Math.PI*2); ctx.stroke();
     ctx.globalAlpha=1;
+    if(g.big){
+      ctx.font='bold 12px system-ui'; ctx.fillStyle='#f87171'; ctx.textAlign='center';
+      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+      ctx.fillText('⚠️ MEGA GUARDIA', 0, -radius*0.55-40);
+    }
     ctx.restore();
   }
 }
@@ -5884,19 +6106,22 @@ function drawEscapeExit(){
   const screen = worldToScreen(spot.x, spot.y);
   if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
   const t = performance.now()/1000;
+  const stub = !curWorld.nextSectorId;
+  const locked = curWorld.nextSectorRequiresKey && !S.fugaKeyS3;
+  const color = stub? '#64748b' : (locked? '#ef4444' : '#4ade80');
   ctx.save(); ctx.translate(screen.x, screen.y);
   ctx.globalAlpha=0.28; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(0,26,50,15,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   const grad = ctx.createRadialGradient(0,0,4,0,0,44);
-  grad.addColorStop(0,'#fff'); grad.addColorStop(0.5,'#4ade80'); grad.addColorStop(1,'rgba(74,222,128,0)');
+  grad.addColorStop(0,'#fff'); grad.addColorStop(0.5,color); grad.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=grad;
-  const pulse = 0.8+0.2*Math.sin(t*2);
+  const pulse = 0.8+0.2*Math.sin(t*(stub?1:2));
   ctx.beginPath(); ctx.arc(0,0,40*pulse,0,Math.PI*2); ctx.fill();
   ctx.restore();
   ctx.save();
-  ctx.font='bold 14px system-ui'; ctx.fillStyle='#4ade80'; ctx.textAlign='center';
+  ctx.font='bold 14px system-ui'; ctx.fillStyle=color; ctx.textAlign='center';
   ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
-  ctx.fillText('🏁 Salida', screen.x, screen.y-56);
+  ctx.fillText(stub? '❔ ???' : (locked? '🔒 Siguiente Sector' : '🚪 Siguiente Sector'), screen.x, screen.y-56);
   ctx.restore();
 }
 
