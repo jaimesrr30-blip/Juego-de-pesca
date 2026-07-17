@@ -2133,6 +2133,10 @@ function setWorld(worldId, opts){
     player.x = w.spawn.x; player.y = w.spawn.y;
     S.isOnRocket = true;
   } else if(!opts.keepPos){
+    // instant "fast travel" from the World Map always drops you on foot at a safe spot —
+    // never mid-boat/mid-rocket, so a stale saved position near a portal or launch pad
+    // can't immediately re-trigger a second, unintended trip right after arriving
+    if(opts.viaMap){ S.isOnBoat = false; S.isOnRocket = false; }
     const p = S.playerPos[worldId];
     if(p){ player.x=p.x; player.y=p.y; } else { player.x=w.spawn.x; player.y=w.spawn.y; }
     // safety: older saves (or edge cases) may place the player in the water on foot
@@ -6147,7 +6151,7 @@ function renderWorldMap(){
       ${w.isEvent?`<div class="wSub" style="margin-top:2px;font-weight:700;">${eventCountdownText()}</div>`:''}
       ${(!unlocked && !w.isEvent && !w.isSpace)?`<div class="lockTag">${hasKey?'🔓':'🔒'}</div>`:''}`;
     card.addEventListener('click', ()=>{
-      if(visited){ setWorld(w.id); closeModal('mMap'); renderQuestTracker(); return; }
+      if(visited){ setWorld(w.id, {viaMap:true}); closeModal('mMap'); renderQuestTracker(); return; }
       if(w.isSpace){ toast('Debes llegar en cohete por una plataforma de lanzamiento primero.'); return; }
       if(w.isEvent && !visited){ toast('Ve al portal dorado en el lado izquierdo de Lago Inicial para llegar por primera vez.'); return; }
       if(unlocked && !visited){ toast('Primero debes llegar navegando por el portal desde '+(prevWorld?prevWorld.name:'tu mundo actual')+'.'); return; }
