@@ -1604,6 +1604,40 @@ const WORLDS = [
     minKg:6000,maxKg:12000,minCm:1500,maxCm:2200,desc:'Lo último entre tú y lo que sea que estén escondiendo aquí abajo.'},
   npcs:[],
 },
+{
+  // Dimensión 4's first zone — the real way in is defeating Halden at the end of the
+  // Vector de Fuga, which isn't built yet, so this world is fully playable but has no
+  // wired entry point in-game yet. A calm, open, outdoor sanctuary — the deliberate
+  // opposite of every Complejo Umbral interior that came before it.
+  id:'dimension_cuatro_relax', idx:22, name:'Zona de Relajación', icon:'🌸', unlockCost:0, isDimension:true, hidden:true,
+  bigWorld:true,
+  palette:{water:'#7dd3fc', waterDeep:'#fbcfe8', land:'#fdf2f8', landDetail:'#fbcfe8', fog:'#fce7f3'},
+  weatherPool:['soleado','soleado','lunaLlena','aurora'], decorType:'sakura',
+  fish:[
+    F('pez_sakura','Pez Sakura','comun','pacifico','fish','#f9a8d4','#be185d'),
+    F('carpa_rosada','Carpa Rosada','comun','pacifico','fish','#fbcfe8','#db2777'),
+    F('medusa_de_algodon','Medusa de Algodón','pocoComun','pacifico','jellyfish','#fce7f3','#f472b6'),
+    F('pez_luna_rosa','Pez Luna Rosa','pocoComun','pacifico','pufferfish','#fbcfe8','#be185d'),
+    F('koi_celestial','Koi Celestial','raro','pacifico','fish','#fde68a','#f472b6', {glowIdx:2}),
+    F('anguila_de_cristal_rosa','Anguila de Cristal Rosa','raro','pacifico','dragon','#f0abfc','#a21caf', {glowIdx:2}),
+    F('mariposa_marina','Mariposa Marina','epico','pacifico','jellyfish','#e9d5ff','#a855f7', {glowIdx:3}),
+    F('perla_viviente','Perla Viviente','epico','pacifico','shell','#fff1f2','#fb7185', {glowIdx:3}),
+    F('fenix_de_agua','Fénix de Agua','legendario','pacifico','dragon','#fda4af','#e11d48', {glowIdx:4}),
+    F('susurro_de_sakura','Susurro de Sakura','legendario','pacifico','ghost','#fbcfe8','#831843', {glowIdx:4}),
+    F('carpa_ancestral','Carpa Ancestral','mitico','pacifico','fish','#fef08a','#db2777', {glowIdx:5}),
+    F('espiritu_del_estanque','Espíritu del Estanque','mitico','pacifico','ghost','#fdf4ff','#c026d3', {glowIdx:5}),
+  ],
+  boss:{id:'guardiana_del_estanque',name:'Guardiana del Estanque',shape:'turtle',color:'#fbcfe8',accent:'#be185d',
+    minKg:900,maxKg:1800,minCm:400,maxCm:650,desc:'Nadie le teme. Lleva más tiempo aquí que el propio complejo, y piensa quedarse mucho más.'},
+  npcs:[
+    {id:'n_relax_1',name:'Rin',color:'#f9a8d4',x:1650,y:1200,
+      lines:['Nunca pensé que volvería a ver algo así de tranquilo.','Aquí nadie te pregunta de dónde vienes. Solo te dejan quedarte.','Esto es lo mejor que hay después de una guerra.']},
+    {id:'n_relax_2',name:'Anciano Bern',color:'#c084fc',x:400,y:400,
+      lines:['Sobreviví a cosas que no le contaría a nadie que no haya estado ahí abajo.','El agua rosa no es un truco de luz. Así es de verdad. Ya era hora de ver algo bonito.','Si vienes del Complejo, siéntate. No hace falta que hables.']},
+    {id:'n_relax_3',name:'Mira',color:'#fda4af',x:900,y:1800,
+      lines:['Los peces de aquí no muerden el anzuelo con miedo, como los de allá abajo.','Cada pétalo que cae es uno que no cayó en un sitio peor.']},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -2525,7 +2559,8 @@ function completeEscape(){
 // sector, requires a key first, or (Sector 4, for now) leads nowhere yet
 function trySectorExit(){
   if(!curWorld.nextSectorId){
-    toast('🚧 Sientes que hay algo más allá de este punto... pero todavía no está listo. Vuelve en otra sesión.');
+    const pct = Math.round(complejoUmbralDexPercent()*100);
+    toast('🚧 Sientes que hay algo más allá de este punto... pero todavía no está listo. Colección del Complejo Umbral: '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%. Vuelve en otra sesión.');
     return;
   }
   if(curWorld.nextSectorRequiresKey && !S.fugaKeyS3){
@@ -2610,6 +2645,19 @@ const ROCKET_PARTS_NEEDED = 8;
 function solarDexPercent(){
   let total=0, discovered=0;
   WORLDS.filter(w=>w.isSpace).forEach(w=>{
+    w.fish.forEach(f=>{ total++; if(S.dex[f.id]&&S.dex[f.id].discovered) discovered++; });
+  });
+  return total? discovered/total : 0;
+}
+
+// Dimensión 3, as a whole, is the Complejo Umbral: Sector Cero plus the Vector de Fuga
+// escape chain (Sectores 2-4). The jail is a punishment side-loop, deliberately excluded
+// so players never have to get captured on purpose to reach 100%.
+const DIMENSION3_WORLD_IDS = ['dimension_tres','dimension_tres_fuga','dimension_tres_s3','dimension_tres_s4'];
+const DIMENSION4_UNLOCK_PCT = 0.7;
+function complejoUmbralDexPercent(){
+  let total=0, discovered=0;
+  WORLDS.filter(w=>DIMENSION3_WORLD_IDS.includes(w.id)).forEach(w=>{
     w.fish.forEach(f=>{ total++; if(S.dex[f.id]&&S.dex[f.id].discovered) discovered++; });
   });
   return total? discovered/total : 0;
@@ -3376,7 +3424,8 @@ function updateActionUI(){
   }
   if(nearSectorExit){
     if(!curWorld.nextSectorId){
-      promptEl.textContent = '🚧 ??? · aún no hay nada aquí'; promptEl.classList.add('show');
+      const pct = Math.round(complejoUmbralDexPercent()*100);
+      promptEl.textContent = '🚧 ??? · Complejo Umbral '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%'; promptEl.classList.add('show');
       btn.textContent='...'; btn.disabled=true; return;
     }
     const locked = curWorld.nextSectorRequiresKey && !S.fugaKeyS3;
@@ -5240,6 +5289,28 @@ function drawDecor(d){
       ctx.fillStyle = Math.sin(glowT*2)>0.6? '#ef4444' : '#334155';
       ctx.beginPath(); ctx.arc(0,-s*0.66,s*0.05,0,Math.PI*2); ctx.fill();
       ctx.restore();
+      break;
+    }
+    case 'sakura': {
+      // a pink blossom tree, with a handful of petals drifting slowly down and away —
+      // seeded off this decor item's own position so each tree's fall pattern differs
+      const t = performance.now()/1000;
+      ctx.fillStyle='#7c5a45';
+      ctx.fillRect(-s*0.07,-s*0.1,s*0.14,s*0.62);
+      ctx.fillStyle='#f9a8d4';
+      ctx.beginPath(); ctx.arc(-s*0.18,-s*0.42,s*0.28,0,Math.PI*2); ctx.arc(s*0.16,-s*0.5,s*0.32,0,Math.PI*2); ctx.arc(s*0.02,-s*0.28,s*0.3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fbcfe8';
+      ctx.beginPath(); ctx.arc(-s*0.05,-s*0.46,s*0.16,0,Math.PI*2); ctx.fill();
+      for(let i=0;i<4;i++){
+        const seed = d.x*0.13+d.y*0.07+i*17;
+        const fall = (t*14 + seed*23) % (s*1.6);
+        const px = Math.sin(seed+t*0.6)*s*0.5;
+        const py = -s*0.3 + fall;
+        ctx.globalAlpha = clamp(1-fall/(s*1.6),0.15,0.85);
+        ctx.fillStyle='#f9a8d4';
+        ctx.beginPath(); ctx.ellipse(px,py,2.6,1.8,seed,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
       break;
     }
     default:
@@ -7298,7 +7369,11 @@ function renderAquariumTabs(){
   const tabs = document.getElementById('aqTabs');
   const earthWorlds = WORLDS.filter(w=>!w.isSpace && !w.isDimension);
   const spaceWorlds = WORLDS.filter(w=>w.isSpace);
-  const dimensionWorlds = WORLDS.filter(w=>w.isDimension);
+  // "Complejo Umbral" is Dimensión 3 as a whole: Sector Cero, the jail, and the Vector
+  // de Fuga escape chain. Anything else marked isDimension belongs to a later dimension
+  // (e.g. Dimensión 4) and only surfaces once actually visited.
+  const complejoWorlds = WORLDS.filter(w=>w.isDimension && (DIMENSION3_WORLD_IDS.includes(w.id) || w.id==='dimension_tres_carcel'));
+  const laterDimensionWorlds = WORLDS.filter(w=>w.isDimension && !DIMENSION3_WORLD_IDS.includes(w.id) && w.id!=='dimension_tres_carcel' && (S.visitedWorlds||[]).includes(w.id));
   let html = `<button class="tabBtn ${aqTab==='earth'?'active':''}" data-aq="earth">🌍 Toda la Tierra</button>`;
   if(S.hasRocket) html += `<button class="tabBtn ${aqTab==='space'?'active':''}" data-aq="space">🚀 Todo el Sistema Solar</button>`;
   html += `<span class="aqTabDivider">🌍</span>` + earthWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
@@ -7306,7 +7381,10 @@ function renderAquariumTabs(){
     html += `<span class="aqTabDivider">🚀</span>` + spaceWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   }
   if(S.checkpointPassed){
-    html += `<span class="aqTabDivider">🔬</span>` + dimensionWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+    html += `<span class="aqTabDivider">🔬 Complejo Umbral</span>` + complejoWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  }
+  if(laterDimensionWorlds.length){
+    html += `<span class="aqTabDivider">🌸 Dimensión 4</span>` + laterDimensionWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   }
   tabs.innerHTML = html;
   tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
