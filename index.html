@@ -1552,13 +1552,35 @@ WORLDS.forEach(w=>{
     const ry = w.hugeWorld? 70+rnd()*90 : 110+rnd()*140;
     w.islands.push({x:300+rnd()*(w.width-600), y:300+rnd()*(w.height-600), rx, ry});
   }
+  // indoor facilities are inverted (floor everywhere, pits are the "islands"), so anything
+  // that needs to sit on walkable ground has to be placed OFF the pits, not on them
+  function onAnyPit(x,y,buffer){
+    return w.islands.some(isl=>{
+      const dx=x-isl.x, dy=y-isl.y;
+      return (dx*dx)/((isl.rx*buffer)*(isl.rx*buffer))+(dy*dy)/((isl.ry*buffer)*(isl.ry*buffer))<=1;
+    });
+  }
+  function randomFloorSpot(buffer){
+    let x=w.width/2, y=w.height/2;
+    for(let tries=0; tries<30; tries++){
+      x = 70+rnd()*(w.width-140);
+      y = 70+rnd()*(w.height-140);
+      if(!onAnyPit(x,y,buffer)) break;
+    }
+    return {x,y};
+  }
   w.decor=[];
   for(let i=0;i<(w.hugeWorld?170:(w.bigWorld?110:70));i++){
-    const isl = w.islands[Math.floor(rnd()*w.islands.length)];
-    const ang = rnd()*Math.PI*2, rad = rnd();
-    const x = isl.x + Math.cos(ang)*isl.rx*rad*0.85;
-    const y = isl.y + Math.sin(ang)*isl.ry*rad*0.85;
-    w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
+    if(w.indoor){
+      const {x,y} = randomFloorSpot(1.25);
+      w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
+    } else {
+      const isl = w.islands[Math.floor(rnd()*w.islands.length)];
+      const ang = rnd()*Math.PI*2, rad = rnd();
+      const x = isl.x + Math.cos(ang)*isl.rx*rad*0.85;
+      const y = isl.y + Math.sin(ang)*isl.ry*rad*0.85;
+      w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
+    }
   }
   // border decor
   for(let i=0;i<40;i++){
@@ -1571,17 +1593,28 @@ WORLDS.forEach(w=>{
   }
   w.chests=[];
   for(let i=0;i<(w.hugeWorld?9:(w.bigWorld?6:4));i++){
-    const isl = w.islands[i % w.islands.length];
-    const ang = rnd()*Math.PI*2, rad=rnd()*0.5;
-    w.chests.push({idx:i, x:isl.x+Math.cos(ang)*isl.rx*rad, y:isl.y+Math.sin(ang)*isl.ry*rad});
+    if(w.indoor){
+      const {x,y} = randomFloorSpot(1.2);
+      w.chests.push({idx:i, x, y});
+    } else {
+      const isl = w.islands[i % w.islands.length];
+      const ang = rnd()*Math.PI*2, rad=rnd()*0.5;
+      w.chests.push({idx:i, x:isl.x+Math.cos(ang)*isl.rx*rad, y:isl.y+Math.sin(ang)*isl.ry*rad});
+    }
   }
-  const bossIsl = w.islands[Math.floor(rnd()*w.islands.length)];
-  w.bossSpot = {x:bossIsl.x + (rnd()-0.5)*bossIsl.rx*1.6, y:bossIsl.y + (rnd()-0.5)*bossIsl.ry*1.6+isLandSafeOffset()};
-  function isLandSafeOffset(){ return 0; }
-  const startIsl = w.islands[0];
-  w.spawn = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.5};
-  w.boatSpawn = {x:startIsl.x, y:startIsl.y - startIsl.ry - 40};
-  w.dockSpot = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.82};
+  if(w.indoor){
+    w.bossSpot = randomFloorSpot(1.3);
+    w.spawn = randomFloorSpot(1.3);
+    w.boatSpawn = w.spawn;
+    w.dockSpot = w.spawn;
+  } else {
+    const bossIsl = w.islands[Math.floor(rnd()*w.islands.length)];
+    w.bossSpot = {x:bossIsl.x + (rnd()-0.5)*bossIsl.rx*1.6, y:bossIsl.y + (rnd()-0.5)*bossIsl.ry*1.6};
+    const startIsl = w.islands[0];
+    w.spawn = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.5};
+    w.boatSpawn = {x:startIsl.x, y:startIsl.y - startIsl.ry - 40};
+    w.dockSpot = {x:startIsl.x, y:startIsl.y - startIsl.ry*0.82};
+  }
 
   // portal near the far/right corner of the map, nudged off any island
   let px = w.width-220, py = 220;
@@ -1595,6 +1628,19 @@ WORLDS.forEach(w=>{
     px = w.width-220-tries*20; py = 220+tries*35;
   }
   w.portalSpot = {x:px, y:py};
+});
+
+// hand-placed NPC coordinates inside indoor worlds were written assuming the old
+// island-as-land layout; now that pits/floor are inverted, snap any NPC that landed
+// inside a pit back onto solid floor so the player can actually reach them
+WORLDS.forEach(w=>{
+  if(!w.indoor) return;
+  w.npcs.forEach(npc=>{
+    if(!isLand(w, npc.x, npc.y)){
+      const spot = findNearestSpot(w, npc.x, npc.y, true);
+      npc.x = spot.x; npc.y = spot.y;
+    }
+  });
 });
 
 const BOAT_VENDOR_NAMES = ['Cap. Ren','Cap. Sol','Cap. Mira','Cap. Toko','Cap. Vale','Cap. Nix','Cap. Ori','Cap. Dune','Cap. Iris','Cap. Noct','Cap. Leo'];
@@ -1768,11 +1814,15 @@ function eventCountdownText(){
 function isLand(world,x,y){
   const m=70;
   if(x<m||y<m||x>world.width-m||y>world.height-m) return true;
+  let inShape=false;
   for(const isl of world.islands){
     const dx=x-isl.x, dy=y-isl.y;
-    if((dx*dx)/(isl.rx*isl.rx)+(dy*dy)/(isl.ry*isl.ry)<=1) return true;
+    if((dx*dx)/(isl.rx*isl.rx)+(dy*dy)/(isl.ry*isl.ry)<=1){ inShape=true; break; }
   }
-  return false;
+  // indoor facilities (Sector Cero, the jail) are inverted: a solid walkable floor
+  // covers everything, and the "islands" are small sunken fishing pits carved into it,
+  // instead of land mounds floating in open water
+  return world.indoor? !inShape : inShape;
 }
 
 // finds the nearest point to (x,y) whose isLand() matches wantLand, searching outward in rings.
@@ -4134,9 +4184,11 @@ function drawCreatureShape(ctx, shape, size, color, accent, silhouette, t, flagD
 function renderMinimap(){
   mctx.clearRect(0,0,minimap.width,minimap.height);
   const sx = minimap.width/curWorld.width, sy = minimap.height/curWorld.height;
-  mctx.fillStyle = curWorld.palette.waterDeep;
+  // indoor facilities are inverted: floor is the majority background, and the
+  // "islands" are small dark pits, the opposite of a normal open-water world
+  mctx.fillStyle = curWorld.indoor? curWorld.palette.land : curWorld.palette.waterDeep;
   mctx.fillRect(0,0,minimap.width,minimap.height);
-  mctx.fillStyle = curWorld.palette.land;
+  mctx.fillStyle = curWorld.indoor? curWorld.palette.waterDeep : curWorld.palette.land;
   curWorld.islands.forEach(isl=>{
     mctx.beginPath(); mctx.ellipse(isl.x*sx,isl.y*sy,isl.rx*sx,isl.ry*sy,0,0,Math.PI*2); mctx.fill();
   });
@@ -4398,6 +4450,7 @@ function worldToScreen(x,y){ return {x: x-camera.x+canvas.width/2, y: y-camera.y
 
 function drawWater(){
   if(curWorld.isSpace){ drawGalaxyWater(); return; }
+  if(curWorld.indoor){ drawIndoorFloor(); return; }
   const p = curWorld.palette;
   ctx.fillStyle = p.waterDeep;
   ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -4496,6 +4549,7 @@ function drawGalaxyWater(){
 function drawIsland(isl){
   const screen = worldToScreen(isl.x,isl.y);
   const p = curWorld.palette;
+  if(curWorld.indoor){ drawFishingPit(isl, screen, p); return; }
   ctx.save();
   ctx.globalAlpha=0.25; ctx.fillStyle='#000';
   ctx.beginPath(); ctx.ellipse(screen.x+6,screen.y+10,isl.rx,isl.ry*0.9,0,0,Math.PI*2); ctx.fill();
@@ -4506,6 +4560,59 @@ function drawIsland(isl){
   ctx.globalAlpha=0.5;
   ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx*0.72,isl.ry*0.72,0,0,Math.PI*2); ctx.fill();
   ctx.globalAlpha=1;
+}
+
+// a solid industrial floor covering the whole facility, in place of open water —
+// panel seams give it scale and read clearly as "indoors"
+function drawIndoorFloor(){
+  const p = curWorld.palette;
+  ctx.fillStyle = p.land;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.globalAlpha=0.22;
+  ctx.strokeStyle = p.landDetail;
+  ctx.lineWidth=2;
+  const spacing=150;
+  const offX = -(camera.x)%spacing, offY=-(camera.y)%spacing;
+  for(let x=offX-spacing;x<canvas.width+spacing;x+=spacing){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+  }
+  for(let y=offY-spacing;y<canvas.height+spacing;y+=spacing){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+  }
+  ctx.restore();
+  // faint corner vignette so it doesn't read as a flat void
+  const vg = ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.height*0.2,canvas.width/2,canvas.height/2,canvas.height*0.85);
+  vg.addColorStop(0,'rgba(0,0,0,0)');
+  vg.addColorStop(1,'rgba(0,0,0,0.25)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+// a small sunken fishing pit carved into the facility floor — the inverse of a normal
+// island: a recessed metal rim around dark, still water, sized like a real containment pool
+function drawFishingPit(isl, screen, p){
+  const t = performance.now()/1000;
+  ctx.save();
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y+7,isl.rx+9,isl.ry+7,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.fillStyle = shade(p.landDetail,-25);
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx+7,isl.ry+7,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = shade(p.landDetail,10);
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx+3,isl.ry+3,0,0,Math.PI*2); ctx.fill();
+  const grad = ctx.createRadialGradient(screen.x,screen.y,4,screen.x,screen.y,Math.max(isl.rx,isl.ry));
+  grad.addColorStop(0,p.water); grad.addColorStop(1,p.waterDeep);
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.ellipse(screen.x,screen.y,isl.rx,isl.ry,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.14)'; ctx.lineWidth=1.5;
+  for(let i=0;i<2;i++){
+    ctx.globalAlpha=0.5-i*0.2;
+    ctx.beginPath();
+    ctx.ellipse(screen.x, screen.y+Math.sin(t*0.8+i)*2, Math.max(4,isl.rx*0.55-i*10), Math.max(3,isl.ry*0.45-i*8), 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
 }
 
 function drawDecor(d){
