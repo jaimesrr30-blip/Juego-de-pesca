@@ -970,6 +970,8 @@ const AURAS = [
     unlockDesc:'Disponible en la Tienda Premium a cambio de Gemas.'},
   {id:'abismo_infinito',name:'Aura del Abismo Infinito',color:'void',locked:true,
     unlockDesc:'Alcanza la profundidad 20 en el Abismo Infinito, buceando en el Abismo de Tritón.'},
+  {id:'clasificado',name:'Aura Clasificada',color:'toxic',locked:true,
+    unlockDesc:'Documenta 5 sujetos de Sector Cero para la Dra. Marrow.'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -1485,6 +1487,37 @@ const WORLDS = [
     {id:'n_p6_3',name:'Agente Rook',color:'#1e293b',x:3020,y:420,role:'checkpointGuard'},
   ],
 },
+{
+  // the interior of Complejo Umbral — the first location of the next dimension. Not part of
+  // the coin/key or launch-pad unlock chains: only reachable by passing Agente Rook's
+  // interrogation, entered/exited via direct teleport rather than a portal or launch pad
+  id:'dimension_tres', idx:17, name:'Sector Cero', icon:'🧪', unlockCost:0, isDimension:true, hidden:true,
+  palette:{water:'#134e4a', waterDeep:'#052e28', land:'#cbd5e1', landDetail:'#94a3b8', fog:'#d1fae5'},
+  weatherPool:['niebla','niebla','lluviaGamma','distorsion'], decorType:'labtank',
+  fish:[
+    F('muestra_001','Muestra 001','comun','clasificado','fish','#cbd5e1','#475569'),
+    F('larva_contenida','Larva Contenida','pocoComun','clasificado','jellyfish','#86efac','#166534'),
+    F('anguila_experimental','Anguila Experimental','raro','clasificado','dragon','#4ade80','#14532d'),
+    F('quimera_de_tanque','Quimera de Tanque','epico','clasificado','octopus','#a3e635','#3f6212'),
+    F('espectro_confidencial','Espectro Confidencial','legendario','clasificado','ghost','#f1f5f9','#0f172a'),
+    F('entidad_clasificada','Entidad Clasificada','mitico','clasificado','whale','#1e293b','#ef4444', {glowIdx:5}),
+    F('proyecto_umbral','Proyecto Umbral','omega','clasificado','dragon','#0f172a','#ef4444', {glowIdx:6}),
+    F('anomalia_pura','Anomalía Pura','divino','clasificado','space','#ffffff','#4ade80', {glowIdx:9}),
+    F('sujeto_cero','Sujeto Cero','singularidad','clasificado','space','#000000','#4ade80'),
+  ],
+  boss:{id:'especimen_cero',name:'Espécimen 0',shape:'dragon',color:'#0f172a',accent:'#4ade80',
+    minKg:3500,maxKg:7000,minCm:1000,maxCm:1600,desc:'Lo que queda cuando un proyecto de contención sale mal durante demasiados años seguidos.'},
+  npcs:[
+    {id:'n_d3_1',name:'Dra. Ilsa Marrow',color:'#e2e8f0',x:1650,y:1200,role:'loreQuest',
+      lines:['No deberías estar aquí. Pero ya que estás... alguien tiene que saber la verdad.','Halden no robó nada. Intentaba sacar pruebas de este lugar antes de que lo callaran.','Cada tanque de aquí dentro es una pregunta que alguien decidió que era mejor no responder.'],
+      questTitle:'Lo Que Sabía Halden',
+      questIntro:'Documenta 5 de los sujetos de Sector Cero. Es la única prueba que me queda de lo que hacían aquí.',
+      questDoneLine:'Con esto basta. Ahora hay algo que ellos no pueden borrar.',
+      questProgress:s=>{ const fish = WORLDS.find(w=>w.id==='dimension_tres').fish; return fish.filter(f=>s.dex[f.id]&&s.dex[f.id].discovered).length; }, questTarget:5,
+      questAchievementId:'quest_marrow'},
+    {id:'n_d3_exit',name:'Puerta de Salida',color:'#64748b',x:400,y:400,role:'exitDoor'},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
@@ -1542,6 +1575,7 @@ WORLDS.forEach(w=>{
 
 const BOAT_VENDOR_NAMES = ['Cap. Ren','Cap. Sol','Cap. Mira','Cap. Toko','Cap. Vale','Cap. Nix','Cap. Ori','Cap. Dune','Cap. Iris','Cap. Noct','Cap. Leo'];
 WORLDS.forEach(w=>{
+  if(w.isDimension) return; // an indoor facility has no boat dock
   const rnd = mulberry32(hashStr(w.id+'_dock'));
   w.npcs.push({
     id:'boatvendor_'+w.id, name:BOAT_VENDOR_NAMES[w.idx]||'Capitán', color:'#7a5230',
@@ -1883,7 +1917,7 @@ function exitAbyss(reason){
 }
 
 /* ---------------------------- SOLAR SYSTEM UNLOCK ---------------------------- */
-const EARTH_WORLDS = WORLDS.filter(w=>!w.isEvent && !w.isSpace);
+const EARTH_WORLDS = WORLDS.filter(w=>!w.isEvent && !w.isSpace && !w.isDimension);
 const FINAL_BOSS_ID = 'leviatan_sombras';
 function earthDexPercent(){
   let total=0, discovered=0;
@@ -2006,6 +2040,16 @@ const ACHIEVEMENTS = [
   {id:'abismo_absoluto',name:'Señor de Todos los Abismos',desc:'Pesca la criatura más profunda del Abismo Infinito en los 6 planetas del Sistema Solar',icon:'🌌',reward:6000000,rewardGems:150,
     check:s=>ABYSS_CAPSTONE_IDS.every(id=>s.dex[id]&&s.dex[id].discovered),
     unlockCosmetic:{slot:'hat', id:'corona_abismal', label:'Corona del Abismo Absoluto'}},
+  {id:'sector_cero_visitado',name:'Lo Que No Deberías Haber Visto',desc:'Entra en Sector Cero',icon:'🧪',reward:300000,rewardGems:20,
+    check:s=>(s.visitedWorlds||[]).includes('dimension_tres')},
+  {id:'quest_marrow',name:'Lo Que Sabía Halden',desc:'Documenta 5 sujetos de Sector Cero para la Dra. Marrow',icon:'🔬',reward:20000,
+    check:s=>{
+      const fish = WORLDS.find(w=>w.id==='dimension_tres').fish;
+      return fish.filter(f=>s.dex[f.id]&&s.dex[f.id].discovered).length>=5;
+    },
+    unlockCosmetic:{slot:'aura', id:'clasificado', label:'Aura Clasificada'}},
+  {id:'sujeto_cero_capturado',name:'El Sujeto Que No Debía Existir',desc:'Pesca a Sujeto Cero en Sector Cero',icon:'🫙',reward:3000000,rewardGems:80,
+    check:s=>!!(s.dex['sujeto_cero']&&s.dex['sujeto_cero'].discovered)},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -2227,7 +2271,7 @@ function inRiftSpot(){
 function tryEnterPortal(){
   if(S._traveling) return;
   const nextWorld = WORLDS[curWorld.idx+1];
-  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace){
+  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace && !curWorld.isDimension){
     const d = Math.hypot(curWorld.portalSpot.x-player.x, curWorld.portalSpot.y-player.y);
     if(d<70){
       if(S.unlockedWorlds.includes(nextWorld.id)){
@@ -3195,6 +3239,10 @@ function openDialogue(npc){
     openModal('mDialogue');
     return;
   }
+  if(npc.role==='exitDoor'){
+    exitSectorCero();
+    return;
+  }
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
@@ -3315,7 +3363,8 @@ function renderCheckpointDialogue(npc, bonus){
   const pct = Math.round(solarDexPercent()*100);
   if(S.checkpointPassed){
     box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
-      <div class="dlgLine">"Ya hablamos. Pasaste la revisión. La puerta del Complejo Umbral sigue sellada por ahora — cuando se abra, serás de los primeros en saberlo."</div>`;
+      <div class="dlgLine">"Ya hablamos. Pasaste la revisión. Puedes entrar cuando quieras — pero lo que veas ahí dentro, te quedas con ello."</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="enterSectorCero();">🚪 Entrar al Complejo</button>`;
     return;
   }
   if(pct<CHECKPOINT_SOLAR_PCT*100){
@@ -3385,9 +3434,30 @@ function passInterrogation(){
   S.coins += 200000;
   Audio1.sfx('achievement');
   toast('✅ Has superado el interrogatorio de Agente Rook. +200.000 monedas, +40 gemas premium.');
-  setTimeout(()=>toast('🚪 La puerta del Complejo Umbral sigue sellada... por ahora.'), 1200);
+  setTimeout(()=>toast('🚪 La puerta del Complejo Umbral se abre. Habla con Rook cuando quieras entrar.'), 1200);
   checkAchievements();
   refreshHud();
+  saveGame();
+}
+
+// entering/leaving Sector Cero is a direct teleport, not a portal or launch pad — you
+// walk through a physical door in Abismo de Tritón, not sail or fly there
+function enterSectorCero(){
+  if(!S.checkpointPassed) return;
+  closeModal('mDialogue');
+  S._preSectorWorld = curWorld.id;
+  S._preSectorPos = {x:player.x, y:player.y};
+  setWorld('dimension_tres', {keepPos:false});
+  S.isOnBoat = false; S.isOnRocket = false; S.isDiving = false; S.inAbyss = false;
+  toast('🚪 Entras en Sector Cero.');
+  checkAchievements();
+  saveGame();
+}
+function exitSectorCero(){
+  const back = S._preSectorWorld || 'planeta_seis';
+  setWorld(back, {keepPos:false});
+  if(S._preSectorPos){ player.x = S._preSectorPos.x; player.y = S._preSectorPos.y; }
+  toast('🚪 Sales de Sector Cero.');
   saveGame();
 }
 
@@ -3872,7 +3942,7 @@ function renderMinimap(){
   mctx.fillStyle = S.bossDefeated[curWorld.boss.id]? '#64748b':'#ef4444';
   mctx.beginPath(); mctx.arc(curWorld.bossSpot.x*sx,curWorld.bossSpot.y*sy,3.2,0,Math.PI*2); mctx.fill();
   // portal
-  if(WORLDS[curWorld.idx+1] && !WORLDS[curWorld.idx+1].isEvent && !curWorld.isSpace){
+  if(WORLDS[curWorld.idx+1] && !WORLDS[curWorld.idx+1].isEvent && !curWorld.isSpace && !curWorld.isDimension){
     mctx.fillStyle = S.unlockedWorlds.includes(WORLDS[curWorld.idx+1].id)? '#38d3c9':'#94a3b8';
     mctx.beginPath(); mctx.arc(curWorld.portalSpot.x*sx,curWorld.portalSpot.y*sy,3,0,Math.PI*2); mctx.fill();
   }
@@ -4339,6 +4409,27 @@ function drawDecor(d){
       ctx.restore();
       break;
     }
+    case 'labtank': {
+      // a sealed containment cylinder with murky green fluid and a drifting silhouette inside
+      const glowT = performance.now()/700;
+      ctx.save();
+      ctx.fillStyle='#334155';
+      roundRect(ctx,-s*0.22,-s*0.62,s*0.44,s*0.7,4); ctx.fill();
+      ctx.save();
+      roundRect(ctx,-s*0.17,-s*0.56,s*0.34,s*0.58,3); ctx.clip();
+      ctx.fillStyle='#134e4a'; ctx.fillRect(-s*0.2,-s*0.6,s*0.4,s*0.65);
+      ctx.globalAlpha = 0.55+0.25*Math.sin(glowT+d.x*0.02);
+      ctx.fillStyle='#4ade80';
+      ctx.beginPath(); ctx.ellipse(Math.sin(glowT*0.7)*s*0.05,-s*0.28,s*0.09,s*0.14,0,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha=1;
+      ctx.strokeStyle='#64748b'; ctx.lineWidth=1.4;
+      roundRect(ctx,-s*0.22,-s*0.62,s*0.44,s*0.7,4); ctx.stroke();
+      ctx.fillStyle = Math.sin(glowT*2)>0.6? '#ef4444' : '#334155';
+      ctx.beginPath(); ctx.arc(0,-s*0.66,s*0.05,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+      break;
+    }
     default:
       ctx.fillStyle='#5da456'; ctx.beginPath(); ctx.arc(0,0,s*0.3,0,Math.PI*2); ctx.fill();
   }
@@ -4495,6 +4586,25 @@ function drawAuraEffect(aura, size){
         ctx.fillStyle = i%2===0? '#22d3ee':'#e879f9';
         ctx.fillRect(sx-1.5,sy-1.5,3,3);
       }
+      ctx.restore();
+    } else if(auraObj.color==='toxic'){
+      ctx.save();
+      ctx.globalAlpha = 0.3+0.12*Math.sin(t*2);
+      const grad = ctx.createRadialGradient(0,4,size*0.15,0,4,size*1.05);
+      grad.addColorStop(0,'#4ade80'); grad.addColorStop(0.6,'#166534'); grad.addColorStop(1,'rgba(22,101,52,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(0,4,size*1.05,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+      for(let i=0;i<7;i++){
+        const rise = ((t*0.4+i/7)%1);
+        const ang = i*(Math.PI*2/7);
+        const rad = size*0.5;
+        const sx = Math.cos(ang)*rad*0.6, sy = 4+size*0.7-rise*size*1.3;
+        ctx.globalAlpha = (1-rise)*0.7;
+        ctx.fillStyle='#86efac';
+        ctx.beginPath(); ctx.arc(sx,sy,1.6+rise*1.4,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
       ctx.restore();
     } else {
       ctx.save();
@@ -5175,7 +5285,7 @@ function drawPortalMarker(spot, label, unlocked, colorA, colorB, icon){
 
 function drawPortal(){
   const nextWorld = WORLDS[curWorld.idx+1];
-  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace){
+  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace && !curWorld.isDimension){
     const unlocked = S.unlockedWorlds.includes(nextWorld.id);
     drawPortalMarker(curWorld.portalSpot, 'Portal · '+nextWorld.name, unlocked, '#38d3c9', '#0f766e', '🌀');
   }
@@ -6007,13 +6117,17 @@ let aqTab='earth';
 document.getElementById('btnAquarium').addEventListener('click', ()=>{ renderAquariumTabs(); renderAquarium(); openModal('mAquarium'); });
 function renderAquariumTabs(){
   const tabs = document.getElementById('aqTabs');
-  const earthWorlds = WORLDS.filter(w=>!w.isSpace);
+  const earthWorlds = WORLDS.filter(w=>!w.isSpace && !w.isDimension);
   const spaceWorlds = WORLDS.filter(w=>w.isSpace);
+  const dimensionWorlds = WORLDS.filter(w=>w.isDimension);
   let html = `<button class="tabBtn ${aqTab==='earth'?'active':''}" data-aq="earth">🌍 Toda la Tierra</button>`;
   if(S.hasRocket) html += `<button class="tabBtn ${aqTab==='space'?'active':''}" data-aq="space">🚀 Todo el Sistema Solar</button>`;
   html += `<span class="aqTabDivider">🌍</span>` + earthWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   if(S.hasRocket){
     html += `<span class="aqTabDivider">🚀</span>` + spaceWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
+  }
+  if(S.checkpointPassed){
+    html += `<span class="aqTabDivider">🔬</span>` + dimensionWorlds.map(w=>`<button class="tabBtn ${aqTab===w.id?'active':''}" data-aq="${w.id}">${w.icon} ${w.name}</button>`).join('');
   }
   tabs.innerHTML = html;
   tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ aqTab=b.dataset.aq; renderAquariumTabs(); renderAquarium(); }));
@@ -6036,7 +6150,8 @@ function renderAquarium(){
   renderSolarProgressBanner();
   const all = Object.values(ALL_SPECIES).filter(s=>{
     if(s.world.isSpace && !S.hasRocket) return false;
-    if(aqTab==='earth') return !s.world.isSpace;
+    if(s.world.isDimension && !S.checkpointPassed) return false;
+    if(aqTab==='earth') return !s.world.isSpace && !s.world.isDimension;
     if(aqTab==='space') return s.world.isSpace;
     return s.world.id===aqTab;
   });
@@ -6125,6 +6240,7 @@ function renderWorldMap(){
   grid.innerHTML='';
   WORLDS.forEach((w,i)=>{
     if(w.isSpace && !S.hasRocket) return; // hidden until you've built the rocket
+    if(w.hidden) return; // reached only through its own narrative gate, never listed here
     const unlocked = S.unlockedWorlds.includes(w.id);
     const visited = (S.visitedWorlds||[]).includes(w.id);
     const isCurrent = w.id===curWorld.id;
@@ -6203,7 +6319,7 @@ function renderCustom(){
       cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
       if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
       if(customTab==='aura' && item.color){
-        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033',crystal:'#67e8f9',solar:'#fbbf24',tide:'#22d3ee'};
+        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033',crystal:'#67e8f9',solar:'#fbbf24',tide:'#22d3ee',neon:'#22d3ee',toxic:'#4ade80'};
         cctx.save(); cctx.globalAlpha=0.4;
         cctx.fillStyle = previewColors[item.color] || item.color;
         cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
