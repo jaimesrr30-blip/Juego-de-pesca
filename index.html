@@ -144,6 +144,10 @@ canvas{display:block;position:absolute;top:0;left:0;}
 #xpBarBg{width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;}
 #xpBarFill{height:100%;width:0%;background:linear-gradient(90deg,#38d3c9,#7ee8e0);transition:width .3s;}
 
+.abyssHudBox{background:radial-gradient(ellipse at center, rgba(88,28,135,0.55), rgba(10,5,20,0.7));
+  border:1px solid rgba(232,121,249,0.4);border-radius:16px;box-shadow:0 0 22px rgba(168,85,247,0.35);
+  animation:abyssPulse 2.4s ease-in-out infinite;}
+@keyframes abyssPulse{0%,100%{box-shadow:0 0 18px rgba(168,85,247,0.3);}50%{box-shadow:0 0 30px rgba(232,121,249,0.5);}}
 #minimapWrap{position:absolute;top:12px;right:12px;width:142px;height:102px;pointer-events:auto;}
 #minimap{position:static;border-radius:12px;display:block;border:1px solid rgba(255,255,255,0.15);}
 
@@ -437,8 +441,15 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <button id="diveToggleBtn" class="menuBtn" title="Traje de buceo (V)" style="display:none;">🤿</button>
         <button id="actionBtn">Pescar</button>
         <button id="rocketToggleBtn" class="menuBtn" title="Cohete (R)" style="display:none;">🚀</button>
+        <button id="abyssExitBtn" class="menuBtn" title="Salir del Abismo Infinito" style="display:none;">🌀</button>
       </div>
     </div>
+  </div>
+
+  <div class="hud abyssHudBox" id="abyssHud" style="display:none;top:100px;left:50%;transform:translateX(-50%);padding:8px 20px;text-align:center;">
+    <div style="font-size:11px;color:#c4b5fd;letter-spacing:.5px;">🌀 ABISMO INFINITO</div>
+    <div style="font-size:20px;font-weight:800;color:#e879f9;" id="abyssDepthVal">Profundidad 0</div>
+    <div style="font-size:10px;color:var(--text-dim);" id="abyssRecordVal">Récord: 0</div>
   </div>
 
   <div class="hud interactive" id="menuBar">
@@ -563,6 +574,10 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Añade cristales cósmicos si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
           <button class="shopBtn" id="addCrystalsBtn" style="padding:9px 16px;">💎 +1.000 cristales</button>
+        </div>
+        <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <span style="color:var(--text-dim);font-size:12px;">Añade gemas premium si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
+          <button class="premiumBtn" id="addGemsBtn" style="margin:0;padding:9px 16px;">🔷 +100 gemas</button>
         </div>
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Partida guardada automáticamente en este navegador.</span>
@@ -954,6 +969,8 @@ const AURAS = [
     unlockDesc:'Habla con Marea en el Abismo de Tritón y descubre 5 criaturas de ese mundo.'},
   {id:'neon_cuantico',name:'Aura Neón Cuántica',color:'neon',locked:true,priceGems:80,
     unlockDesc:'Disponible en la Tienda Premium a cambio de Gemas.'},
+  {id:'abismo_infinito',name:'Aura del Abismo Infinito',color:'void',locked:true,
+    unlockDesc:'Alcanza la profundidad 20 en el Abismo Infinito, buceando en el Abismo de Tritón.'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -1738,6 +1755,75 @@ WORLDS.forEach(w=>{
     minKg:b.minKg,maxKg:b.maxKg,minCm:b.minCm,maxCm:b.maxCm}, world:w, isBoss:true};
 });
 
+/* ---------------------------- ABISMO INFINITO ---------------------------- */
+// an endless-depth diving challenge, accessed through a rift only found while diving in the
+// Abismo de Tritón — each successful catch descends you one level deeper, unlocking rarer
+// exclusive fish but draining HP faster the deeper you go. Kept OUT of ALL_SPECIES on purpose:
+// it's a bonus side-track, not meant to gate the "complete the whole aquarium" achievement.
+const ABYSS_FISH = [
+  F('abismo_ciego','Criatura Ciega del Abismo','epico','abismal','fish','#1e293b','#475569',{minDepth:0}),
+  F('abismo_fantasma','Pez Fantasma de Presión','legendario','abismal','jellyfish','#334155','#94a3b8',{minDepth:4}),
+  F('abismo_devorador','Devorador de las Profundidades','mitico','abismal','dragon','#0f172a','#7c3aed',{minDepth:8}),
+  F('abismo_guardian','Guardián del Abismo','omega','abismal','crab','#111827','#dc2626',{minDepth:12}),
+  F('abismo_heraldo','Heraldo del Vacío Eterno','prohibido','abismal','whale','#0a0a0f','#ef4444',{minDepth:16}),
+  F('abismo_ojo','Ojo Primordial del Abismo','singularidad','abismal','space','#000000','#a855f7',{minDepth:20}),
+];
+const ABYSS_CAPSTONE_ID = 'abismo_ojo';
+(function setupAbyssRift(){
+  const p6 = WORLDS.find(w=>w.id==='planeta_seis');
+  if(p6) p6.abyssRift = findClearWaterSpot(p6, p6.width*0.5, p6.height*0.18);
+})();
+function pickAbyssFish(){
+  const rod = currentRod();
+  const boat = S.isOnBoat? currentBoat() : null;
+  const petLuck = petStatBonus().luck;
+  const depthLuckMult = 1 + S.abyssDepth*0.15;
+  let entries = ABYSS_FISH.map(f=>{
+    const rIdx = RARITY_INDEX[f.rarity];
+    let w = 1/rarityOf(f.rarity).denom;
+    if(f.minDepth>S.abyssDepth){ return {f,w:0}; }
+    w *= 1 + (rod.luck-1) * (rIdx/RARITY_MAX_IDX);
+    if(boat) w *= 1 + (boat.luck-1) * (rIdx/RARITY_MAX_IDX);
+    if(petLuck>0) w *= 1 + petLuck*(rIdx/RARITY_MAX_IDX);
+    if(hasPass('luck')) w *= 1 + 0.6*(rIdx/RARITY_MAX_IDX);
+    w *= 1 + (depthLuckMult-1)*(rIdx/RARITY_MAX_IDX);
+    return {f,w};
+  });
+  let total = entries.reduce((a,e)=>a+e.w,0);
+  if(total<=0){ return ABYSS_FISH[0]; }
+  let r = Math.random()*total;
+  for(const e of entries){ r-=e.w; if(r<=0) return e.f; }
+  return entries[entries.length-1].f;
+}
+function enterAbyss(){
+  if(!S.isDiving || S.isOnBoat) return;
+  const target = findNearestSpot(curWorld, player.x, player.y, false);
+  player.x = target.x; player.y = target.y;
+  S.inAbyss = true; S.abyssDepth = 0;
+  Audio1.sfx('cast');
+  toast('🌀 Entras en el Abismo Infinito. Cada captura te hunde más...');
+  saveGame();
+}
+function exitAbyss(reason){
+  if(!S.inAbyss) return;
+  if(S.abyssDepth>(S.abyssBestDepth||0)){
+    S.abyssBestDepth = S.abyssDepth;
+    toast('🏅 ¡Nuevo récord de profundidad: '+S.abyssBestDepth+'!');
+  }
+  S.inAbyss = false; S.abyssDepth = 0;
+  if(reason==='expelled'){
+    toast('🌀 La presión te expulsa del Abismo hacia la superficie...');
+    S.hp = Math.round(S.maxHp*0.4);
+    const target = findNearestSpot(curWorld, player.x, player.y, true);
+    player.x = target.x; player.y = target.y;
+    S.isDiving = false;
+  } else {
+    toast('🌀 Sales del Abismo Infinito, a salvo.');
+  }
+  checkAchievements();
+  saveGame();
+}
+
 /* ---------------------------- SOLAR SYSTEM UNLOCK ---------------------------- */
 const EARTH_WORLDS = WORLDS.filter(w=>!w.isEvent && !w.isSpace);
 const FINAL_BOSS_ID = 'leviatan_sombras';
@@ -1842,6 +1928,13 @@ const ACHIEVEMENTS = [
       return p2fish.every(f=>s.dex[f.id]&&s.dex[f.id].discovered);
     },
     unlockCosmetic:{slot:'hat', id:'corona_hielo_eterno', label:'Corona de Hielo Eterno'}},
+  {id:'abismo_explorador',name:'Explorador del Abismo',desc:'Alcanza la profundidad 10 en el Abismo Infinito',icon:'🌀',reward:300000,rewardGems:15,
+    check:s=>(s.abyssBestDepth||0)>=10},
+  {id:'abismo_maestro',name:'Señor del Abismo Infinito',desc:'Alcanza la profundidad 20 en el Abismo Infinito',icon:'🕳️',reward:800000,rewardGems:35,
+    check:s=>(s.abyssBestDepth||0)>=20,
+    unlockCosmetic:{slot:'aura', id:'abismo_infinito', label:'Aura del Abismo Infinito'}},
+  {id:'ojo_primordial',name:'El Que Encontró el Ojo',desc:'Pesca al Ojo Primordial del Abismo',icon:'👁️',reward:2000000,rewardGems:60,
+    check:s=>!!(s.dex['abismo_ojo']&&s.dex['abismo_ojo'].discovered)},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -1869,6 +1962,7 @@ function defaultState(){
   return {
     coins:50, xp:0, level:1, crystals:0, gems:0, gemWorldsBossed:{}, worldLuckTier:{},
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
+    inAbyss:false, abyssDepth:0, abyssBestDepth:0,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -1942,7 +2036,7 @@ let camera={x:0,y:0};
 let keys = {};
 let lastTs = 0;
 let toastQueue = [];
-let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, canFish = false;
+let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, canFish = false;
 let started = false;
 
 const fishing = {
@@ -2171,6 +2265,7 @@ actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
 document.getElementById('boatToggleBtn').addEventListener('click', ()=>toggleBoat());
 document.getElementById('rocketToggleBtn').addEventListener('click', ()=>toggleRocket());
 document.getElementById('diveToggleBtn').addEventListener('click', ()=>toggleDive());
+document.getElementById('abyssExitBtn').addEventListener('click', ()=>exitAbyss('voluntary'));
 
 // always-available boat launch/stow: finds the nearest usable water/land spot itself,
 // so it works reliably from any shoreline (or if you're stuck somewhere awkward).
@@ -2208,6 +2303,7 @@ function toggleDive(){
   if(!started || !S.hasDiveSuit) return;
   if(fishing.state!=='idle') return;
   if(S.isOnBoat) return;
+  if(S.inAbyss){ toast('🌀 Sal primero del Abismo Infinito.'); return; }
   if(!S.isDiving){
     const target = findNearestSpot(curWorld, player.x, player.y, false);
     player.x = target.x; player.y = target.y;
@@ -2229,6 +2325,7 @@ function onActionPress(){
   if(fishing.state==='idle'){
     if(nearNpc){ openDialogue(nearNpc); return; }
     if(nearTower){ openTowerModal(); return; }
+    if(nearAbyssRift){ enterAbyss(); return; }
     if(curWorld._nearBoss){ startCastWrapper(true); return; }
     if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
     if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
@@ -2313,20 +2410,28 @@ function updatePlayer(dt){
     if(avail && Math.hypot(curWorld.wreckSpot.x-player.x, curWorld.wreckSpot.y-player.y)<55){ nearWreck = curWorld.wreckSpot; }
   }
   nearTower = !!(curWorld.towerSpot && Math.hypot(curWorld.towerSpot.x-player.x, curWorld.towerSpot.y-player.y)<60);
+  nearAbyssRift = !!(S.isDiving && !S.inAbyss && curWorld.abyssRift && Math.hypot(curWorld.abyssRift.x-player.x, curWorld.abyssRift.y-player.y)<60);
+
+  // pressure damage while descending the Abismo Infinito — the deeper you go, the faster it
+  // drains, outpacing the passive HP_REGEN above so depth is a real risk from the very start
+  if(S.inAbyss){
+    S.hp = Math.max(0, S.hp - (HP_REGEN+1+S.abyssDepth*0.6)*dt);
+    if(S.hp<=0) exitAbyss('expelled');
+  }
 
   const fx = player.x+player.facing.x*46, fy=player.y+player.facing.y*46;
   canBoard=false; canDisembark=false; boardTargetPoint=null;
 
   if(S.isOnBoat){
-    if(!nearNpc && !nearChest && !nearTower && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && fishing.state==='idle' && isLand(curWorld,fx,fy)){
       canDisembark = true; boardTargetPoint = {x:fx,y:fy};
     }
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !canDisembark && !isBoatMoving;
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !canDisembark && !isBoatMoving;
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-    if(!canFish && !nearNpc && !nearChest && !nearTower && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
   }
@@ -2376,9 +2481,21 @@ function updateActionUI(){
     diveBtn.style.display = 'flex';
     diveBtn.textContent = S.isDiving? '🎒' : '🤿';
     diveBtn.title = S.isDiving? 'Salir a la superficie (V)' : 'Sumergirse (V)';
-    diveBtn.disabled = fishing.state!=='idle' || S.isOnBoat;
+    diveBtn.disabled = fishing.state!=='idle' || S.isOnBoat || S.inAbyss;
   } else {
     diveBtn.style.display = 'none';
+  }
+  const abyssBtn = document.getElementById('abyssExitBtn');
+  const abyssHud = document.getElementById('abyssHud');
+  if(S.inAbyss){
+    abyssBtn.style.display = 'flex';
+    abyssBtn.disabled = fishing.state!=='idle';
+    abyssHud.style.display = 'block';
+    document.getElementById('abyssDepthVal').textContent = 'Profundidad '+S.abyssDepth;
+    document.getElementById('abyssRecordVal').textContent = 'Récord: '+(S.abyssBestDepth||0);
+  } else {
+    abyssBtn.style.display = 'none';
+    abyssHud.style.display = 'none';
   }
   if(fishing.state==='minigame'){
     promptEl.classList.remove('show');
@@ -2407,6 +2524,10 @@ function updateActionUI(){
     promptEl.textContent = tierIdx>=0? '🗼 Torre de la Suerte (x'+TOWER_TIERS[tierIdx].mult+' activo)' : '🗼 Torre de la Suerte';
     promptEl.classList.add('show');
     btn.textContent='Ver Torre'; btn.disabled=false; return;
+  }
+  if(nearAbyssRift){
+    promptEl.textContent = '🌀 Grieta del Abismo Infinito'; promptEl.classList.add('show');
+    btn.textContent='Descender'; btn.disabled=false; return;
   }
   if(curWorld._nearBoss){
     const hasDefeated = S.bossDefeated[curWorld.boss.id];
@@ -2527,7 +2648,7 @@ function fishUpdate(dt){
     if(fishing.timer>=fishing.waitTarget){
       fishing.state='biting';
       fishing.bitePromptTimer=0;
-      fishing.target = fishing.isBoss? ALL_SPECIES[curWorld.boss.id].fish : weightedPickFish();
+      fishing.target = fishing.isBoss? ALL_SPECIES[curWorld.boss.id].fish : (S.inAbyss? pickAbyssFish() : weightedPickFish());
       fishing.caughtInLuckySpot = !fishing.isBoss && activeLuckySpotMultiplier()>1;
       Audio1.sfx('bite');
     }
@@ -2708,8 +2829,17 @@ function resolveCatch(fish, isBoss){
     }
   }
 
+  // Abismo Infinito: every successful catch while inside sinks you one level deeper
+  if(S.inAbyss){
+    S.abyssDepth++;
+    if(fish.id===ABYSS_CAPSTONE_ID){
+      setTimeout(()=>toast('👁️ ¡Has pescado el Ojo Primordial del Abismo!'), 900);
+    }
+  }
+
   // backpack
   const item = {uid:uid(), speciesId:fish.id, weightKg, sizeCm, value:e.value, worldId:curWorld.id, isBoss};
+  if(!ALL_SPECIES[fish.id]) item.fishData = fish;
   let autoSold=false;
   if(S.keepnet.length>=S.backpackCap){
     S.coins += Math.round(e.value*coinsMult()); autoSold=true;
@@ -3604,6 +3734,10 @@ function renderMinimap(){
     curWorld.launchPads.forEach(pad=>{
       mctx.beginPath(); mctx.arc(pad.spot.x*sx,pad.spot.y*sy,3.2,0,Math.PI*2); mctx.fill();
     });
+  }
+  if(S.isDiving && !S.inAbyss && curWorld.abyssRift){
+    mctx.fillStyle = '#e879f9';
+    mctx.beginPath(); mctx.arc(curWorld.abyssRift.x*sx,curWorld.abyssRift.y*sy,3.5,0,Math.PI*2); mctx.fill();
   }
   if(curWorld.towerSpot){
     mctx.fillStyle = worldTowerTierIdx(curWorld.id)>=0? '#4ade80' : '#94a3b8';
@@ -4681,6 +4815,26 @@ function drawWreckIcon(){
   ctx.restore();
 }
 
+// the entrance to the Abismo Infinito — only visible while diving, and hidden again once
+// you're already inside (the exit button covers that instead)
+function drawAbyssRiftIcon(){
+  if(!S.isDiving || S.inAbyss || !curWorld.abyssRift) return;
+  const rift = curWorld.abyssRift;
+  const screen = worldToScreen(rift.x, rift.y);
+  if(screen.x<-140||screen.x>canvas.width+140||screen.y<-140||screen.y>canvas.height+140) return;
+  const t = performance.now()/1000;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,26,52,16,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  drawBlackHoleAura(ctx, 40, t*1.3);
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 13px system-ui'; ctx.fillStyle='#e879f9'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText('🌀 Grieta del Abismo Infinito', screen.x, screen.y-66);
+  ctx.restore();
+}
+
 // a physical tower in every world, upgraded with premium Gems for a permanent world-wide luck boost
 function drawTowerIcon(){
   const spot = curWorld.towerSpot;
@@ -4984,6 +5138,7 @@ function render(){
   drawLuckySpot();
   drawRiftSpot();
   drawWreckIcon();
+  drawAbyssRiftIcon();
   drawTowerIcon();
   drawLabBuilding();
   curWorld.chests.forEach(drawChestIcon);
@@ -5010,10 +5165,26 @@ function drawUnderwaterOverlay(){
   if(!S.isDiving) return;
   const t = performance.now()/1000;
   wctx.save();
+  const abyssT = clamp(S.inAbyss? S.abyssDepth/20 : 0, 0, 1);
   const g = wctx.createLinearGradient(0,0,0,wcanvas.height);
-  g.addColorStop(0,'rgba(8,145,178,0.32)');
-  g.addColorStop(1,'rgba(2,32,46,0.68)');
+  if(S.inAbyss){
+    g.addColorStop(0, `rgba(${Math.round(88-abyssT*60)},${Math.round(28-abyssT*20)},${Math.round(135-abyssT*60)},${0.32+abyssT*0.25})`);
+    g.addColorStop(1, `rgba(${Math.round(10-abyssT*8)},${Math.round(2)},${Math.round(20-abyssT*10)},${0.75+abyssT*0.2})`);
+  } else {
+    g.addColorStop(0,'rgba(8,145,178,0.32)');
+    g.addColorStop(1,'rgba(2,32,46,0.68)');
+  }
   wctx.fillStyle=g; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  if(S.inAbyss){
+    // pressure vignette that closes in as HP drops, warning you the depth is about to expel you
+    const danger = 1-clamp(S.hp/S.maxHp,0,1);
+    if(danger>0.15){
+      const vg = wctx.createRadialGradient(wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.25,wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.65);
+      vg.addColorStop(0,'rgba(239,68,68,0)');
+      vg.addColorStop(1,`rgba(239,68,68,${danger*0.55+0.15*Math.sin(t*4)})`);
+      wctx.fillStyle=vg; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+    }
+  }
 
   wctx.globalAlpha=0.1;
   for(let i=0;i<5;i++){
@@ -5885,6 +6056,13 @@ document.getElementById('addCrystalsBtn').addEventListener('click', ()=>{
   S.crystals = (S.crystals||0) + 1000;
   Audio1.sfx('coin');
   toast('💎 +1.000 cristales cósmicos');
+  refreshHud();
+  saveGame();
+});
+document.getElementById('addGemsBtn').addEventListener('click', ()=>{
+  S.gems = (S.gems||0) + 100;
+  Audio1.sfx('coin');
+  toast('🔷 +100 gemas premium');
   refreshHud();
   saveGame();
 });
