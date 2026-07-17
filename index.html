@@ -866,13 +866,18 @@ const PETS = [
 ];
 const PET_CHEST_PRICE = 5000;
 const COSMIC_PET_CHEST_PRICE = 400;
+// premium (Gems) chest purchases skip común/pocoComún entirely — guaranteed Raro or better
+const PET_CHEST_PREMIUM_GEMS = 8;
+const COSMIC_CHEST_PREMIUM_GEMS = 15;
+const PET_CHEST_PREMIUM_MIN_IDX = PET_RARITY_INDEX['raro'];
 function petRarityOf(pet){ return PET_RARITIES[PET_RARITY_INDEX[pet.rarity]]; }
 function petSellValue(pet){ const idx=PET_RARITY_INDEX[pet.rarity]; return [40,150,500,2000,8000,30000][idx]||40; }
-function rollPetRarity(){
-  const total = PET_RARITIES.reduce((a,r)=>a+r.weight,0);
+function rollPetRarity(minIdx){
+  const pool = minIdx? PET_RARITIES.slice(minIdx) : PET_RARITIES;
+  const total = pool.reduce((a,r)=>a+r.weight,0);
   let r = Math.random()*total;
-  for(const rar of PET_RARITIES){ r-=rar.weight; if(r<=0) return rar.id; }
-  return PET_RARITIES[0].id;
+  for(const rar of pool){ r-=rar.weight; if(r<=0) return rar.id; }
+  return pool[0].id;
 }
 function ownedPetObj(entry){ return PETS.find(p=>p.id===entry.petId); }
 function equippedPet(){
@@ -948,6 +953,8 @@ const HATS = [
     unlockDesc:'Visita todos los mundos del juego.'},
   {id:'corona_hielo_eterno',name:'Corona de Hielo Eterno',draw:'iceCrown',locked:true,
     unlockDesc:'Descubre todas las criaturas de Europa Helada.'},
+  {id:'corona_abismal',name:'Corona del Abismo Absoluto',draw:'abyssCrown',locked:true,
+    unlockDesc:'Pesca la criatura más profunda del Abismo Infinito en los 6 planetas del Sistema Solar.'},
 ];
 const AURAS = [
   {id:'none',name:'Sin Aura',price:0,color:null},
@@ -1756,29 +1763,81 @@ WORLDS.forEach(w=>{
 });
 
 /* ---------------------------- ABISMO INFINITO ---------------------------- */
-// an endless-depth diving challenge, accessed through a rift only found while diving in the
-// Abismo de Tritón — each successful catch descends you one level deeper, unlocking rarer
-// exclusive fish but draining HP faster the deeper you go. Kept OUT of ALL_SPECIES on purpose:
-// it's a bonus side-track, not meant to gate the "complete the whole aquarium" achievement.
-const ABYSS_FISH = [
-  F('abismo_ciego','Criatura Ciega del Abismo','epico','abismal','fish','#1e293b','#475569',{minDepth:0}),
-  F('abismo_fantasma','Pez Fantasma de Presión','legendario','abismal','jellyfish','#334155','#94a3b8',{minDepth:4}),
-  F('abismo_devorador','Devorador de las Profundidades','mitico','abismal','dragon','#0f172a','#7c3aed',{minDepth:8}),
-  F('abismo_guardian','Guardián del Abismo','omega','abismal','crab','#111827','#dc2626',{minDepth:12}),
-  F('abismo_heraldo','Heraldo del Vacío Eterno','prohibido','abismal','whale','#0a0a0f','#ef4444',{minDepth:16}),
-  F('abismo_ojo','Ojo Primordial del Abismo','singularidad','abismal','space','#000000','#a855f7',{minDepth:20}),
-];
-const ABYSS_CAPSTONE_ID = 'abismo_ojo';
+// an endless-depth diving challenge, with its own rift and exclusive 7-fish ladder in every
+// Solar System world — each successful catch descends you one level deeper, unlocking rarer
+// fish but draining HP faster the deeper you go. Kept OUT of ALL_SPECIES on purpose: it's a
+// bonus side-track, not meant to gate the "complete the whole aquarium" achievement.
+const ABYSS_DEPTHS = [0,3,6,9,12,16,22];
+const ABYSS_FISH_BY_WORLD = {
+  planeta_uno: [
+    F('abismo_marte_larva','Larva de Polvo Rojo','pocoComun','abismal','fish','#c2410c','#7c2d12',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_marte_espectro','Espectro de Ozono','raro','abismal','jellyfish','#f0abfc','#a21caf',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_marte_fobos','Sombra de Fobos','epico','abismal','crab','#94a3b8','#450a0a',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_marte_deimos','Eco de Deimos','legendario','abismal','dragon','#a8a29e','#7c2d12',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_marte_tormenta','Alma de la Tormenta Roja','mitico','abismal','ghost','#fca5a5','#7c2d12',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_marte_nucleo','Núcleo Viviente de Marte','omega','abismal','octopus','#f97316','#450a0a',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_marte_ojo','Ojo del Polvo Eterno','singularidad','abismal','space','#000000','#dc2626',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+  planeta_dos: [
+    F('abismo_europa_larva','Larva Criogénica','pocoComun','abismal','fish','#93c5fd','#1e3a8a',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_europa_espectro','Espectro del Hielo Vacío','raro','abismal','jellyfish','#c4b5fd','#4c1d95',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_europa_grieta','Habitante de la Grieta Helada','epico','abismal','crab','#818cf8','#1e1033',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_europa_titan','Eco del Titán Glacial','legendario','abismal','dragon','#a5b4fc','#312e81',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_europa_oraculo','Voz del Oráculo Eterno','mitico','abismal','ghost','#e0e7ff','#4338ca',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_europa_devorador','Devorador del Hielo Sin Fondo','omega','abismal','octopus','#312e81','#0f0a24',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_europa_ojo','Ojo del Abismo Helado','singularidad','abismal','space','#000000','#818cf8',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+  planeta_tres: [
+    F('abismo_horizonte_larva','Larva de Polvo Estelar','pocoComun','abismal','fish','#8b7bb8','#2e1f4d',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_horizonte_espectro','Espectro del Vórtice','raro','abismal','jellyfish','#c084fc','#4c1d95',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_horizonte_dragon','Cría del Vórtice Profundo','epico','abismal','dragon','#7c3aed','#1e1033',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_horizonte_titan','Eco del Horizonte','legendario','abismal','whale','#9333ea','#1c1333',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_horizonte_cuasar','Susurro de Cuásar','mitico','abismal','ghost','#e9d5ff','#4c1d95',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_horizonte_devorador','Devorador de lo Infinito','omega','abismal','octopus','#4c1d95','#050109',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_horizonte_ojo','Ojo Detrás del Horizonte','singularidad','abismal','space','#000000','#7c3aed',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+  planeta_cuatro: [
+    F('abismo_fractura_larva','Fragmento Suelto','pocoComun','abismal','fish','#ddd6fe','#4c1d95',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_fractura_espectro','Espectro de Grietas','raro','abismal','jellyfish','#5eead4','#0f766e',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_fractura_paradoja','Eco de la Paradoja','epico','abismal','crab','#f472b6','#831843',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_fractura_titan','Sombra Desincronizada','legendario','abismal','whale','#c4b5fd','#312e81',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_fractura_fantasma','Fantasma de lo que Nunca Fue','mitico','abismal','ghost','#fdf4ff','#86198f',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_fractura_devorador','Devorador de Fracturas','omega','abismal','octopus','#0a0118','#f472b6',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_fractura_ojo','Ojo del Colapso Absoluto','singularidad','abismal','space','#000000','#e879f9',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+  planeta_cinco: [
+    F('abismo_amanecer_larva','Chispa del Primer Amanecer','pocoComun','abismal','fish','#fef08a','#b45309',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_amanecer_espectro','Espectro de Luz Primera','raro','abismal','jellyfish','#fef3c7','#d97706',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_amanecer_dragon','Cría del Alba Dorada','epico','abismal','dragon','#fbbf24','#92400e',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_amanecer_titan','Eco del Origen','legendario','abismal','whale','#fef9e7','#d97706',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_amanecer_fantasma','Fantasma del Primer Día Eterno','mitico','abismal','ghost','#fffbeb','#b45309',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_amanecer_devorador','Devorador de Amaneceres Infinitos','omega','abismal','octopus','#f59e0b','#78350f',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_amanecer_ojo','Ojo de la Luz Primordial','singularidad','abismal','space','#000000','#fef08a',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+  planeta_seis: [
+    F('abismo_larva','Larva del Abismo','pocoComun','abismal','fish','#164e63','#083344',{minDepth:ABYSS_DEPTHS[0]}),
+    F('abismo_ciego','Criatura Ciega del Abismo','raro','abismal','jellyfish','#334155','#94a3b8',{minDepth:ABYSS_DEPTHS[1]}),
+    F('abismo_fantasma','Pez Fantasma de Presión','epico','abismal','crab','#1e293b','#475569',{minDepth:ABYSS_DEPTHS[2]}),
+    F('abismo_devorador','Devorador de las Profundidades','legendario','abismal','dragon','#0f172a','#7c3aed',{minDepth:ABYSS_DEPTHS[3]}),
+    F('abismo_guardian','Guardián del Abismo','mitico','abismal','whale','#111827','#dc2626',{minDepth:ABYSS_DEPTHS[4]}),
+    F('abismo_heraldo','Heraldo del Vacío Eterno','omega','abismal','octopus','#0a0a0f','#ef4444',{minDepth:ABYSS_DEPTHS[5]}),
+    F('abismo_ojo','Ojo Primordial del Abismo','singularidad','abismal','space','#000000','#a855f7',{minDepth:ABYSS_DEPTHS[6]}),
+  ],
+};
+const ABYSS_CAPSTONE_IDS = Object.values(ABYSS_FISH_BY_WORLD).map(list=>list[list.length-1].id);
+function maxAbyssDepth(s){ return Math.max(0, ...Object.values(s.abyssBestDepth||{})); }
 (function setupAbyssRift(){
-  const p6 = WORLDS.find(w=>w.id==='planeta_seis');
-  if(p6) p6.abyssRift = findClearWaterSpot(p6, p6.width*0.5, p6.height*0.18);
+  WORLDS.filter(w=>w.isSpace).forEach(w=>{
+    w.abyssRift = findClearWaterSpot(w, w.width*0.5, w.height*0.18);
+  });
 })();
 function pickAbyssFish(){
+  const pool = ABYSS_FISH_BY_WORLD[curWorld.id] || [];
   const rod = currentRod();
   const boat = S.isOnBoat? currentBoat() : null;
   const petLuck = petStatBonus().luck;
   const depthLuckMult = 1 + S.abyssDepth*0.15;
-  let entries = ABYSS_FISH.map(f=>{
+  let entries = pool.map(f=>{
     const rIdx = RARITY_INDEX[f.rarity];
     let w = 1/rarityOf(f.rarity).denom;
     if(f.minDepth>S.abyssDepth){ return {f,w:0}; }
@@ -1790,7 +1849,7 @@ function pickAbyssFish(){
     return {f,w};
   });
   let total = entries.reduce((a,e)=>a+e.w,0);
-  if(total<=0){ return ABYSS_FISH[0]; }
+  if(total<=0){ return pool[0]; }
   let r = Math.random()*total;
   for(const e of entries){ r-=e.w; if(r<=0) return e.f; }
   return entries[entries.length-1].f;
@@ -1806,9 +1865,11 @@ function enterAbyss(){
 }
 function exitAbyss(reason){
   if(!S.inAbyss) return;
-  if(S.abyssDepth>(S.abyssBestDepth||0)){
-    S.abyssBestDepth = S.abyssDepth;
-    toast('🏅 ¡Nuevo récord de profundidad: '+S.abyssBestDepth+'!');
+  if(!S.abyssBestDepth || typeof S.abyssBestDepth!=='object') S.abyssBestDepth = {};
+  const wid = curWorld.id;
+  if(S.abyssDepth>(S.abyssBestDepth[wid]||0)){
+    S.abyssBestDepth[wid] = S.abyssDepth;
+    toast('🏅 ¡Nuevo récord de profundidad en '+curWorld.name+': '+S.abyssDepth+'!');
   }
   S.inAbyss = false; S.abyssDepth = 0;
   if(reason==='expelled'){
@@ -1928,13 +1989,16 @@ const ACHIEVEMENTS = [
       return p2fish.every(f=>s.dex[f.id]&&s.dex[f.id].discovered);
     },
     unlockCosmetic:{slot:'hat', id:'corona_hielo_eterno', label:'Corona de Hielo Eterno'}},
-  {id:'abismo_explorador',name:'Explorador del Abismo',desc:'Alcanza la profundidad 10 en el Abismo Infinito',icon:'🌀',reward:300000,rewardGems:15,
-    check:s=>(s.abyssBestDepth||0)>=10},
-  {id:'abismo_maestro',name:'Señor del Abismo Infinito',desc:'Alcanza la profundidad 20 en el Abismo Infinito',icon:'🕳️',reward:800000,rewardGems:35,
-    check:s=>(s.abyssBestDepth||0)>=20,
+  {id:'abismo_explorador',name:'Explorador del Abismo',desc:'Alcanza la profundidad 10 en el Abismo Infinito de cualquier planeta',icon:'🌀',reward:300000,rewardGems:15,
+    check:s=>maxAbyssDepth(s)>=10},
+  {id:'abismo_maestro',name:'Señor del Abismo Infinito',desc:'Alcanza la profundidad 20 en el Abismo Infinito de cualquier planeta',icon:'🕳️',reward:800000,rewardGems:35,
+    check:s=>maxAbyssDepth(s)>=20,
     unlockCosmetic:{slot:'aura', id:'abismo_infinito', label:'Aura del Abismo Infinito'}},
-  {id:'ojo_primordial',name:'El Que Encontró el Ojo',desc:'Pesca al Ojo Primordial del Abismo',icon:'👁️',reward:2000000,rewardGems:60,
+  {id:'ojo_primordial',name:'El Que Encontró el Ojo',desc:'Pesca al Ojo Primordial del Abismo en el Abismo de Tritón',icon:'👁️',reward:2000000,rewardGems:60,
     check:s=>!!(s.dex['abismo_ojo']&&s.dex['abismo_ojo'].discovered)},
+  {id:'abismo_absoluto',name:'Señor de Todos los Abismos',desc:'Pesca la criatura más profunda del Abismo Infinito en los 6 planetas del Sistema Solar',icon:'🌌',reward:6000000,rewardGems:150,
+    check:s=>ABYSS_CAPSTONE_IDS.every(id=>s.dex[id]&&s.dex[id].discovered),
+    unlockCosmetic:{slot:'hat', id:'corona_abismal', label:'Corona del Abismo Absoluto'}},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -1962,7 +2026,7 @@ function defaultState(){
   return {
     coins:50, xp:0, level:1, crystals:0, gems:0, gemWorldsBossed:{}, worldLuckTier:{},
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
-    inAbyss:false, abyssDepth:0, abyssBestDepth:0,
+    inAbyss:false, abyssDepth:0, abyssBestDepth:{},
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -2492,7 +2556,7 @@ function updateActionUI(){
     abyssBtn.disabled = fishing.state!=='idle';
     abyssHud.style.display = 'block';
     document.getElementById('abyssDepthVal').textContent = 'Profundidad '+S.abyssDepth;
-    document.getElementById('abyssRecordVal').textContent = 'Récord: '+(S.abyssBestDepth||0);
+    document.getElementById('abyssRecordVal').textContent = 'Récord aquí: '+((S.abyssBestDepth&&S.abyssBestDepth[curWorld.id])||0);
   } else {
     abyssBtn.style.display = 'none';
     abyssHud.style.display = 'none';
@@ -2832,8 +2896,8 @@ function resolveCatch(fish, isBoss){
   // Abismo Infinito: every successful catch while inside sinks you one level deeper
   if(S.inAbyss){
     S.abyssDepth++;
-    if(fish.id===ABYSS_CAPSTONE_ID){
-      setTimeout(()=>toast('👁️ ¡Has pescado el Ojo Primordial del Abismo!'), 900);
+    if(ABYSS_CAPSTONE_IDS.includes(fish.id)){
+      setTimeout(()=>toast('👁️ ¡Has pescado '+fish.name+'!'), 900);
     }
   }
 
@@ -4547,6 +4611,23 @@ function drawHat(ctx,hat,size){
       });
       break;
     }
+    case 'abyssCrown': {
+      const t = performance.now()/450;
+      const grad = ctx.createLinearGradient(-size*0.34,-size*0.4,size*0.34,0);
+      grad.addColorStop(0,'#000000'); grad.addColorStop(0.5,'#3b0764'); grad.addColorStop(1,'#000000');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(-size*0.34,0); ctx.lineTo(-size*0.34,-size*0.2); ctx.lineTo(-size*0.18,-size*0.4);
+      ctx.lineTo(-size*0.06,-size*0.16); ctx.lineTo(0,-size*0.44); ctx.lineTo(size*0.06,-size*0.16); ctx.lineTo(size*0.18,-size*0.4);
+      ctx.lineTo(size*0.34,-size*0.2); ctx.lineTo(size*0.34,0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#e879f9'; ctx.lineWidth=1.4; ctx.globalAlpha=0.9; ctx.stroke(); ctx.globalAlpha=1;
+      [-0.22,0,0.22].forEach((px,i)=>{
+        const tw = 0.5+0.5*Math.sin(t*3+i*2.1);
+        ctx.fillStyle = i%2===0? '#e879f9':'#a855f7'; ctx.globalAlpha = 0.6+0.4*tw;
+        ctx.beginPath(); ctx.arc(size*px, -size*0.22, 1.8+tw*1.3, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha=1;
+      break;
+    }
   }
   ctx.restore();
 }
@@ -5371,55 +5452,104 @@ function renderShop(){
         const pctText = pct<0.1? pct.toFixed(3) : (pct<1? pct.toFixed(2) : pct.toFixed(1));
         return `<div class="petOddsRow"><span class="rbadge" style="background:${r.color};">${r.name}</span><span>${pctText}%</span></div>`;
       }).join('');
+    const premiumOddsHtml = `<div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">Probabilidades (Raro o mejor garantizado)</div>` +
+      PET_RARITIES.slice(PET_CHEST_PREMIUM_MIN_IDX).slice().reverse().map(r=>{
+        const premTotal = PET_RARITIES.slice(PET_CHEST_PREMIUM_MIN_IDX).reduce((a,x)=>a+x.weight,0);
+        const pct = (r.weight/premTotal*100);
+        const pctText = pct<0.1? pct.toFixed(3) : (pct<1? pct.toFixed(2) : pct.toFixed(1));
+        return `<div class="petOddsRow"><span class="rbadge" style="background:${r.color};">${r.name}</span><span>${pctText}%</span></div>`;
+      }).join('');
 
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;';
-    const chestCard = document.createElement('div'); chestCard.className='card'; chestCard.style.cssText='width:180px;';
-    chestCard.innerHTML = `<div style="font-size:44px;">🎁</div><div class="cname">Cofre de Mascotas</div>
-      <div class="cmeta">Cubitos compañeros con bonus de velocidad, suerte y XP</div>
-      <button class="shopBtn" id="buyPetChestBtn">🪙 ${fmtNum(PET_CHEST_PRICE)}</button>`;
-    wrap.appendChild(chestCard);
-    const oddsBox = document.createElement('div');
-    oddsBox.style.cssText = 'flex:1;min-width:220px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;';
-    oddsBox.innerHTML = oddsHtml;
-    wrap.appendChild(oddsBox);
-    grid.appendChild(wrap);
-    document.getElementById('buyPetChestBtn').addEventListener('click', ()=>openPetChest('normal'));
-
-    const wrap2 = document.createElement('div');
-    wrap2.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:4px;';
-    const cosmicCard = document.createElement('div'); cosmicCard.className='card'; cosmicCard.style.cssText='width:180px;';
-    cosmicCard.innerHTML = `<div style="font-size:44px;">🌌</div><div class="cname">Cofre Cósmico</div>
-      <div class="cmeta">Mascotas espaciales, se paga con cristales cósmicos del Sistema Solar</div>
-      <button class="shopBtn" id="buyCosmicChestBtn" ${(S.crystals||0)<COSMIC_PET_CHEST_PRICE?'disabled':''}>💎 ${fmtNum(COSMIC_PET_CHEST_PRICE)}</button>
-      ${!solarSystemEligible()?'<div class="cmeta" style="margin-top:4px;">Consigue cristales explorando el Sistema Solar.</div>':''}`;
-    wrap2.appendChild(cosmicCard);
-    const oddsBox2 = document.createElement('div');
-    oddsBox2.style.cssText = 'flex:1;min-width:220px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.18);border-radius:14px;padding:12px 14px;';
-    oddsBox2.innerHTML = oddsHtml;
-    wrap2.appendChild(oddsBox2);
-    grid.appendChild(wrap2);
-    document.getElementById('buyCosmicChestBtn').addEventListener('click', ()=>openPetChest('space'));
+    grid.appendChild(buildPetChestCard({
+      kind:'normal', icon:'🎁', name:'Cofre de Mascotas',
+      desc:'Cubitos compañeros con bonus de velocidad, suerte y XP',
+      currencyIcon:'🪙', unitPrice:PET_CHEST_PRICE, affordFn:()=>S.coins,
+      premiumPrice:PET_CHEST_PREMIUM_GEMS,
+      oddsHtml, premiumOddsHtml,
+    }));
+    grid.appendChild(buildPetChestCard({
+      kind:'space', icon:'🌌', name:'Cofre Cósmico',
+      desc:'Mascotas espaciales, se paga con cristales cósmicos del Sistema Solar',
+      currencyIcon:'💎', unitPrice:COSMIC_PET_CHEST_PRICE, affordFn:()=>(S.crystals||0),
+      premiumPrice:COSMIC_CHEST_PREMIUM_GEMS,
+      extraNote: !solarSystemEligible()? 'Consigue cristales explorando el Sistema Solar.' : null,
+      oddsHtml, premiumOddsHtml,
+    }));
   }
+}
+function buildPetChestCard(cfg){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:4px;';
+  const card = document.createElement('div'); card.className='card'; card.style.cssText='width:220px;';
+  const qtyId = 'qty_'+cfg.kind;
+  const normalBtnId = 'buyChest_'+cfg.kind+'_normal';
+  const premiumBtnId = 'buyChest_'+cfg.kind+'_premium';
+  card.innerHTML = `<div style="font-size:44px;">${cfg.icon}</div><div class="cname">${cfg.name}</div>
+    <div class="cmeta">${cfg.desc}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+      <span class="cmeta">Cantidad</span>
+      <select id="${qtyId}" style="background:rgba(255,255,255,0.08);color:var(--text);border:none;border-radius:8px;padding:3px 6px;font-size:12px;">
+        ${[1,2,3,5,10].map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+    </div>
+    <button class="shopBtn" id="${normalBtnId}"></button>
+    <button class="premiumBtn" id="${premiumBtnId}" style="margin-top:6px;">🔷 · Raro o mejor garantizado</button>
+    ${cfg.extraNote?`<div class="cmeta" style="margin-top:4px;">${cfg.extraNote}</div>`:''}`;
+  wrap.appendChild(card);
+  const oddsBox = document.createElement('div');
+  oddsBox.style.cssText = 'flex:1;min-width:220px;display:flex;flex-direction:column;gap:10px;';
+  const oddsA = document.createElement('div');
+  oddsA.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px;';
+  oddsA.innerHTML = cfg.oddsHtml;
+  const oddsB = document.createElement('div');
+  oddsB.style.cssText = 'background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:14px;padding:12px 14px;';
+  oddsB.innerHTML = cfg.premiumOddsHtml;
+  oddsBox.appendChild(oddsA); oddsBox.appendChild(oddsB);
+  wrap.appendChild(oddsBox);
+
+  const qtySel = card.querySelector('#'+qtyId);
+  const normalBtn = card.querySelector('#'+normalBtnId);
+  const premiumBtn = card.querySelector('#'+premiumBtnId);
+  function refreshButtons(){
+    const qty = parseInt(qtySel.value, 10);
+    const normalTotal = cfg.unitPrice*qty;
+    const premiumTotal = cfg.premiumPrice*qty;
+    normalBtn.textContent = `${cfg.currencyIcon} ${fmtNum(normalTotal)}`;
+    normalBtn.disabled = cfg.affordFn()<normalTotal;
+    premiumBtn.textContent = `🔷 ${fmtNum(premiumTotal)} · Raro o mejor garantizado`;
+    premiumBtn.disabled = (S.gems||0)<premiumTotal;
+  }
+  qtySel.addEventListener('change', refreshButtons);
+  normalBtn.addEventListener('click', ()=>openPetChestBatch(cfg.kind, parseInt(qtySel.value,10), false));
+  premiumBtn.addEventListener('click', ()=>openPetChestBatch(cfg.kind, parseInt(qtySel.value,10), true));
+  refreshButtons();
+  return wrap;
 }
 
 /* ---------------------------- PET CHEST ---------------------------- */
-function openPetChest(kind){
+function openPetChestBatch(kind, qty, premium){
+  qty = Math.max(1, Math.min(10, qty||1));
   const isSpaceChest = kind==='space';
   const pool = isSpaceChest? PETS.filter(p=>p.origin==='space') : PETS.filter(p=>!p.origin);
-  if(isSpaceChest){
-    if((S.crystals||0)<COSMIC_PET_CHEST_PRICE){ toast('No tienes suficientes cristales cósmicos.'); return; }
-    S.crystals -= COSMIC_PET_CHEST_PRICE;
+  const unitPrice = premium? (isSpaceChest? COSMIC_CHEST_PREMIUM_GEMS : PET_CHEST_PREMIUM_GEMS) : (isSpaceChest? COSMIC_PET_CHEST_PRICE : PET_CHEST_PRICE);
+  const totalPrice = unitPrice*qty;
+  if(premium){
+    if((S.gems||0)<totalPrice){ toast('No tienes suficientes gemas premium.'); return; }
+    S.gems -= totalPrice;
+  } else if(isSpaceChest){
+    if((S.crystals||0)<totalPrice){ toast('No tienes suficientes cristales cósmicos.'); return; }
+    S.crystals -= totalPrice;
   } else {
-    if(S.coins<PET_CHEST_PRICE){ toast('No tienes suficientes monedas.'); return; }
-    S.coins -= PET_CHEST_PRICE;
+    if(S.coins<totalPrice){ toast('No tienes suficientes monedas.'); return; }
+    S.coins -= totalPrice;
   }
   refreshHud(); saveGame();
-  document.getElementById('petChestTitle').textContent = isSpaceChest? '🌌 Cofre Cósmico' : '🎁 Cofre de Mascotas';
+  document.getElementById('petChestTitle').textContent = (isSpaceChest? '🌌 Cofre Cósmico' : '🎁 Cofre de Mascotas') + (premium? ' Premium' : '') + (qty>1? ` x${qty}` : '');
   openModal('mPetChest');
   const box = document.getElementById('petChestBox');
   const resultBox = document.getElementById('petChestResult');
   const continueBtn = document.getElementById('petChestContinueBtn');
+  box.style.display = 'block';
   box.textContent = isSpaceChest? '🌌' : '📦'; box.classList.remove('chestShaking');
   resultBox.innerHTML = '';
   continueBtn.style.display = 'none';
@@ -5427,41 +5557,74 @@ function openPetChest(kind){
   box.classList.add('chestShaking');
   Audio1.sfx('chest');
   setTimeout(()=>{
-    const rarityId = rollPetRarity();
-    const rarityPets = pool.filter(p=>p.rarity===rarityId);
-    const pet = rarityPets[Math.floor(Math.random()*rarityPets.length)] || pool[0];
-    const r = petRarityOf(pet);
-    const entry = {uid:uid(), petId:pet.id};
-    S.pets.push(entry);
-    if(!S.equippedPetUid) S.equippedPetUid = entry.uid;
-    box.textContent = '✨';
-    box.classList.remove('chestShaking');
-    Audio1.sfx(r.glowIdx>=6? 'achievement' : 'success');
-    const canvasWrap = document.createElement('canvas'); canvasWrap.width=110; canvasWrap.height=110;
-    canvasWrap.className='petPopIn';
-    resultBox.innerHTML = '';
-    resultBox.appendChild(canvasWrap);
-    const nameDiv = document.createElement('div');
-    nameDiv.innerHTML = `<div style="font-weight:800;font-size:16px;margin-top:8px;">${pet.name}</div>
-      <span class="rbadge" style="background:${r.color};">${r.name}</span>
-      <div class="cmeta" style="margin-top:6px;">Velocidad +${r.speed} · Suerte +${r.luck} · XP +${r.xpPct}%</div>`;
-    resultBox.appendChild(nameDiv);
-    const cctx = canvasWrap.getContext('2d');
-    let animId;
-    function drawPetReveal(){
-      cctx.clearRect(0,0,110,110);
-      cctx.save(); cctx.translate(55,55);
-      const t = performance.now()/300;
-      if(r.glowIdx>=4) drawRarityGlow(cctx, r.glowIdx, r.color, 32, t);
-      const grad = cctx.createLinearGradient(-24,-24,24,24);
-      grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
-      cctx.fillStyle=grad; roundRect(cctx,-24,-24,48,48,12); cctx.fill();
-      cctx.restore();
-      if(document.getElementById('mPetChest').classList.contains('show')) animId = requestAnimationFrame(drawPetReveal);
+    const minIdx = premium? PET_CHEST_PREMIUM_MIN_IDX : 0;
+    const results = [];
+    for(let i=0;i<qty;i++){
+      const rarityId = rollPetRarity(minIdx);
+      const rarityPets = pool.filter(p=>p.rarity===rarityId);
+      const pet = rarityPets[Math.floor(Math.random()*rarityPets.length)] || pool[0];
+      const entry = {uid:uid(), petId:pet.id};
+      S.pets.push(entry);
+      if(!S.equippedPetUid) S.equippedPetUid = entry.uid;
+      results.push({pet, r:petRarityOf(pet)});
     }
-    drawPetReveal();
+    const bestGlow = Math.max(...results.map(x=>x.r.glowIdx));
+    Audio1.sfx(bestGlow>=6? 'achievement' : 'success');
+    resultBox.innerHTML = '';
+    if(qty===1){
+      box.textContent = '✨';
+      box.classList.remove('chestShaking');
+      const {pet, r} = results[0];
+      const canvasWrap = document.createElement('canvas'); canvasWrap.width=110; canvasWrap.height=110;
+      canvasWrap.className='petPopIn';
+      resultBox.appendChild(canvasWrap);
+      const nameDiv = document.createElement('div');
+      nameDiv.innerHTML = `<div style="font-weight:800;font-size:16px;margin-top:8px;">${pet.name}</div>
+        <span class="rbadge" style="background:${r.color};">${r.name}</span>
+        <div class="cmeta" style="margin-top:6px;">Velocidad +${r.speed} · Suerte +${r.luck} · XP +${r.xpPct}%</div>`;
+      resultBox.appendChild(nameDiv);
+      const cctx = canvasWrap.getContext('2d');
+      let animId;
+      function drawPetReveal(){
+        cctx.clearRect(0,0,110,110);
+        cctx.save(); cctx.translate(55,55);
+        const t = performance.now()/300;
+        if(r.glowIdx>=4) drawRarityGlow(cctx, r.glowIdx, r.color, 32, t);
+        const grad = cctx.createLinearGradient(-24,-24,24,24);
+        grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
+        cctx.fillStyle=grad; roundRect(cctx,-24,-24,48,48,12); cctx.fill();
+        cctx.restore();
+        if(document.getElementById('mPetChest').classList.contains('show')) animId = requestAnimationFrame(drawPetReveal);
+      }
+      drawPetReveal();
+      continueBtn.onclick = ()=>{ cancelAnimationFrame(animId); closeModal('mPetChest'); renderShop(); };
+    } else {
+      box.style.display = 'none';
+      const listWrap = document.createElement('div');
+      listWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:420px;';
+      results.forEach(({pet,r})=>{
+        const cell = document.createElement('div');
+        cell.className = 'petPopIn';
+        cell.style.cssText = 'width:78px;text-align:center;';
+        const c = document.createElement('canvas'); c.width=60; c.height=60;
+        cell.appendChild(c);
+        const label = document.createElement('div');
+        label.innerHTML = `<div style="font-size:10px;font-weight:700;margin-top:2px;">${pet.name}</div>
+          <span class="rbadge" style="background:${r.color};font-size:8px;">${r.name}</span>`;
+        cell.appendChild(label);
+        listWrap.appendChild(cell);
+        const cctx = c.getContext('2d');
+        cctx.save(); cctx.translate(30,26);
+        if(r.glowIdx>=4) drawRarityGlow(cctx, r.glowIdx, r.color, 18, performance.now()/300);
+        const grad = cctx.createLinearGradient(-13,-13,13,13);
+        grad.addColorStop(0, shade(r.color,40)); grad.addColorStop(1, shade(r.color,-20));
+        cctx.fillStyle=grad; roundRect(cctx,-13,-13,26,26,7); cctx.fill();
+        cctx.restore();
+      });
+      resultBox.appendChild(listWrap);
+      continueBtn.onclick = ()=>{ closeModal('mPetChest'); renderShop(); };
+    }
     continueBtn.style.display = 'inline-block';
-    continueBtn.onclick = ()=>{ cancelAnimationFrame(animId); closeModal('mPetChest'); renderShop(); };
     checkAchievements();
     saveGame();
   }, 950);
