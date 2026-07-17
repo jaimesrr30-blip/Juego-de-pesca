@@ -324,6 +324,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <button id="boatToggleBtn" class="menuBtn" title="Bote (B)" style="display:none;">⛵</button>
+        <button id="diveToggleBtn" class="menuBtn" title="Traje de buceo (V)" style="display:none;">🤿</button>
         <button id="actionBtn">Pescar</button>
         <button id="rocketToggleBtn" class="menuBtn" title="Cohete (R)" style="display:none;">🚀</button>
       </div>
@@ -364,6 +365,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
       <div class="modalBody">
         <div id="boatBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;"></div>
         <div id="rocketBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;display:none;"></div>
+        <div id="diveBagSection" class="card" style="width:100%;max-width:320px;margin:0 0 16px;display:none;"></div>
         <div id="backpackMeta"></div>
         <button class="shopBtn" id="sellAllBtn" style="margin-bottom:10px;">Vender todo</button>
         <div class="grid bagList" id="bagGrid"></div>
@@ -442,7 +444,7 @@ canvas{display:block;position:absolute;top:0;left:0;}
         <div class="settingsRow"><span>🔊 Sonido</span><div class="toggle" id="toggleSfx"><div class="dot"></div></div></div>
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Añade monedas si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
-          <button class="shopBtn" id="addCoinsBtn" style="padding:9px 16px;">🪙 +50.000 monedas</button>
+          <button class="shopBtn" id="addCoinsBtn" style="padding:9px 16px;">🪙 +2.000.000 monedas</button>
         </div>
         <div class="settingsRow" style="flex-direction:column;align-items:stretch;gap:8px;">
           <span style="color:var(--text-dim);font-size:12px;">Añade cristales cósmicos si quieres jugar sin límites. Puedes usarlo tantas veces como quieras.</span>
@@ -768,6 +770,8 @@ const COLORS = [
   {id:'llameante',name:'Llameante',price:20000,hex:'#c2410c',special:'fire'},
   {id:'cromatico_colapso',name:'Cromático del Colapso',hex:'#831843',special:'chroma',locked:true,
     unlockDesc:'Captura todas las criaturas de rareza Singularidad.'},
+  {id:'oxido_marciano',name:'Óxido Marciano',hex:'#b91c1c',locked:true,
+    unlockDesc:'Derrota al Behemot de Marte.'},
 ];
 const COLOR_SPECIAL_BY_HEX = {};
 COLORS.forEach(c=>{ if(c.special) COLOR_SPECIAL_BY_HEX[c.hex]=c.special; });
@@ -786,6 +790,8 @@ const HATS = [
     unlockDesc:'Derrota a todos los jefes del Sistema Solar.'},
   {id:'explorador_eterno',name:'Sombrero del Explorador Eterno',draw:'eternalHat',locked:true,
     unlockDesc:'Visita todos los mundos del juego.'},
+  {id:'corona_hielo_eterno',name:'Corona de Hielo Eterno',draw:'iceCrown',locked:true,
+    unlockDesc:'Descubre todas las criaturas de Europa Helada.'},
 ];
 const AURAS = [
   {id:'none',name:'Sin Aura',price:0,color:null},
@@ -803,6 +809,8 @@ const AURAS = [
     unlockDesc:'Habla con Nyx en Mar Nocturno y captura 3 criaturas fantasma.'},
   {id:'vacio_susurrante',name:'Aura del Vacío Susurrante',color:'void',locked:true,
     unlockDesc:'Habla con la Dra. Voss y derrota a los jefes de Marte Rojo y Europa Helada.'},
+  {id:'marea',name:'Aura de las Mareas',color:'tide',locked:true,
+    unlockDesc:'Habla con Marea en el Abismo de Tritón y descubre 5 criaturas de ese mundo.'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -813,6 +821,8 @@ const TRAILS = [
   {id:'caramelos',name:'Caramelos',price:12000},
   {id:'cometa',name:'Rastro de Cometa',price:6000},
   {id:'solar',name:'Rastro Solar',price:8000},
+  {id:'escamas',name:'Rastro de Escamas',locked:true,
+    unlockDesc:'Habla con Old Mott en Lago Inicial y vende 25 criaturas.'},
 ];
 
 /* ---------------------------- WEATHER ---------------------------- */
@@ -830,6 +840,7 @@ const WEATHER_TYPES = {
   geiseresHelados:{name:'Géiseres Helados',icon:'❄️',tint:'rgba(180,220,255,0.2)',particles:'geyser',boost:['raro','mitico']},
   vientoSolar:   {name:'Viento Solar',icon:'🌬️',tint:'rgba(251,191,36,0.14)',particles:'solarwind',boost:['legendario','divino']},
   lluviaGamma:   {name:'Lluvia Gamma',icon:'☢️',tint:'rgba(74,222,128,0.16)',particles:'gamma',boost:['omega','divino']},
+  mareaBiolum:   {name:'Marea Bioluminiscente',icon:'🌊',tint:'rgba(6,182,212,0.14)',particles:'biolum',boost:['mitico','omega','divino']},
 };
 
 /* ---------------------------- WORLDS & CREATURES ---------------------------- */
@@ -855,8 +866,13 @@ const WORLDS = [
   boss:{id:'siluro_ancestral',name:'Siluro Ancestral',shape:'fish',color:'#d9a441',accent:'#7a5c17',
     minKg:180,maxKg:340,minCm:280,maxCm:380,desc:'Un siluro colosal que ha dormido en el fondo del lago durante generaciones.'},
   npcs:[
-    {id:'n_li_1',name:'Old Mott',color:'#8b5e3c',x:420,y:300,role:'story',
-      lines:['Este lago fue mi hogar durante 40 años.','Dicen que en el fondo vive algo enorme...','La paciencia es el secreto de todo buen pescador.']},
+    {id:'n_li_1',name:'Old Mott',color:'#8b5e3c',x:420,y:300,role:'loreQuest',
+      lines:['Este lago fue mi hogar durante 40 años.','Dicen que en el fondo vive algo enorme...','La paciencia es el secreto de todo buen pescador.'],
+      questTitle:'Paciencia de Pescador',
+      questIntro:'Cuando yo empecé, vendía todo lo que pescaba para poder comer. Vende 25 criaturas, como hacía yo, y te enseño un truco viejo.',
+      questDoneLine:'Ahí lo tienes. Ese rastro me acompañó 40 años en este lago.',
+      questProgress:s=>s.stats.totalSold||0, questTarget:25,
+      questAchievementId:'quest_mott'},
     {id:'n_li_2',name:'Nia',color:'#38bdf8',x:1650,y:1200,role:'merchant',
       lines:['¡Bienvenido! Aquí tienes cañas y carnadas frescas.','Prueba con una caña mejor si quieres peces más grandes.']},
     {id:'n_li_lab',name:'Dr. Halden',color:'#e2e8f0',x:1000,y:480,role:'labEvent'},
@@ -1153,8 +1169,13 @@ const WORLDS = [
   boss:{id:'behemot_marte',name:'Behemot de Marte',shape:'dragon',color:'#b91c1c',accent:'#450a0a',
     minKg:800,maxKg:1800,minCm:600,maxCm:820,desc:'Una bestia que emerge del polvo rojo, tan antigua como el propio planeta.'},
   npcs:[
-    {id:'n_p1_1',name:'Rho-9',color:'#dc6b3f',x:1650,y:1200,role:'story',
-      lines:['Bienvenido a Marte, viajero de la Tierra.','El polvo rojo esconde criaturas que ni los científicos imaginaron.','Más allá, dicen que hay lunas heladas repletas de vida.']},
+    {id:'n_p1_1',name:'Rho-9',color:'#dc6b3f',x:1650,y:1200,role:'loreQuest',
+      lines:['Bienvenido a Marte, viajero de la Tierra.','El polvo rojo esconde criaturas que ni los científicos imaginaron.','Más allá, dicen que hay lunas heladas repletas de vida.'],
+      questTitle:'El Guardián de Marte',
+      questIntro:'El Behemot que vive en el polvo rojo lleva generaciones aquí. Derrótalo y el propio planeta te lo agradecerá.',
+      questDoneLine:'El polvo rojo ya no esconde a su guardián. Toma esto como recuerdo.',
+      questProgress:s=>s.bossDefeated['behemot_marte']?1:0, questTarget:1,
+      questAchievementId:'quest_rho9'},
     {id:'n_p1_2',name:'Vex',color:'#a855f7',x:400,y:400,role:'merchant',
       lines:['Suministros interplanetarios, recién traídos de la Tierra.','La gravedad aquí es rara, pero se pesca genial.']},
   ],
@@ -1176,8 +1197,13 @@ const WORLDS = [
   boss:{id:'kraken_europa',name:'Kraken de Europa',shape:'octopus',color:'#4338ca',accent:'#1e1033',
     minKg:1200,maxKg:2600,minCm:700,maxCm:950,desc:'Vive bajo el hielo eterno de la luna, donde ningún telescopio ha podido verlo.'},
   npcs:[
-    {id:'n_p2_1',name:'Isa-3',color:'#c4b5fd',x:1650,y:1200,role:'story',
-      lines:['El hielo de Europa nunca se derrite. Ni el frío detiene a lo que vive debajo.','Cada vez que miro las estrellas en el agua, me pregunto qué habrá más allá.']},
+    {id:'n_p2_1',name:'Isa-3',color:'#c4b5fd',x:1650,y:1200,role:'loreQuest',
+      lines:['El hielo de Europa nunca se derrite. Ni el frío detiene a lo que vive debajo.','Cada vez que miro las estrellas en el agua, me pregunto qué habrá más allá.'],
+      questTitle:'Toda Europa Helada',
+      questIntro:'Llevo años catalogando cada criatura de este hielo. Descúbrelas todas y comparte mi obsesión un momento.',
+      questDoneLine:'Las conoces todas, igual que yo. Esto es lo más parecido a un título que puedo darte.',
+      questProgress:s=>{ const p2fish = WORLDS.find(w=>w.id==='planeta_dos').fish; return p2fish.filter(f=>s.dex[f.id]&&s.dex[f.id].discovered).length; }, questTarget:8,
+      questAchievementId:'quest_isa3'},
     {id:'n_p2_2',name:'Nova',color:'#818cf8',x:400,y:400,role:'merchant',
       lines:['Última parada conocida del Sistema Solar... por ahora.','Cuida tu cohete, aquí no hay talleres.']},
   ],
@@ -1264,18 +1290,47 @@ const WORLDS = [
       lines:['Los últimos suministros del universo conocido, con la luz más pura que existe.','Después de esto... ya solo queda explorar por explorar.']},
   ],
 },
+{
+  id:'planeta_seis', idx:16, name:'Abismo de Tritón', icon:'🔱', unlockCost:0, isSpace:true, bigWorld:true,
+  palette:{water:'#0891b2', waterDeep:'#164e63', land:'#f0fdfa', landDetail:'#99f6e4', fog:'#ecfeff'},
+  weatherPool:['mareaBiolum','mareaBiolum','aurora','lunaLlena'], decorType:'coral',
+  fish:[
+    F('pez_de_profundidad','Pez de Profundidad','comun','espacial','fish','#22d3ee','#0e7490'),
+    F('cangrejo_abisal','Cangrejo Abisal','pocoComun','espacial','crab','#f472b6','#831843'),
+    F('medusa_tridente','Medusa de Tridente','raro','espacial','jellyfish','#67e8f9','#0891b2'),
+    F('dragon_de_coral','Dragón de Coral','epico','espacial','dragon','#fb7185','#9f1239'),
+    F('titan_de_las_mareas','Titán de las Mareas','legendario','espacial','whale','#5eead4','#115e59'),
+    F('fantasma_del_naufragio','Fantasma del Naufragio','mitico','espacial','ghost','#ecfeff','#0e7490', {glowIdx:5}),
+    F('devorador_del_abismo','Devorador del Abismo','omega','espacial','octopus','#164e63','#f472b6', {glowIdx:6}),
+    F('divinidad_de_triton','Divinidad de Tritón','divino','espacial','space','#ffffff','#22d3ee', {glowIdx:9}),
+    F('corazon_del_abismo','Corazón del Abismo','singularidad','espacial','space','#000000','#22d3ee'),
+  ],
+  boss:{id:'senor_del_abismo',name:'Señor del Abismo',shape:'octopus',color:'#0e2a3a',accent:'#22d3ee',
+    minKg:5000,maxKg:10000,minCm:1400,maxCm:2000,desc:'Gobierna las fosas más profundas de este océano gigante desde antes de que llegara el primer explorador.'},
+  npcs:[
+    {id:'n_p6_1',name:'Marea',color:'#67e8f9',x:1650,y:1200,role:'loreQuest',
+      lines:['Este es el planeta más grande que vas a pisar. Casi todo él es agua.','Dicen que en lo más hondo, la luz del sol ni siquiera llega.','Si consigues un traje de buceo, este lugar cambia por completo.'],
+      questTitle:'Cantos de las Mareas',
+      questIntro:'El agua de este planeta canta si sabes escucharla. Descubre 5 criaturas de aquí y te enseño a oírla también.',
+      questDoneLine:'Ya oyes las mareas como yo. Llévate esto, te lo has ganado.',
+      questProgress:s=>{ const p6fish = WORLDS.find(w=>w.id==='planeta_seis').fish; return p6fish.filter(f=>s.dex[f.id]&&s.dex[f.id].discovered).length; }, questTarget:5,
+      questAchievementId:'quest_marea'},
+    {id:'n_p6_2',name:'Buzo Nereo',color:'#0891b2',x:900,y:900,role:'diverCraft',
+      lines:['Hola...']},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
-  w.width=2200; w.height=1600;
+  w.width = w.bigWorld? 3400 : 2200; w.height = w.bigWorld? 2500 : 1600;
   const rnd = mulberry32(hashStr(w.id));
   w.islands=[];
-  const nIslands = 3+Math.floor(rnd()*3);
+  const nIslands = (w.bigWorld? 6 : 3)+Math.floor(rnd()*3);
   for(let i=0;i<nIslands;i++){
     w.islands.push({x:300+rnd()*(w.width-600), y:300+rnd()*(w.height-600), rx:140+rnd()*160, ry:110+rnd()*140});
   }
   w.decor=[];
-  for(let i=0;i<70;i++){
+  for(let i=0;i<(w.bigWorld?110:70);i++){
     const isl = w.islands[Math.floor(rnd()*w.islands.length)];
     const ang = rnd()*Math.PI*2, rad = rnd();
     const x = isl.x + Math.cos(ang)*isl.rx*rad*0.85;
@@ -1292,7 +1347,7 @@ WORLDS.forEach(w=>{
     w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
   }
   w.chests=[];
-  for(let i=0;i<4;i++){
+  for(let i=0;i<(w.bigWorld?6:4);i++){
     const isl = w.islands[i % w.islands.length];
     const ang = rnd()*Math.PI*2, rad=rnd()*0.5;
     w.chests.push({idx:i, x:isl.x+Math.cos(ang)*isl.rx*rad, y:isl.y+Math.sin(ang)*isl.ry*rad});
@@ -1386,7 +1441,8 @@ function findClearWaterSpot(world, baseX, baseY){
   const p3 = WORLDS.find(w=>w.id==='planeta_tres');
   const p4 = WORLDS.find(w=>w.id==='planeta_cuatro');
   const p5 = WORLDS.find(w=>w.id==='planeta_cinco');
-  if(!marNocturno || !p1 || !p2 || !p3 || !p4 || !p5) return;
+  const p6 = WORLDS.find(w=>w.id==='planeta_seis');
+  if(!marNocturno || !p1 || !p2 || !p3 || !p4 || !p5 || !p6) return;
   const mnSpot = findClearWaterSpot(marNocturno, marNocturno.width-220, 220);
   marNocturno.launchPads = [
     {spot:mnSpot, targetId:'planeta_uno', targetName:p1.name, targetIcon:p1.icon, label:'Lanzar hacia '+p1.name},
@@ -1415,9 +1471,15 @@ function findClearWaterSpot(world, baseX, baseY){
     {spot:p4Fwd, targetId:'planeta_cinco', targetName:p5.name, targetIcon:p5.icon, label:'Salir al Otro Lado'},
     {spot:p4Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
+  const p5Fwd = findClearWaterSpot(p5, p5.width-220, 220);
   const p5Back = findClearWaterSpot(p5, 220, p5.height-220);
   p5.launchPads = [
+    {spot:p5Fwd, targetId:'planeta_seis', targetName:p6.name, targetIcon:p6.icon, label:'Lanzar hacia '+p6.name},
     {spot:p5Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
+  ];
+  const p6Back = findClearWaterSpot(p6, 220, p6.height-220);
+  p6.launchPads = [
+    {spot:p6Back, targetId:'mar_nocturno', targetName:marNocturno.name, targetIcon:marNocturno.icon, label:'Volver a la Tierra'},
   ];
 })();
 
@@ -1540,8 +1602,10 @@ const ACHIEVEMENTS = [
   {id:'tercer_planeta',name:'Al Borde del Vacío',desc:'Llega al Horizonte de Sucesos',icon:'🕳️',reward:35000,check:s=>(s.visitedWorlds||[]).includes('planeta_tres')},
   {id:'cuarto_planeta',name:'Más Allá del Colapso',desc:'Llega a la Dimensión Fracturada',icon:'🌀',reward:60000,check:s=>(s.visitedWorlds||[]).includes('planeta_cuatro')},
   {id:'quinto_planeta',name:'El Otro Lado',desc:'Llega a El Primer Amanecer',icon:'🌅',reward:100000,check:s=>(s.visitedWorlds||[]).includes('planeta_cinco')},
+  {id:'sexto_planeta',name:'Mar sin Fin',desc:'Llega al Abismo de Tritón',icon:'🔱',reward:120000,check:s=>(s.visitedWorlds||[]).includes('planeta_seis')},
+  {id:'traje_buceo',name:'A las Profundidades',desc:'Consigue tu traje de buceo',icon:'🤿',reward:50000,check:s=>!!s.hasDiveSuit},
   {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
-    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada','divinidad_del_génesis'];
+    const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada','divinidad_del_génesis','divinidad_de_triton'];
     return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
   }},
   {id:'singularidad_capturada',name:'El Que Pescó el Vacío',desc:'Captura al Corazón de la Singularidad',icon:'⚫',reward:1000000,check:s=>s.dex['corazon_de_singularidad']&&s.dex['corazon_de_singularidad'].discovered},
@@ -1575,6 +1639,24 @@ const ACHIEVEMENTS = [
   {id:'maestro_de_jefes',name:'Maestro de Todos los Jefes',desc:'Derrota a todos los jefes de la Tierra y del Sistema Solar',icon:'🌟',reward:500000,
     check:s=>!!s.achievements['corona_profundidades'] && !!s.achievements['yelmo_vacio'],
     unlockRod:{id:'genesis_rod', label:'Caña del Génesis'}},
+  {id:'quest_marea',name:'Cantos de las Mareas',desc:'Descubre 5 criaturas del Abismo de Tritón',icon:'🌊',reward:6000,
+    check:s=>{
+      const p6fish = WORLDS.find(w=>w.id==='planeta_seis').fish;
+      return p6fish.filter(f=>s.dex[f.id]&&s.dex[f.id].discovered).length>=5;
+    },
+    unlockCosmetic:{slot:'aura', id:'marea', label:'Aura de las Mareas'}},
+  {id:'quest_mott',name:'Paciencia de Pescador',desc:'Vende 25 criaturas para Old Mott',icon:'🎣',reward:2000,
+    check:s=>(s.stats.totalSold||0)>=25,
+    unlockCosmetic:{slot:'trail', id:'escamas', label:'Rastro de Escamas'}},
+  {id:'quest_rho9',name:'El Guardián de Marte',desc:'Derrota al Behemot de Marte para Rho-9',icon:'🔴',reward:4000,
+    check:s=>!!s.bossDefeated['behemot_marte'],
+    unlockCosmetic:{slot:'color', id:'oxido_marciano', label:'color Óxido Marciano'}},
+  {id:'quest_isa3',name:'Toda Europa Helada',desc:'Descubre todas las criaturas de Europa Helada para Isa-3',icon:'🌕',reward:9000,
+    check:s=>{
+      const p2fish = WORLDS.find(w=>w.id==='planeta_dos').fish;
+      return p2fish.every(f=>s.dex[f.id]&&s.dex[f.id].discovered);
+    },
+    unlockCosmetic:{slot:'hat', id:'corona_hielo_eterno', label:'Corona de Hielo Eterno'}},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -1610,6 +1692,7 @@ function defaultState(){
     boatIndex:0, isOnBoat:false,
     pets:[], equippedPetUid:null,
     hasRocket:false, isOnRocket:false, rocketParts:0,
+    hasDiveSuit:false, isDiving:false,
     backpackCap:15, keepnet:[],
     dex:{},
     quests,
@@ -1788,7 +1871,7 @@ function inRiftSpot(){
 function tryEnterPortal(){
   if(S._traveling) return;
   const nextWorld = WORLDS[curWorld.idx+1];
-  if(nextWorld && !nextWorld.isEvent){
+  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace){
     const d = Math.hypot(curWorld.portalSpot.x-player.x, curWorld.portalSpot.y-player.y);
     if(d<70){
       if(S.unlockedWorlds.includes(nextWorld.id)){
@@ -1887,6 +1970,7 @@ window.addEventListener('keydown', e=>{
   if(e.key.toLowerCase()==='e'){ onActionPress(); }
   if(e.key.toLowerCase()==='b'){ toggleBoat(); }
   if(e.key.toLowerCase()==='r'){ toggleRocket(); }
+  if(e.key.toLowerCase()==='v'){ toggleDive(); }
   if(e.key==='Escape'){ closeAllModals(); }
 });
 window.addEventListener('keyup', e=>{
@@ -1899,6 +1983,7 @@ actionBtn.addEventListener('pointerup', e=>{ onActionRelease(); });
 actionBtn.addEventListener('pointerleave', e=>{ onActionRelease(); });
 document.getElementById('boatToggleBtn').addEventListener('click', ()=>toggleBoat());
 document.getElementById('rocketToggleBtn').addEventListener('click', ()=>toggleRocket());
+document.getElementById('diveToggleBtn').addEventListener('click', ()=>toggleDive());
 
 // always-available boat launch/stow: finds the nearest usable water/land spot itself,
 // so it works reliably from any shoreline (or if you're stuck somewhere awkward).
@@ -1909,6 +1994,7 @@ function toggleBoat(){
     const target = findNearestSpot(curWorld, player.x, player.y, false);
     player.x = target.x; player.y = target.y;
     S.isOnBoat = true;
+    S.isDiving = false;
     toast('⛵ Subes a bordo de tu '+currentBoat().name+'.');
   } else {
     const target = findNearestSpot(curWorld, player.x, player.y, true);
@@ -1926,6 +2012,26 @@ function toggleRocket(){
   if(fishing.state!=='idle') return;
   S.isOnRocket = !S.isOnRocket;
   toast(S.isOnRocket? '🚀 Sacas tu cohete, listo para el lanzamiento.' : '🎒 Guardas el cohete en la mochila.');
+  saveGame();
+}
+
+// diving suit: same always-available find-a-spot pattern as the boat, but flips which
+// terrain you're placed on (water to dive, land to surface) and disables boat/land-only systems
+function toggleDive(){
+  if(!started || !S.hasDiveSuit) return;
+  if(fishing.state!=='idle') return;
+  if(S.isOnBoat) return;
+  if(!S.isDiving){
+    const target = findNearestSpot(curWorld, player.x, player.y, false);
+    player.x = target.x; player.y = target.y;
+    S.isDiving = true;
+    toast('🤿 Te sumerges con tu traje de buceo.');
+  } else {
+    const target = findNearestSpot(curWorld, player.x, player.y, true);
+    player.x = target.x; player.y = target.y;
+    S.isDiving = false;
+    toast('🏝️ Sales a la superficie.');
+  }
   saveGame();
 }
 
@@ -1959,18 +2065,20 @@ function updatePlayer(dt){
   const moving = inputHeld && fishing.state==='idle';
   isBoatMoving = S.isOnBoat && inputHeld;
   const boat = currentBoat();
-  const speed = (S.isOnBoat && boat? boat.speed : PLAYER_WALK_SPEED) + petStatBonus().speed;
+  const submerged = S.isDiving && !S.isOnBoat;
+  const speed = (S.isOnBoat && boat? boat.speed : (submerged? PLAYER_WALK_SPEED*0.85 : PLAYER_WALK_SPEED)) + petStatBonus().speed;
 
   if(moving){
     const len = Math.hypot(mx,my)||1;
     mx/=len; my/=len;
     const nx = player.x + mx*speed*dt;
     const ny = player.y + my*speed*dt;
-    const okX = S.isOnBoat? !isLand(curWorld,nx,player.y) : isLand(curWorld,nx,player.y);
-    const okY = S.isOnBoat? !isLand(curWorld,player.x,ny) : isLand(curWorld,player.x,ny);
+    const wantsWater = S.isOnBoat || submerged;
+    const okX = wantsWater? !isLand(curWorld,nx,player.y) : isLand(curWorld,nx,player.y);
+    const okY = wantsWater? !isLand(curWorld,player.x,ny) : isLand(curWorld,player.x,ny);
     if(okX){ player.x = clamp(nx, 20, curWorld.width-20); }
     if(okY){ player.y = clamp(ny, 20, curWorld.height-20); }
-    if(!S.isOnBoat){
+    if(!S.isOnBoat && !submerged){
       // pressing toward open water on foot: can't cross it, and touching it hurts
       const probeX = player.x+mx*26, probeY = player.y+my*26;
       if(!isLand(curWorld,probeX,probeY)){
@@ -1981,10 +2089,10 @@ function updatePlayer(dt){
     }
     player.facing.x=mx; player.facing.y=my;
     player.bob += dt*10;
-    if(!S.isOnBoat && S.cosmetics.trail!=='none' && Math.random()<0.4){
+    if(!S.isOnBoat && !submerged && S.cosmetics.trail!=='none' && Math.random()<0.4){
       player.trail.push({x:player.x,y:player.y,life:0.6,type:S.cosmetics.trail,seed:Math.random()});
     }
-    if(S.isOnBoat && Math.random()<0.5){
+    if((S.isOnBoat || submerged) && Math.random()<0.5){
       player.trail.push({x:player.x-mx*20,y:player.y-my*20,life:0.5,type:'burbujas'});
     }
   }
@@ -2066,6 +2174,15 @@ function updateActionUI(){
   } else {
     rocketBtn.style.display = 'none';
   }
+  const diveBtn = document.getElementById('diveToggleBtn');
+  if(S.hasDiveSuit){
+    diveBtn.style.display = 'flex';
+    diveBtn.textContent = S.isDiving? '🎒' : '🤿';
+    diveBtn.title = S.isDiving? 'Salir a la superficie (V)' : 'Sumergirse (V)';
+    diveBtn.disabled = fishing.state!=='idle' || S.isOnBoat;
+  } else {
+    diveBtn.style.display = 'none';
+  }
   if(fishing.state==='minigame'){
     promptEl.classList.remove('show');
     btn.textContent = '¡Mantén!';
@@ -2131,6 +2248,7 @@ function nearestIslandGap(world,x,y){
   return Math.max(0,min);
 }
 
+const DIVE_LUCK = 4;
 function weightedPickFish(){
   const rod = currentRod();
   const maxTierIdx = rod.maxTier;
@@ -2160,6 +2278,7 @@ function weightedPickFish(){
     }
     if(petLuck>0) w *= 1 + petLuck*(rIdx/RARITY_MAX_IDX);
     if(spotMult>1) w *= 1 + (spotMult-1)*(rIdx/RARITY_MAX_IDX);
+    if(S.isDiving) w *= 1 + (DIVE_LUCK-1)*(rIdx/RARITY_MAX_IDX);
     return {f,w};
   });
   let total = entries.reduce((a,e)=>a+e.w,0);
@@ -2548,6 +2667,11 @@ function openDialogue(npc){
     openModal('mDialogue');
     return;
   }
+  if(npc.role==='diverCraft'){
+    renderDiverCraftDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
@@ -2604,6 +2728,57 @@ function buildRocket(){
   checkAchievements();
   saveGame();
   closeModal('mDialogue');
+}
+
+/* ---------------------------- DIVING SUIT CRAFTING ---------------------------- */
+const DIVE_SUIT_CRYSTALS = 5000;
+const DIVE_SUIT_COINS = 10000000;
+const DIVE_SUIT_FISH_NEEDED = 3;
+function spaceFishInKeepnet(){
+  return S.keepnet.filter(item=>{
+    if(item.illegal) return false;
+    const sp = ALL_SPECIES[item.speciesId];
+    return sp && sp.world && sp.world.isSpace;
+  });
+}
+function renderDiverCraftDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  if(S.hasDiveSuit){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Ese traje que llevas puesto sigue siendo el mejor trabajo que he hecho. Cuídalo."</div>
+      <div class="cmeta">🤿 Ya tienes tu traje de buceo — sácalo desde la Mochila para sumergirte.</div>`;
+    return;
+  }
+  const crystalsOk = (S.crystals||0)>=DIVE_SUIT_CRYSTALS;
+  const coinsOk = S.coins>=DIVE_SUIT_COINS;
+  const fishCount = spaceFishInKeepnet().length;
+  const fishOk = fishCount>=DIVE_SUIT_FISH_NEEDED;
+  const allOk = crystalsOk && coinsOk && fishOk;
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+    <div class="dlgLine">"Hola... Puedo hacerte un traje capaz de aguantar la presión de cualquier océano del sistema. Pero no es barato."</div>
+    <div class="cmeta" style="margin-top:8px;">💎 Cristales: ${fmtNum(S.crystals||0)}/${fmtNum(DIVE_SUIT_CRYSTALS)} ${crystalsOk?'✔':''}</div>
+    <div class="cmeta">🪙 Monedas: ${fmtNum(S.coins)}/${fmtNum(DIVE_SUIT_COINS)} ${coinsOk?'✔':''}</div>
+    <div class="cmeta">🐟 Peces del Sistema Solar en tu mochila: ${fishCount}/${DIVE_SUIT_FISH_NEEDED} ${fishOk?'✔':''}</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" ${allOk?'':'disabled'} onclick="craftDiveSuit();">🤿 Fabricar traje</button>`;
+}
+function craftDiveSuit(){
+  if(S.hasDiveSuit) return;
+  if((S.crystals||0)<DIVE_SUIT_CRYSTALS || S.coins<DIVE_SUIT_COINS) return;
+  const fish = spaceFishInKeepnet();
+  if(fish.length<DIVE_SUIT_FISH_NEEDED) return;
+  S.crystals -= DIVE_SUIT_CRYSTALS;
+  S.coins -= DIVE_SUIT_COINS;
+  const toRemove = new Set(fish.slice(0,DIVE_SUIT_FISH_NEEDED).map(i=>i.uid));
+  S.keepnet = S.keepnet.filter(i=>!toRemove.has(i.uid));
+  S.hasDiveSuit = true;
+  Audio1.sfx('achievement');
+  toast('🤿 ¡Tu traje de buceo está listo! Sácalo desde la Mochila para sumergirte.');
+  checkAchievements();
+  refreshHud();
+  saveGame();
+  const npc = curWorld.npcs.find(n=>n.role==='diverCraft');
+  if(npc) renderDiverCraftDialogue(npc, '');
 }
 
 // generic NPC handler for one-off "bring me proof" style side quests that unlock a
@@ -3087,7 +3262,7 @@ function renderMinimap(){
   mctx.fillStyle = S.bossDefeated[curWorld.boss.id]? '#64748b':'#ef4444';
   mctx.beginPath(); mctx.arc(curWorld.bossSpot.x*sx,curWorld.bossSpot.y*sy,3.2,0,Math.PI*2); mctx.fill();
   // portal
-  if(WORLDS[curWorld.idx+1] && !WORLDS[curWorld.idx+1].isEvent){
+  if(WORLDS[curWorld.idx+1] && !WORLDS[curWorld.idx+1].isEvent && !curWorld.isSpace){
     mctx.fillStyle = S.unlockedWorlds.includes(WORLDS[curWorld.idx+1].id)? '#38d3c9':'#94a3b8';
     mctx.beginPath(); mctx.arc(curWorld.portalSpot.x*sx,curWorld.portalSpot.y*sy,3,0,Math.PI*2); mctx.fill();
   }
@@ -3119,7 +3294,7 @@ function ensureWeatherParticles(){
   const wt = WEATHER_TYPES[curWeather];
   if(!wt.particles){ weatherParticles=[]; return; }
   const targetCount = {rain:120,storm:160,fog:0,aurora:0,eclipse:0,meteor:14,moon:0,glitch:0,
-    dustred:90,geyser:50,solarwind:70,gamma:100}[wt.particles]||0;
+    dustred:90,geyser:50,solarwind:70,gamma:100,biolum:60}[wt.particles]||0;
   if(weatherParticles.length!==targetCount || weatherParticles._type!==wt.particles){
     weatherParticles=[];
     weatherParticles._type = wt.particles;
@@ -3134,6 +3309,8 @@ function ensureWeatherParticles(){
         weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:260+Math.random()*140, vy:(Math.random()-0.5)*20, len:18+Math.random()*20});
       } else if(wt.particles==='gamma'){
         weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:0, vy:500+Math.random()*200, len:20+Math.random()*16});
+      } else if(wt.particles==='biolum'){
+        weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:(Math.random()-0.5)*14, vy:-(20+Math.random()*30), len:2+Math.random()*3});
       } else {
         weatherParticles.push({x:Math.random()*wcanvas.width, y:Math.random()*wcanvas.height, vx:wt.particles==='storm'?-180:-60, vy:wt.particles==='storm'?620:420, len: wt.particles==='storm'?22:14});
       }
@@ -3184,6 +3361,11 @@ function updateWeather(dt){
     weatherParticles.forEach(p=>{
       p.y+=p.vy*dt;
       if(p.y>wcanvas.height){ p.y=-20; p.x=Math.random()*wcanvas.width; }
+    });
+  } else if(wt.particles==='biolum'){
+    weatherParticles.forEach(p=>{
+      p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.y<-10){ p.y=wcanvas.height+10; p.x=Math.random()*wcanvas.width; }
     });
   }
 }
@@ -3282,6 +3464,18 @@ function renderWeather(){
     weatherParticles.forEach((p,i)=>{
       wctx.strokeStyle = i%2===0? 'rgba(134,239,172,0.5)':'rgba(196,181,253,0.5)';
       wctx.beginPath(); wctx.moveTo(p.x,p.y); wctx.lineTo(p.x,p.y+p.len); wctx.stroke();
+    });
+    wctx.restore();
+  } else if(wt.particles==='biolum'){
+    // Abismo de Tritón: glowing plankton drifting slowly upward through the water
+    wctx.save();
+    const t = performance.now()/700;
+    weatherParticles.forEach((p,i)=>{
+      const tw = 0.4+0.6*Math.sin(t*2+i);
+      wctx.globalAlpha = 0.5+0.4*tw;
+      wctx.fillStyle = i%3===0? '#67e8f9' : '#06b6d4';
+      wctx.shadowColor='#22d3ee'; wctx.shadowBlur=6;
+      wctx.beginPath(); wctx.arc(p.x,p.y,p.len*0.5,0,Math.PI*2); wctx.fill();
     });
     wctx.restore();
   }
@@ -3498,6 +3692,27 @@ function drawDecor(d){
       ctx.restore();
       break;
     }
+    case 'coral': {
+      // branching coral / kelp cluster for the Abismo de Tritón shoreline
+      const swayT = performance.now()/900;
+      ctx.save();
+      const sway = Math.sin(swayT+d.x*0.02)*0.12;
+      ctx.fillStyle='#f472b6';
+      for(let i=-1;i<=1;i++){
+        ctx.save();
+        ctx.rotate(i*0.5+sway);
+        ctx.beginPath();
+        ctx.moveTo(0,s*0.1); ctx.quadraticCurveTo(s*0.14*i,-s*0.2,s*0.06*i,-s*0.55);
+        ctx.quadraticCurveTo(-s*0.02*i,-s*0.62,-s*0.08*i,-s*0.5);
+        ctx.quadraticCurveTo(0,-s*0.18,0,s*0.1);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle='#22d3ee';
+      ctx.beginPath(); ctx.arc(0,s*0.12,s*0.16,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+      break;
+    }
     default:
       ctx.fillStyle='#5da456'; ctx.beginPath(); ctx.arc(0,0,s*0.3,0,Math.PI*2); ctx.fill();
   }
@@ -3582,6 +3797,24 @@ function drawAuraEffect(aura, size){
         ctx.globalAlpha = (1-drift)*0.6;
         ctx.fillStyle='#c4b5fd';
         ctx.beginPath(); ctx.arc(sx,sy,1.2,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    } else if(auraObj.color==='tide'){
+      ctx.save();
+      for(let i=0;i<3;i++){
+        const ringT = ((t*0.4+i/3)%1);
+        ctx.globalAlpha = (1-ringT)*0.5;
+        ctx.strokeStyle = '#22d3ee'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.ellipse(0,4,size*(0.5+ringT*0.7),size*(0.3+ringT*0.4),0,0,Math.PI*2); ctx.stroke();
+      }
+      for(let i=0;i<6;i++){
+        const ang = i*(Math.PI*2/6) + t*1.1;
+        const rad = size*0.7;
+        const sx = Math.cos(ang)*rad, sy = 4+Math.sin(ang)*rad*0.4;
+        const tw = 0.5+0.5*Math.sin(t*3+i*1.7);
+        ctx.globalAlpha = 0.4+0.5*tw;
+        ctx.fillStyle='#a5f3fc';
+        ctx.beginPath(); ctx.arc(sx,sy,1.6,0,Math.PI*2); ctx.fill();
       }
       ctx.restore();
     } else if(auraObj.color==='crystal'){
@@ -3809,6 +4042,21 @@ function drawHat(ctx,hat,size){
       ctx.restore();
       break;
     }
+    case 'iceCrown': {
+      const t = performance.now()/500;
+      const grad = ctx.createLinearGradient(-size*0.32,-size*0.34,size*0.32,0);
+      grad.addColorStop(0,'#e0f2fe'); grad.addColorStop(0.5,'#7dd3fc'); grad.addColorStop(1,'#e0f2fe');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.moveTo(-size*0.32,0); ctx.lineTo(-size*0.32,-size*0.2); ctx.lineTo(-size*0.16,-size*0.4);
+      ctx.lineTo(0,-size*0.14); ctx.lineTo(size*0.16,-size*0.4); ctx.lineTo(size*0.32,-size*0.2); ctx.lineTo(size*0.32,0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.globalAlpha=0.8; ctx.stroke(); ctx.globalAlpha=1;
+      [-0.16,0,0.16].forEach((px,i)=>{
+        const drip = 0.5+0.5*Math.sin(t*2+i*2);
+        ctx.strokeStyle='#bae6fd'; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(size*px,-size*0.05); ctx.lineTo(size*px,size*(0.02+drip*0.08)); ctx.stroke();
+      });
+      break;
+    }
   }
   ctx.restore();
 }
@@ -3890,6 +4138,18 @@ function drawTrailParticles(){
         ctx.lineTo(screen.x+Math.cos(ang)*(6+tw*3), screen.y+10+Math.sin(ang)*(6+tw*3));
         ctx.stroke();
       }
+    }
+    else if(t.type==='escamas'){
+      const rot = (t.seed||0)*Math.PI*2;
+      ctx.save();
+      ctx.translate(screen.x,screen.y+10); ctx.rotate(rot);
+      ctx.globalAlpha = a*0.85;
+      ctx.shadowColor='#67e8f9'; ctx.shadowBlur=4;
+      ctx.fillStyle = (t.seed||0)>0.5? '#a5f3fc' : '#67e8f9';
+      ctx.beginPath();
+      ctx.moveTo(0,-4); ctx.quadraticCurveTo(4,0,0,4); ctx.quadraticCurveTo(-4,0,0,-4);
+      ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   });
@@ -4059,7 +4319,7 @@ function drawPortalMarker(spot, label, unlocked, colorA, colorB, icon){
 
 function drawPortal(){
   const nextWorld = WORLDS[curWorld.idx+1];
-  if(nextWorld && !nextWorld.isEvent){
+  if(nextWorld && !nextWorld.isEvent && !curWorld.isSpace){
     const unlocked = S.unlockedWorlds.includes(nextWorld.id);
     drawPortalMarker(curWorld.portalSpot, 'Portal · '+nextWorld.name, unlocked, '#38d3c9', '#0f766e', '🌀');
   }
@@ -4294,7 +4554,49 @@ function render(){
   drawPetCompanion(player.x, player.y, performance.now()/1000);
 
   renderWeather();
+  drawUnderwaterOverlay();
   renderMinimap();
+}
+
+// full-screen "you are actually underwater now" treatment: a deep blue-green wash,
+// swaying god-rays from the surface, and a field of rising bubbles — drawn on the
+// weather overlay canvas so it layers over everything, including weather itself
+function drawUnderwaterOverlay(){
+  if(!S.isDiving) return;
+  const t = performance.now()/1000;
+  wctx.save();
+  const g = wctx.createLinearGradient(0,0,0,wcanvas.height);
+  g.addColorStop(0,'rgba(8,145,178,0.32)');
+  g.addColorStop(1,'rgba(2,32,46,0.68)');
+  wctx.fillStyle=g; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+
+  wctx.globalAlpha=0.1;
+  for(let i=0;i<5;i++){
+    const bx = (i/5)*wcanvas.width + Math.sin(t*0.3+i*2)*50;
+    wctx.save();
+    wctx.translate(bx,0);
+    wctx.rotate(Math.sin(t*0.2+i)*0.08);
+    const rayGrad = wctx.createLinearGradient(0,0,0,wcanvas.height*0.9);
+    rayGrad.addColorStop(0,'rgba(224,242,254,0.9)');
+    rayGrad.addColorStop(1,'rgba(224,242,254,0)');
+    wctx.fillStyle=rayGrad;
+    wctx.beginPath();
+    wctx.moveTo(-30,0); wctx.lineTo(30,0); wctx.lineTo(90,wcanvas.height*0.9); wctx.lineTo(-90,wcanvas.height*0.9);
+    wctx.closePath(); wctx.fill();
+    wctx.restore();
+  }
+  wctx.globalAlpha=1;
+
+  wctx.fillStyle='rgba(224,242,254,0.55)';
+  for(let i=0;i<26;i++){
+    const seed = i*37.13;
+    const bx = ((Math.sin(seed)*0.5+0.5))*wcanvas.width + Math.sin(t*1.5+seed)*8;
+    const speed = 0.15+((seed*13)%10)/40;
+    const by = wcanvas.height - ((t*40*speed + seed*53)%(wcanvas.height+40));
+    const r = 1.5+((seed*7)%10)/4;
+    wctx.beginPath(); wctx.arc(bx,by,r,0,Math.PI*2); wctx.fill();
+  }
+  wctx.restore();
 }
 
 /* ---------------------------- HUD REFRESH ---------------------------- */
@@ -4612,10 +4914,28 @@ function renderRocketBagSection(){
   box.style.display='none';
 }
 
+function renderDiveBagSection(){
+  const box = document.getElementById('diveBagSection');
+  if(!S.hasDiveSuit){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = `<div style="font-size:30px;">🤿</div><div class="cname">Traje de Buceo</div>
+    <div class="cmeta">Suerte de pesca x${DIVE_LUCK} mientras buceas</div>
+    <button class="shopBtn" id="diveDeployBtn" ${S.isOnBoat?'disabled':''}>${S.isDiving? 'Ya estás buceando':'🤿 Sumergirse aquí'}</button>
+    ${S.isDiving? `<button class="shopBtn" id="diveStowBtn" style="margin-top:6px;background:var(--danger);">🎒 Salir a la superficie</button>`:''}
+    <div class="cmeta" style="margin-top:6px;">Con el traje puedes nadar bajo el agua en cualquier mundo y pescar criaturas con mucha más suerte.</div>`;
+  if(!S.isDiving){
+    document.getElementById('diveDeployBtn').addEventListener('click', ()=>{ toggleDive(); closeModal('mBag'); });
+  } else {
+    document.getElementById('diveDeployBtn').disabled = true;
+    document.getElementById('diveStowBtn').addEventListener('click', ()=>{ toggleDive(); closeModal('mBag'); });
+  }
+}
+
 let bagCardEntries = [];
 function renderBag(){
   renderBoatBagSection();
   renderRocketBagSection();
+  renderDiveBagSection();
   document.getElementById('backpackMeta').textContent = `Capacidad: ${S.keepnet.length}/${S.backpackCap}`;
   const grid = document.getElementById('bagGrid');
   grid.innerHTML='';
@@ -4965,7 +5285,7 @@ function renderCustom(){
       cctx.fillStyle='#38bdf8'; roundRect(cctx,-20,-20,40,40,9); cctx.fill();
       if(customTab==='hat' && item.draw){ drawHat(cctx,item.draw,44); }
       if(customTab==='aura' && item.color){
-        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033',crystal:'#67e8f9',solar:'#fbbf24'};
+        const previewColors = {rainbow:'#f472b6',galaxy:'#7c3aed',fire:'#fb923c',blackhole:'#000000',echo:'#67e8f9',void:'#1e1033',crystal:'#67e8f9',solar:'#fbbf24',tide:'#22d3ee'};
         cctx.save(); cctx.globalAlpha=0.4;
         cctx.fillStyle = previewColors[item.color] || item.color;
         cctx.beginPath(); cctx.arc(0,4,34,0,Math.PI*2); cctx.fill(); cctx.restore();
@@ -5009,9 +5329,9 @@ document.getElementById('toggleSfx').addEventListener('click', ()=>{
   S.settings.sfxOn=!S.settings.sfxOn; Audio1.sfxOn=S.settings.sfxOn; renderSettings(); saveGame();
 });
 document.getElementById('addCoinsBtn').addEventListener('click', ()=>{
-  S.coins += 50000;
+  S.coins += 2000000;
   Audio1.sfx('coin');
-  toast('🪙 +50.000 monedas');
+  toast('🪙 +2.000.000 monedas');
   refreshHud();
   saveGame();
 });
