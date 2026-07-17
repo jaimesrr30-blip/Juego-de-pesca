@@ -1494,6 +1494,14 @@ function riftMultFor(w){ return (w._riftSurgeUntil && Date.now()<w._riftSurgeUnt
   });
 })();
 
+// Pecios Hundidos: one sunken shipwreck per Solar System world, sitting in open water,
+// only visible and openable while you're actually diving — the suit's reward for exploring
+(function setupShipwrecks(){
+  WORLDS.filter(w=>w.isSpace).forEach(w=>{
+    w.wreckSpot = findClearWaterSpot(w, w.width*0.5, w.height*0.62);
+  });
+})();
+
 const EVENT_END = new Date('2026-08-05T23:59:59');
 function eventCountdownText(){
   const diff = EVENT_END.getTime() - Date.now();
@@ -1604,6 +1612,9 @@ const ACHIEVEMENTS = [
   {id:'quinto_planeta',name:'El Otro Lado',desc:'Llega a El Primer Amanecer',icon:'🌅',reward:100000,check:s=>(s.visitedWorlds||[]).includes('planeta_cinco')},
   {id:'sexto_planeta',name:'Mar sin Fin',desc:'Llega al Abismo de Tritón',icon:'🔱',reward:120000,check:s=>(s.visitedWorlds||[]).includes('planeta_seis')},
   {id:'traje_buceo',name:'A las Profundidades',desc:'Consigue tu traje de buceo',icon:'🤿',reward:50000,check:s=>!!s.hasDiveSuit},
+  {id:'primer_pecio',name:'Cazatesoros Submarino',desc:'Abre tu primer Pecio Hundido',icon:'🚢',reward:15000,check:s=>(s.stats.wrecksOpened||0)>=1},
+  {id:'todos_pecios',name:'Señor de los Pecios',desc:'Abre un Pecio Hundido en cada mundo del Sistema Solar',icon:'⚓',reward:200000,
+    check:s=>WORLDS.filter(w=>w.isSpace).every(w=>s.wreckWorldsOpened && s.wreckWorldsOpened[w.id])},
   {id:'divino_espacial',name:'Tocado por el Cosmos',desc:'Captura una criatura Divina en el espacio',icon:'🌌',reward:200000,check:s=>{
     const ids=['divinidad_ares','divinidad_europa','divinidad_del_vacio','divinidad_fracturada','divinidad_del_génesis','divinidad_de_triton'];
     return ids.some(id=>s.dex[id]&&s.dex[id].discovered);
@@ -1698,7 +1709,7 @@ function defaultState(){
     quests,
     achievements:{},
     cosmetics:{owned:['celeste','none_hat','none_aura','none_trail'],color:'celeste',hat:'none',aura:'none',trail:'none'},
-    stats:{totalCatches:0,chestsOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},tagCaught:{},totalSold:0,portalsCrossed:0,luckySpotCatches:0},
+    stats:{totalCatches:0,chestsOpened:0,wrecksOpened:0,totalPlaytimeSec:0,rarityCaught:{},shapeCaught:{},tagCaught:{},totalSold:0,portalsCrossed:0,luckySpotCatches:0},
     npcMet:{},
     settings:{musicOn:true,sfxOn:true},
     playerPos:{},
@@ -1756,7 +1767,7 @@ let camera={x:0,y:0};
 let keys = {};
 let lastTs = 0;
 let toastQueue = [];
-let nearNpc = null, nearChest = null, canFish = false;
+let nearNpc = null, nearChest = null, nearWreck = null, canFish = false;
 let started = false;
 
 const fishing = {
@@ -2117,6 +2128,13 @@ function updatePlayer(dt){
     const avail = !cooldownUntil || Date.now()>cooldownUntil;
     if(avail && Math.hypot(ch.x-player.x, ch.y-player.y)<45){ nearChest = ch; break; }
   }
+  nearWreck = null;
+  if(S.isDiving && curWorld.wreckSpot){
+    const key = 'wreck_'+curWorld.id;
+    const cooldownUntil = S._wreckCooldown && S._wreckCooldown[key];
+    const avail = !cooldownUntil || Date.now()>cooldownUntil;
+    if(avail && Math.hypot(curWorld.wreckSpot.x-player.x, curWorld.wreckSpot.y-player.y)<55){ nearWreck = curWorld.wreckSpot; }
+  }
 
   const fx = player.x+player.facing.x*46, fy=player.y+player.facing.y*46;
   canBoard=false; canDisembark=false; boardTargetPoint=null;
@@ -2129,7 +2147,7 @@ function updatePlayer(dt){
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
     if(!canFish && !nearNpc && !nearChest && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
@@ -2137,6 +2155,7 @@ function updatePlayer(dt){
   curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<80 && fishing.state==='idle' && !nearNpc && !nearChest;
 
   if(nearChest){ tryOpenChest(nearChest); }
+  if(nearWreck){ tryOpenWreck(); }
   if(S.isOnBoat) tryEnterPortal();
   if(S.isOnRocket) tryEnterLaunchPad();
 }
@@ -2571,6 +2590,39 @@ function tryOpenChest(chest){
     const gained = randInt(2,5) + (curWorld.idx-11)*2;
     S.crystals = (S.crystals||0) + gained;
     setTimeout(()=>toast(`💎 Cofre cósmico: +${gained} cristales`), 700);
+  }
+  progressQuests('open_chest',1);
+  checkAchievements();
+  saveGame();
+  refreshHud();
+}
+
+function tryOpenWreck(){
+  const key = 'wreck_'+curWorld.id;
+  if(!S._wreckCooldown) S._wreckCooldown={};
+  const now = Date.now();
+  if(S._wreckCooldown[key] && now<S._wreckCooldown[key]) return;
+  S._wreckCooldown[key] = now + 8*60*1000;
+  S.stats.chestsOpened++;
+  S.stats.wrecksOpened = (S.stats.wrecksOpened||0)+1;
+  if(!S.wreckWorldsOpened) S.wreckWorldsOpened={};
+  S.wreckWorldsOpened[curWorld.id] = true;
+  const wreckMult = 25 + (curWorld.idx-11)*10;
+  const coins = Math.round(randInt(600,1400)*wreckMult);
+  S.coins += coins;
+  const crystals = randInt(10,25) + (curWorld.idx-11)*4;
+  S.crystals = (S.crystals||0) + crystals;
+  toast(`🚢 ¡Pecio Hundido! +${fmtNum(coins)} monedas`);
+  Audio1.sfx('chest');
+  setTimeout(()=>toast(`💎 +${crystals} cristales del pecio`), 500);
+  if(Math.random()<0.4){
+    const b = pick(BAITS.slice(3));
+    S.baits[b.id] = (S.baits[b.id]||0)+randInt(2,4);
+    setTimeout(()=>toast(`🪱 El pecio también tenía carnada: ${b.name}`), 1000);
+  }
+  if(!S.hasRocket && S.rocketParts<ROCKET_PARTS_NEEDED && Math.random()<0.35){
+    S.rocketParts++;
+    setTimeout(()=>toast(`🔩 Encontraste una pieza de cohete en el pecio (${S.rocketParts}/${ROCKET_PARTS_NEEDED})`), 1500);
   }
   progressQuests('open_chest',1);
   checkAchievements();
@@ -3277,6 +3329,14 @@ function renderMinimap(){
   if(curWorld.riftSpot){
     mctx.fillStyle = '#a855f7';
     mctx.beginPath(); mctx.arc(curWorld.riftSpot.x*sx,curWorld.riftSpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
+  }
+  if(S.isDiving && curWorld.wreckSpot){
+    const wkey = 'wreck_'+curWorld.id;
+    const wcd = S._wreckCooldown && S._wreckCooldown[wkey];
+    if(!wcd || Date.now()>wcd){
+      mctx.fillStyle = '#fde047';
+      mctx.beginPath(); mctx.arc(curWorld.wreckSpot.x*sx,curWorld.wreckSpot.y*sy,3.5,0,Math.PI*2); mctx.fill();
+    }
   }
   if(curWorld.launchPads){
     mctx.fillStyle = S.hasRocket? '#fbbf24' : '#64748b';
@@ -4272,6 +4332,46 @@ function drawRiftSpot(){
   ctx.restore();
 }
 
+// a sunken ship, only visible while the player is actually diving — the diving
+// suit's reward for exploring, out of reach any other way
+function drawWreckIcon(){
+  if(!S.isDiving || !curWorld.wreckSpot) return;
+  const key = 'wreck_'+curWorld.id;
+  const cd = S._wreckCooldown && S._wreckCooldown[key];
+  if(cd && Date.now()<cd) return;
+  const wreck = curWorld.wreckSpot;
+  const screen = worldToScreen(wreck.x, wreck.y);
+  if(screen.x<-140||screen.x>canvas.width+140||screen.y<-140||screen.y>canvas.height+140) return;
+  const t = performance.now()/900;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,30,58,18,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  // broken hull, tilted
+  ctx.save(); ctx.rotate(-0.12);
+  const hullGrad = ctx.createLinearGradient(-50,0,50,30);
+  hullGrad.addColorStop(0,'#5c4530'); hullGrad.addColorStop(1,'#2e2015');
+  ctx.fillStyle = hullGrad;
+  ctx.beginPath();
+  ctx.moveTo(-52,10); ctx.quadraticCurveTo(-30,32,10,30); ctx.quadraticCurveTo(48,28,44,8);
+  ctx.lineTo(-20,-4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=2; ctx.stroke();
+  // broken mast
+  ctx.strokeStyle='#3f2e1c'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(-6,-4); ctx.lineTo(-18,-42); ctx.stroke();
+  ctx.restore();
+  // glowing treasure glint
+  ctx.globalAlpha = 0.5+0.5*Math.sin(t*3);
+  ctx.fillStyle='#fde047'; ctx.shadowColor='#fde047'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(8,18,4,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 13px system-ui'; ctx.fillStyle='#fde047'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText('🚢 Pecio Hundido', screen.x, screen.y-46);
+  ctx.restore();
+}
+
 function drawPetCompanion(px, py, t){
   const pet = equippedPet();
   if(!pet) return;
@@ -4540,6 +4640,7 @@ function render(){
   drawPortal();
   drawLuckySpot();
   drawRiftSpot();
+  drawWreckIcon();
   drawLabBuilding();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
