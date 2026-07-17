@@ -1492,6 +1492,7 @@ const WORLDS = [
   // the coin/key or launch-pad unlock chains: only reachable by passing Agente Rook's
   // interrogation, entered/exited via direct teleport rather than a portal or launch pad
   id:'dimension_tres', idx:17, name:'Sector Cero', icon:'🧪', unlockCost:0, isDimension:true, hidden:true,
+  hugeWorld:true, indoor:true,
   palette:{water:'#134e4a', waterDeep:'#052e28', land:'#cbd5e1', landDetail:'#94a3b8', fog:'#d1fae5'},
   weatherPool:['niebla','niebla','lluviaGamma','distorsion'], decorType:'labtank',
   fish:[
@@ -1518,18 +1519,41 @@ const WORLDS = [
     {id:'n_d3_exit',name:'Puerta de Salida',color:'#64748b',x:400,y:400,role:'exitDoor'},
   ],
 },
+{
+  // where a failed steal or a blown blackout sends you — small on purpose, with its own
+  // low-stakes contraband-box steal mechanic and a timed release (or a coin bail to skip it)
+  id:'dimension_tres_carcel', idx:18, name:'Celda de Contención', icon:'⛓️', unlockCost:0, isDimension:true, hidden:true, indoor:true,
+  palette:{water:'#1c1917', waterDeep:'#0c0a09', land:'#57534e', landDetail:'#292524', fog:'#78716c'},
+  weatherPool:['niebla','distorsion'], decorType:'labtank',
+  fish:[
+    F('pez_de_racion','Pez de Ración','comun','clasificado','fish','#78716c','#292524'),
+    F('cangrejo_carcelario','Cangrejo Carcelario','pocoComun','clasificado','crab','#a8a29e','#44403c'),
+    F('objeto_de_contrabando','Objeto de Contrabando','epico','clasificado','jellyfish','#fbbf24','#78350f', {stealOnly:true}),
+    F('testigo_silencioso','Testigo Silencioso','legendario','clasificado','ghost','#e7e5e4','#1c1917', {stealOnly:true}),
+  ],
+  boss:{id:'el_alcaide',name:'El Alcaide',shape:'octopus',color:'#292524',accent:'#ef4444',
+    minKg:2000,maxKg:4200,minCm:800,maxCm:1200,desc:'Lleva más tiempo aquí abajo que cualquier preso. Ya no se acuerda de por qué.'},
+  npcs:[
+    {id:'n_carcel_1',name:'Guardia de la Celda',color:'#57534e',x:1650,y:1200,role:'jailGuard'},
+  ],
+},
 ];
 
 WORLDS.forEach(w=>{
-  w.width = w.bigWorld? 3400 : 2200; w.height = w.bigWorld? 2500 : 1600;
+  w.width = w.hugeWorld? 4400 : (w.bigWorld? 3400 : 2200);
+  w.height = w.hugeWorld? 3200 : (w.bigWorld? 2500 : 1600);
   const rnd = mulberry32(hashStr(w.id));
   w.islands=[];
-  const nIslands = (w.bigWorld? 6 : 3)+Math.floor(rnd()*3);
+  // hugeWorld packs in far more, smaller islands than bigWorld — dense flooded corridors
+  // and containment pools instead of one open lake, fitting an indoor facility
+  const nIslands = w.hugeWorld? (16+Math.floor(rnd()*5)) : ((w.bigWorld? 6 : 3)+Math.floor(rnd()*3));
   for(let i=0;i<nIslands;i++){
-    w.islands.push({x:300+rnd()*(w.width-600), y:300+rnd()*(w.height-600), rx:140+rnd()*160, ry:110+rnd()*140});
+    const rx = w.hugeWorld? 90+rnd()*110 : 140+rnd()*160;
+    const ry = w.hugeWorld? 70+rnd()*90 : 110+rnd()*140;
+    w.islands.push({x:300+rnd()*(w.width-600), y:300+rnd()*(w.height-600), rx, ry});
   }
   w.decor=[];
-  for(let i=0;i<(w.bigWorld?110:70);i++){
+  for(let i=0;i<(w.hugeWorld?170:(w.bigWorld?110:70));i++){
     const isl = w.islands[Math.floor(rnd()*w.islands.length)];
     const ang = rnd()*Math.PI*2, rad = rnd();
     const x = isl.x + Math.cos(ang)*isl.rx*rad*0.85;
@@ -1546,7 +1570,7 @@ WORLDS.forEach(w=>{
     w.decor.push({x,y,s:0.6+rnd()*0.8,r:rnd()*Math.PI*2});
   }
   w.chests=[];
-  for(let i=0;i<(w.bigWorld?6:4);i++){
+  for(let i=0;i<(w.hugeWorld?9:(w.bigWorld?6:4));i++){
     const isl = w.islands[i % w.islands.length];
     const ang = rnd()*Math.PI*2, rad=rnd()*0.5;
     w.chests.push({idx:i, x:isl.x+Math.cos(ang)*isl.rx*rad, y:isl.y+Math.sin(ang)*isl.ry*rad});
@@ -1862,6 +1886,167 @@ function maxAbyssDepth(s){ return Math.max(0, ...Object.values(s.abyssBestDepth|
     w.abyssRift = findClearWaterSpot(w, w.width*0.5, w.height*0.18);
   });
 })();
+
+/* ---------------------------- SECTOR CERO: BLACKOUTS & HEIST ---------------------------- */
+const BLACKOUT_MIN_GAP = 40000, BLACKOUT_MAX_GAP = 75000, BLACKOUT_DURATION = 24000;
+const DETECTION_RADIUS = 150, DETECTION_RATE = 34, DETECTION_DECAY = 22;
+const STEAL_SUCCESS_CHANCE = 0.22, STEAL_FAIL_CAPTURE_CHANCE = 0.55;
+let sectorState = { inBlackout:false, nextBlackoutAt:0, blackoutEndsAt:0, detection:0, tankCooldownUntil:0 };
+(function setupSectorCeroSecurity(){
+  const sc = WORLDS.find(w=>w.id==='dimension_tres');
+  if(!sc) return;
+  sc.hasBlackouts = true;
+  sc.sealedTank = findNearestSpot(sc, sc.width*0.5, sc.height*0.5, true);
+  const gSpots = [
+    findNearestSpot(sc, sc.sealedTank.x-280, sc.sealedTank.y+40, true),
+    findNearestSpot(sc, sc.sealedTank.x+300, sc.sealedTank.y-120, true),
+    findNearestSpot(sc, sc.sealedTank.x-60, sc.sealedTank.y+320, true),
+  ];
+  sc.guards = [
+    {baseX:gSpots[0].x, baseY:gSpots[0].y, axis:'x', range:170, speed:0.55},
+    {baseX:gSpots[1].x, baseY:gSpots[1].y, axis:'y', range:140, speed:0.45},
+    {baseX:gSpots[2].x, baseY:gSpots[2].y, axis:'x', range:190, speed:0.65},
+  ];
+  const carcel = WORLDS.find(w=>w.id==='dimension_tres_carcel');
+  if(carcel) carcel.contrabandBox = findNearestSpot(carcel, carcel.width*0.5, carcel.height*0.5, true);
+})();
+function guardPositions(w){
+  if(!w.guards) return [];
+  const t = performance.now()/1000;
+  return w.guards.map(g=>({
+    x: g.axis==='x'? g.baseX+Math.sin(t*g.speed)*g.range : g.baseX,
+    y: g.axis==='y'? g.baseY+Math.sin(t*g.speed)*g.range : g.baseY,
+  }));
+}
+function updateSectorSecurity(dt){
+  if(!curWorld.hasBlackouts) return;
+  const now = Date.now();
+  if(!sectorState.nextBlackoutAt) sectorState.nextBlackoutAt = now + 18000;
+  if(!sectorState.inBlackout){
+    sectorState.detection = Math.max(0, sectorState.detection - DETECTION_DECAY*dt);
+    if(now>=sectorState.nextBlackoutAt){
+      sectorState.inBlackout = true;
+      sectorState.blackoutEndsAt = now + BLACKOUT_DURATION;
+      sectorState.detection = 0;
+      toast('⚠️ Fallo de energía. Las luces se apagan...');
+      Audio1.sfx('fail');
+    }
+    return;
+  }
+  // in blackout: guards are active, detection rises near them
+  const guards = guardPositions(curWorld);
+  let nearAny = false;
+  for(const g of guards){
+    if(Math.hypot(g.x-player.x, g.y-player.y)<DETECTION_RADIUS){ nearAny = true; break; }
+  }
+  if(nearAny){
+    sectorState.detection = Math.min(100, sectorState.detection + DETECTION_RATE*dt);
+    if(sectorState.detection>=100){ captureToJail(); return; }
+  } else {
+    sectorState.detection = Math.max(0, sectorState.detection - DETECTION_DECAY*dt);
+  }
+  if(now>=sectorState.blackoutEndsAt){
+    sectorState.inBlackout = false;
+    sectorState.detection = 0;
+    sectorState.nextBlackoutAt = now + BLACKOUT_MIN_GAP + Math.random()*(BLACKOUT_MAX_GAP-BLACKOUT_MIN_GAP);
+    S.stats.blackoutsSurvived = (S.stats.blackoutsSurvived||0)+1;
+    toast('💡 Las luces vuelven a encenderse.');
+    checkAchievements();
+    saveGame();
+  }
+}
+function tryStealFromTank(){
+  if(!sectorState.inBlackout) return;
+  const now = Date.now();
+  if(now<sectorState.tankCooldownUntil) return;
+  sectorState.tankCooldownUntil = now + 4000;
+  if(Math.random() < STEAL_SUCCESS_CHANCE){
+    const item = {uid:uid(), speciesId:EXPERIMENTO_FALLIDO.id, fishData:EXPERIMENTO_FALLIDO,
+      weightKg:+randRange(1,3).toFixed(2), sizeCm:Math.round(randRange(15,35)), value:5000000, worldId:'dimension_tres'};
+    if(!S.dex[EXPERIMENTO_FALLIDO.id]) S.dex[EXPERIMENTO_FALLIDO.id] = {discovered:true, timesCaught:0, recordWeight:0, recordSize:0};
+    S.dex[EXPERIMENTO_FALLIDO.id].timesCaught++;
+    S.dex[EXPERIMENTO_FALLIDO.id].recordWeight = Math.max(S.dex[EXPERIMENTO_FALLIDO.id].recordWeight, item.weightKg);
+    S.dex[EXPERIMENTO_FALLIDO.id].recordSize = Math.max(S.dex[EXPERIMENTO_FALLIDO.id].recordSize, item.sizeCm);
+    if(S.keepnet.length<S.backpackCap) S.keepnet.push(item); else S.coins += item.value;
+    Audio1.sfx('achievement');
+    toast('🫙 ¡Has robado el Experimento Fallido! Una entre mil millones.');
+    checkAchievements();
+    saveGame();
+  } else if(Math.random() < STEAL_FAIL_CAPTURE_CHANCE){
+    toast('🚨 ¡Una alarma silenciosa te detecta!');
+    captureToJail();
+  } else {
+    toast('🔒 El tanque no se abre. Aún puedes intentarlo de nuevo.');
+  }
+}
+const JAIL_SENTENCE_MS = 90000, JAIL_BAIL_COST = 50000;
+function captureToJail(){
+  sectorState.inBlackout = false;
+  sectorState.detection = 0;
+  Audio1.sfx('fail');
+  toast('🚔 ¡Te han pillado! Te llevan a la Celda de Contención.');
+  S.stats.timesCaught = (S.stats.timesCaught||0)+1;
+  S.jailReleaseAt = Date.now() + JAIL_SENTENCE_MS;
+  setWorld('dimension_tres_carcel', {keepPos:false});
+  checkAchievements();
+  saveGame();
+}
+function renderJailGuardDialogue(npc, bonus){
+  document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
+  const box = document.getElementById('dlgBox');
+  const remaining = Math.max(0, (S.jailReleaseAt||0) - Date.now());
+  if(remaining<=0){
+    box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+      <div class="dlgLine">"Condena cumplida. No dejes que te vuelva a pasar."</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="releaseFromJail();">🚪 Salir</button>`;
+    return;
+  }
+  const secs = Math.ceil(remaining/1000);
+  box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
+    <div class="dlgLine">"Te quedan ${secs} segundos de condena. O pagas, o esperas."</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" ${S.coins<JAIL_BAIL_COST?'disabled':''} onclick="payBailAndLeave();">🪙 Pagar fianza (${fmtNum(JAIL_BAIL_COST)})</button>`;
+}
+function releaseFromJail(){
+  if((S.jailReleaseAt||0) > Date.now()) return;
+  S.stats.jailReleases = (S.stats.jailReleases||0)+1;
+  setWorld('dimension_tres', {keepPos:false});
+  toast('🚪 Vuelves a Sector Cero. Con más cuidado esta vez.');
+  checkAchievements();
+  saveGame();
+}
+function payBailAndLeave(){
+  if(S.coins<JAIL_BAIL_COST) return;
+  S.coins -= JAIL_BAIL_COST;
+  S.jailReleaseAt = 0;
+  S.stats.jailReleases = (S.stats.jailReleases||0)+1;
+  refreshHud();
+  setWorld('dimension_tres', {keepPos:false});
+  toast('🪙 Pagas la fianza y sales de la celda.');
+  checkAchievements();
+  saveGame();
+}
+function tryStealContraband(){
+  const now = Date.now();
+  if(now<(sectorState.contrabandCooldownUntil||0)) return;
+  sectorState.contrabandCooldownUntil = now + 4000;
+  const pool = WORLDS.find(w=>w.id==='dimension_tres_carcel').fish.filter(f=>f.rarity==='epico'||f.rarity==='legendario');
+  const f = pick(pool);
+  if(Math.random()<0.6){
+    if(!S.dex[f.id]) S.dex[f.id] = {discovered:true, timesCaught:0, recordWeight:0, recordSize:0};
+    const weightKg = +randRange(1,4).toFixed(2), sizeCm = Math.round(randRange(20,50));
+    S.dex[f.id].timesCaught++;
+    S.dex[f.id].recordWeight = Math.max(S.dex[f.id].recordWeight, weightKg);
+    S.dex[f.id].recordSize = Math.max(S.dex[f.id].recordSize, sizeCm);
+    const item = {uid:uid(), speciesId:f.id, weightKg, sizeCm, value:econ(f,18).value, worldId:'dimension_tres_carcel'};
+    if(S.keepnet.length<S.backpackCap) S.keepnet.push(item); else S.coins += item.value;
+    Audio1.sfx('coin');
+    toast('📦 Encuentras algo en la caja de contrabando: '+f.name+'.');
+    checkAchievements();
+    saveGame();
+  } else {
+    toast('📦 La caja está vacía esta vez.');
+  }
+}
 function pickAbyssFish(){
   const pool = ABYSS_FISH_BY_WORLD[curWorld.id] || [];
   const rod = currentRod();
@@ -2050,6 +2235,12 @@ const ACHIEVEMENTS = [
     unlockCosmetic:{slot:'aura', id:'clasificado', label:'Aura Clasificada'}},
   {id:'sujeto_cero_capturado',name:'El Sujeto Que No Debía Existir',desc:'Pesca a Sujeto Cero en Sector Cero',icon:'🫙',reward:3000000,rewardGems:80,
     check:s=>!!(s.dex['sujeto_cero']&&s.dex['sujeto_cero'].discovered)},
+  {id:'apagon_superado',name:'Ojos en la Oscuridad',desc:'Sobrevive a un apagón en Sector Cero sin que te atrapen',icon:'💡',reward:150000,rewardGems:15,
+    check:s=>(s.stats.blackoutsSurvived||0)>=1},
+  {id:'ladron_del_abismo',name:'Una Entre Mil Millones',desc:'Roba el Experimento Fallido del tanque sellado durante un apagón',icon:'🫙',reward:2500000,rewardGems:100,
+    check:s=>!!(s.dex['experimento_fallido']&&s.dex['experimento_fallido'].discovered)},
+  {id:'fugitivo_de_la_celda',name:'Fugitivo',desc:'Sal de la Celda de Contención, pagando fianza o cumpliendo condena',icon:'🚪',reward:100000,
+    check:s=>(s.stats.jailReleases||0)>=1},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -2151,7 +2342,7 @@ let camera={x:0,y:0};
 let keys = {};
 let lastTs = 0;
 let toastQueue = [];
-let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, canFish = false;
+let nearNpc = null, nearChest = null, nearWreck = null, nearTower = false, nearAbyssRift = false, nearSealedTank = false, nearContrabandBox = false, canFish = false;
 let started = false;
 
 const fishing = {
@@ -2445,6 +2636,8 @@ function onActionPress(){
     if(nearNpc){ openDialogue(nearNpc); return; }
     if(nearTower){ openTowerModal(); return; }
     if(nearAbyssRift){ enterAbyss(); return; }
+    if(nearSealedTank){ tryStealFromTank(); return; }
+    if(nearContrabandBox){ tryStealContraband(); return; }
     if(curWorld._nearBoss){ startCastWrapper(true); return; }
     if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
     if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
@@ -2530,6 +2723,8 @@ function updatePlayer(dt){
   }
   nearTower = !!(curWorld.towerSpot && Math.hypot(curWorld.towerSpot.x-player.x, curWorld.towerSpot.y-player.y)<60);
   nearAbyssRift = !!(S.isDiving && !S.inAbyss && curWorld.abyssRift && Math.hypot(curWorld.abyssRift.x-player.x, curWorld.abyssRift.y-player.y)<60);
+  nearSealedTank = !!(sectorState.inBlackout && curWorld.sealedTank && Math.hypot(curWorld.sealedTank.x-player.x, curWorld.sealedTank.y-player.y)<70);
+  nearContrabandBox = !!(curWorld.contrabandBox && Math.hypot(curWorld.contrabandBox.x-player.x, curWorld.contrabandBox.y-player.y)<70);
 
   // pressure damage while descending the Abismo Infinito — the deeper you go, the faster it
   // drains, outpacing the passive HP_REGEN above so depth is a real risk from the very start
@@ -2542,15 +2737,15 @@ function updatePlayer(dt){
   canBoard=false; canDisembark=false; boardTargetPoint=null;
 
   if(S.isOnBoat){
-    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && fishing.state==='idle' && isLand(curWorld,fx,fy)){
       canDisembark = true; boardTargetPoint = {x:fx,y:fy};
     }
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !canDisembark && !isBoatMoving;
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !canDisembark && !isBoatMoving;
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
   }
@@ -2648,6 +2843,18 @@ function updateActionUI(){
     promptEl.textContent = '🌀 Grieta del Abismo Infinito'; promptEl.classList.add('show');
     btn.textContent='Descender'; btn.disabled=false; return;
   }
+  if(nearSealedTank){
+    const onCd = Date.now()<sectorState.tankCooldownUntil;
+    promptEl.textContent = onCd? '🫙 Tanque sellado... espera' : '🫙 Tanque sellado · robar experimento';
+    promptEl.classList.add('show');
+    btn.textContent='Robar'; btn.disabled=onCd; return;
+  }
+  if(nearContrabandBox){
+    const onCd = Date.now()<(sectorState.contrabandCooldownUntil||0);
+    promptEl.textContent = onCd? '📦 Caja de contrabando... espera' : '📦 Caja de contrabando';
+    promptEl.classList.add('show');
+    btn.textContent='Registrar'; btn.disabled=onCd; return;
+  }
   if(curWorld._nearBoss){
     const hasDefeated = S.bossDefeated[curWorld.boss.id];
     promptEl.textContent = hasDefeated? 'Zona del Jefe (ya derrotado)':'¡Zona del Jefe! Desafíalo';
@@ -2706,6 +2913,7 @@ function weightedPickFish(){
     const isUltraFish = f.rarity==='singularidad';
     const rIdx = isEventFish? 8 : RARITY_INDEX[f.rarity];
     let w = isEventFish? 1/f.customDenom : 1/rarityOf(f.rarity).denom;
+    if(f.stealOnly) return {f,w:0};
     w *= 1 + (rod.luck-1) * (rIdx/RARITY_MAX_IDX);
     if(!isEventFish && !isUltraFish && rIdx>maxTierIdx) w=0;
     if(!isEventFish && weatherBoost.includes(f.rarity)) w*=2.4;
@@ -3243,6 +3451,11 @@ function openDialogue(npc){
     exitSectorCero();
     return;
   }
+  if(npc.role==='jailGuard'){
+    renderJailGuardDialogue(npc, bonus);
+    openModal('mDialogue');
+    return;
+  }
   const line = pick(npc.lines);
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}<div class="dlgLine">"${line}"</div>`;
   if(npc.role==='merchant'){
@@ -3480,6 +3693,9 @@ function renderLoreQuestDialogue(npc, bonus){
 
 /* ---------------------------- LABORATORIO SECRETO (side story) ---------------------------- */
 const ILLEGAL_FISH = {id:'pez_ilegal', name:'Pez Ilegal', rarity:'prohibido', tag:'ilegal', shape:'fish', color:'#1e293b', accent:'#7f1d1d'};
+// stolen only from the sealed tank during a blackout in Sector Cero — never appears in
+// normal fishing odds, so it's kept out of ALL_SPECIES like the Abismo Infinito fish
+const EXPERIMENTO_FALLIDO = {id:'experimento_fallido', name:'Experimento Fallido', rarity:'singularidad', tag:'clasificado', shape:'space', color:'#000000', accent:'#4ade80'};
 function grantIllegalFish(){
   const item = {uid:uid(), speciesId:ILLEGAL_FISH.id, fishData:ILLEGAL_FISH,
     weightKg:+randRange(2,5).toFixed(2), sizeCm:Math.round(randRange(30,55)), value:0, worldId:'lago_inicial', illegal:true};
@@ -5070,6 +5286,95 @@ function drawCheckpointBuilding(){
   ctx.restore();
 }
 
+// the sealed containment cylinder at the heart of Sector Cero — only openable during a
+// blackout, when the guards can't see the alarm panel either
+function drawSealedTank(){
+  const spot = curWorld.sealedTank;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-140||screen.x>canvas.width+140||screen.y<-160||screen.y>canvas.height+140) return;
+  const t = performance.now()/1000;
+  const active = sectorState.inBlackout;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,34,44,14,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#3f3f52';
+  roundRect(ctx,-30,-70,60,104,10); ctx.fill();
+  ctx.save();
+  roundRect(ctx,-24,-64,48,92,8); ctx.clip();
+  const fluidGrad = ctx.createLinearGradient(0,-64,0,28);
+  fluidGrad.addColorStop(0, active? '#4ade80' : '#166534');
+  fluidGrad.addColorStop(1, active? '#052e16' : '#020806');
+  ctx.fillStyle = fluidGrad;
+  ctx.fillRect(-24,-64,48,92);
+  ctx.globalAlpha = active? (0.55+0.35*Math.sin(t*4)) : 0.25;
+  ctx.fillStyle = '#bbf7d0';
+  ctx.beginPath(); ctx.ellipse(-6+Math.sin(t*1.3)*6,-10+Math.sin(t*2)*20,7,10,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=3;
+  roundRect(ctx,-30,-70,60,104,10); ctx.stroke();
+  ctx.globalAlpha = active? (0.6+0.4*Math.sin(t*5)) : 0.5;
+  ctx.fillStyle = active? '#4ade80' : '#7f1d1d';
+  ctx.shadowColor = active? '#4ade80' : '#7f1d1d'; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.arc(0,-80,5,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 12px system-ui'; ctx.fillStyle= active? '#4ade80' : '#94a3b8'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText(active? '🫙 Tanque sellado · ¡ábrelo ahora!' : '🫙 Tanque sellado', screen.x, screen.y-98);
+  ctx.restore();
+}
+
+// a battered crate of confiscated goods, tucked in a corner of the jail cell block
+function drawContrabandBox(){
+  const spot = curWorld.contrabandBox;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,22,32,11,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#78350f';
+  roundRect(ctx,-26,-14,52,36,4); ctx.fill();
+  ctx.strokeStyle='#451a03'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-26,4); ctx.lineTo(26,4); ctx.moveTo(0,-14); ctx.lineTo(0,22); ctx.stroke();
+  ctx.globalAlpha=0.5+0.4*Math.sin(t*3);
+  ctx.fillStyle='#fbbf24'; ctx.shadowColor='#fbbf24'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(0,-4,3,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 12px system-ui'; ctx.fillStyle='#fbbf24'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText('📦 Caja de contrabando', screen.x, screen.y-36);
+  ctx.restore();
+}
+
+// roaming security guards, only rendered (and only dangerous) during a Sector Cero blackout
+function drawGuards(){
+  if(!curWorld.hasBlackouts || !sectorState.inBlackout) return;
+  const t = performance.now()/1000;
+  for(const g of guardPositions(curWorld)){
+    const screen = worldToScreen(g.x, g.y);
+    if(screen.x<-80||screen.x>canvas.width+80||screen.y<-80||screen.y>canvas.height+80) continue;
+    ctx.save(); ctx.translate(screen.x, screen.y);
+    ctx.globalAlpha=0.28; ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(0,24,20,7,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle='#57534e';
+    roundRect(ctx,-14,-24,28,44,6); ctx.fill();
+    ctx.fillStyle='#dc2626';
+    roundRect(ctx,-14,-24,28,10,6); ctx.fill();
+    ctx.globalAlpha=0.55+0.35*Math.sin(t*10);
+    ctx.strokeStyle='#ef4444'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,DETECTION_RADIUS,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha=1;
+    ctx.restore();
+  }
+}
+
 function drawBossSpot(){
   const bs = curWorld.bossSpot;
   const screen = worldToScreen(bs.x,bs.y);
@@ -5511,6 +5816,9 @@ function render(){
   drawTowerIcon();
   drawLabBuilding();
   drawCheckpointBuilding();
+  drawSealedTank();
+  drawContrabandBox();
+  drawGuards();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -5525,7 +5833,84 @@ function render(){
 
   renderWeather();
   drawUnderwaterOverlay();
+  drawIndoorAmbience();
+  drawBlackoutOverlay();
   renderMinimap();
+}
+
+// a soft industrial vignette + flickering strip-light tint for indoor facilities like
+// Sector Cero, so it reads as "inside a building" even without a real ceiling to render
+function drawIndoorAmbience(){
+  if(!curWorld.indoor || sectorState.inBlackout) return;
+  const t = performance.now()/1000;
+  wctx.save();
+  const vg = wctx.createRadialGradient(wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.35,wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.85);
+  vg.addColorStop(0,'rgba(4,6,12,0)');
+  vg.addColorStop(1,'rgba(4,6,12,0.55)');
+  wctx.fillStyle=vg; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  wctx.globalAlpha = 0.05+0.02*Math.sin(t*23);
+  wctx.fillStyle = '#7dd3fc';
+  wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  wctx.restore();
+}
+
+// Sector Cero's blackout: the whole screen goes near-black except a flashlight cone that
+// follows the player, and ghostly failed-experiment silhouettes flicker in the darkness —
+// reusing the always-on-top weather canvas, same trick as drawUnderwaterOverlay
+function drawBlackoutOverlay(){
+  if(!curWorld.hasBlackouts || !sectorState.inBlackout) return;
+  const t = performance.now()/1000;
+  const screenPlayer = worldToScreen(player.x, player.y);
+  wctx.save();
+  wctx.fillStyle = 'rgba(3,3,8,0.93)';
+  wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  wctx.globalCompositeOperation = 'destination-out';
+  const flicker = 0.85+0.15*Math.sin(t*17);
+  const radius = 150*flicker;
+  const grad = wctx.createRadialGradient(screenPlayer.x,screenPlayer.y,0,screenPlayer.x,screenPlayer.y,radius);
+  grad.addColorStop(0,'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.7,'rgba(255,255,255,0.55)');
+  grad.addColorStop(1,'rgba(255,255,255,0)');
+  wctx.fillStyle = grad;
+  wctx.beginPath(); wctx.arc(screenPlayer.x,screenPlayer.y,radius,0,Math.PI*2); wctx.fill();
+  wctx.globalCompositeOperation = 'source-over';
+  // ghostly failed-experiment sightings, flickering into view only within the flashlight cone
+  for(let i=0;i<7;i++){
+    const seed = i*91.7;
+    const wx = ((Math.sin(seed)*0.5+0.5))*curWorld.width;
+    const wy = ((Math.cos(seed*1.3)*0.5+0.5))*curWorld.height;
+    const s = worldToScreen(wx,wy);
+    const dist = Math.hypot(s.x-screenPlayer.x, s.y-screenPlayer.y);
+    if(dist>radius*0.9) continue;
+    const visible = Math.sin(t*2.3+seed)>0.3;
+    if(!visible) continue;
+    wctx.save();
+    wctx.globalAlpha = 0.35*(1-dist/(radius*0.9));
+    wctx.font = '26px system-ui'; wctx.textAlign='center';
+    wctx.fillText('👁️', s.x, s.y);
+    wctx.restore();
+  }
+  const danger = sectorState.detection/100;
+  if(danger>0.05){
+    wctx.globalAlpha = danger*0.5;
+    const vg = wctx.createRadialGradient(wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.2,wcanvas.width/2,wcanvas.height/2,wcanvas.height*0.7);
+    vg.addColorStop(0,'rgba(239,68,68,0)');
+    vg.addColorStop(1,'rgba(239,68,68,0.7)');
+    wctx.fillStyle = vg; wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+    wctx.globalAlpha=1;
+  }
+  wctx.restore();
+  // detection meter, top-center, only during blackout
+  wctx.save();
+  wctx.font='bold 13px system-ui'; wctx.textAlign='center'; wctx.fillStyle='#fff';
+  wctx.shadowColor='rgba(0,0,0,0.8)'; wctx.shadowBlur=4;
+  wctx.fillText('🔦 Apagón · Detección', wcanvas.width/2, 74);
+  wctx.shadowBlur=0;
+  const barW=200, barX=wcanvas.width/2-barW/2, barY=80;
+  wctx.fillStyle='rgba(0,0,0,0.5)'; roundRect(wctx,barX,barY,barW,12,6); wctx.fill();
+  wctx.fillStyle = danger>0.7? '#ef4444' : (danger>0.4? '#f59e0b' : '#4ade80');
+  roundRect(wctx,barX,barY,barW*clamp(danger,0,1),12,6); wctx.fill();
+  wctx.restore();
 }
 
 // full-screen "you are actually underwater now" treatment: a deep blue-green wash,
@@ -6496,6 +6881,7 @@ function update(dt){
   fishUpdate(dt);
   updateWeather(dt);
   updateLuckySpot(dt);
+  updateSectorSecurity(dt);
   updateActionUI();
   updateHpUI();
   S.stats.totalPlaytimeSec += dt;
