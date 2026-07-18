@@ -2475,6 +2475,9 @@ function updateFugaSecurity(dt){
   // locked into a cast/minigame (including the sector boss fight) — you can't move
   // or duck into shadow, so cameras/guards/lasers/mines can't touch you mid-animation
   if(fishing.state!=='idle') return;
+  // Halden's monologue and the aftermath at the door are scripted moments too — only
+  // the "war" phase (his guards, activated on purpose) is meant to be dangerous
+  if(haldenState.phase==='dialogue' || haldenState.phase==='ready' || haldenState.phase==='defeated') return;
   const now = Date.now();
   const hidden = fugaHidden();
 
@@ -2565,6 +2568,7 @@ function completeEscape(){
 // sector, requires a key first, or (Sector 4, for now) leads nowhere yet
 function trySectorExit(){
   if(!curWorld.nextSectorId){
+    if(curWorld.id==='dimension_tres_s4'){ tryHaldenDoor(); return; }
     const pct = Math.round(complejoUmbralDexPercent()*100);
     toast('🚧 Sientes que hay algo más allá de este punto... pero todavía no está listo. Colección del Complejo Umbral: '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%. Vuelve en otra sesión.');
     return;
@@ -2579,6 +2583,168 @@ function trySectorExit(){
   fugaState = { detection:0, lastX:0, lastY:0, idleSince:0, laserHitUntil:0, bombCooldowns:{} };
   setWorld(curWorld.nextSectorId, {keepPos:false});
   checkAchievements();
+  saveGame();
+}
+
+/* ---------------------------- HALDEN: THE END OF SECTOR 4 ---------------------------- */
+const HALDEN_WAR_DURATION = 40000;
+const HALDEN_TAUNT_GAP = 9000;
+let haldenState = { phase:'none', dialogueIdx:0, finalIdx:0, defeatIdx:0, warEndsAt:0, lastTauntAt:0 };
+const HALDEN_LINES = [
+  '¿Sigues aquí? Después de todo lo que has visto, deberías haberte ido ya.',
+  'La Doctora Marrow te contó lo que quería creer: que yo intentaba sacar pruebas para exponer este sitio. Bonita historia.',
+  'La verdad es más simple. El Pez Ilegal vale una fortuna en el mercado correcto. Solo necesitaba sacar uno. Uno solo.',
+  'Y ahora llegas tú, cargado con media docena, como si fueran tuyos. Como si esto fuera un juego.',
+  'No vas a quitarme lo único que me queda después de años aquí abajo.',
+  'Activo todo lo que tengo. Si quieres salir de aquí con eso, vas a tener que ganártelo.',
+];
+const HALDEN_TAUNTS = [
+  '📢 Halden: "¿Todavía sigues ahí?"',
+  '📢 Halden: "No hay salida. Nunca la hubo."',
+  '📢 Halden: "Cada segundo que aguantas me cuesta más caro."',
+  '📢 Halden: "¿De verdad crees que esto va a funcionar?"',
+];
+const HALDEN_FINAL_LINES = [
+  'Sigues vivo. No sé si admirarte o odiarte por ello.',
+  'Adelante. Termina con esto de una vez.',
+];
+const HALDEN_DEFEAT_LINES = [
+  '(Sueltas al Pez Ilegal. No duda ni un segundo — nada directo hacia él.)',
+  'Halden: "No... ¡no debería...!"',
+  '(El sistema que mantenía en pie todo el Sector 4 empieza a fallar detrás de él.)',
+  'Halden (por megáfono, ya casi sin voz): "Supongo que... adiós. Para siempre."',
+];
+function tryHaldenDoor(){
+  if(S.haldenDefeated){
+    toast('🌸 Avanzas hacia la Zona de Relajación...');
+    Audio1.sfx('portal');
+    setWorld('dimension_cuatro_relax', {keepPos:false, forceSpawn:true});
+    saveGame();
+    return;
+  }
+  if(haldenState.phase==='war'){
+    toast('🚨 Todavía tienes que sobrevivir a las defensas de Halden.');
+    return;
+  }
+  if(haldenState.phase==='ready'){
+    haldenState.finalIdx = 0;
+    renderHaldenFinalDialogue();
+    openModal('mDialogue');
+    return;
+  }
+  if(complejoUmbralDexPercent() < DIMENSION4_UNLOCK_PCT){
+    const pct = Math.round(complejoUmbralDexPercent()*100);
+    toast('🚧 Sientes que hay algo más allá de este punto... pero todavía no está listo. Colección del Complejo Umbral: '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%. Vuelve en otra sesión.');
+    return;
+  }
+  haldenState.phase = 'dialogue';
+  haldenState.dialogueIdx = 0;
+  renderHaldenDialogue();
+  openModal('mDialogue');
+}
+function renderHaldenDialogue(){
+  document.getElementById('dlgTitle').textContent = '📢 Halden';
+  const box = document.getElementById('dlgBox');
+  box.innerHTML = `<div class="dlgName">Halden (por megáfono)</div>
+    <div class="dlgLine">"${HALDEN_LINES[haldenState.dialogueIdx]}"</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="advanceHaldenDialogue();">Continuar</button>`;
+}
+function advanceHaldenDialogue(){
+  haldenState.dialogueIdx++;
+  if(haldenState.dialogueIdx>=HALDEN_LINES.length){ beginHaldenWar(); return; }
+  renderHaldenDialogue();
+}
+function beginHaldenWar(){
+  const s4 = WORLDS.find(w=>w.id==='dimension_tres_s4');
+  if(s4){
+    s4.guards.push(
+      {baseX:s4.width*0.5, baseY:s4.height*0.5, axis:'x', range:260, speed:0.4, big:true, radius:270, rate:60, warGuard:true},
+      {baseX:s4.width*0.3, baseY:s4.height*0.6, axis:'y', range:240, speed:0.35, big:true, radius:260, rate:58, warGuard:true},
+      {baseX:s4.width*0.65, baseY:s4.height*0.3, axis:'x', range:250, speed:0.45, big:true, radius:260, rate:58, warGuard:true},
+    );
+  }
+  haldenState.phase = 'war';
+  haldenState.warEndsAt = Date.now() + HALDEN_WAR_DURATION;
+  haldenState.lastTauntAt = Date.now();
+  closeModal('mDialogue');
+  toast('🚨 Halden activa TODAS las defensas del Sector 4. ¡Sobrevive!');
+  Audio1.sfx('boss');
+  saveGame();
+}
+function removeHaldenWarGuards(){
+  const s4 = WORLDS.find(w=>w.id==='dimension_tres_s4');
+  if(s4) s4.guards = s4.guards.filter(g=>!g.warGuard);
+}
+// called every frame from update(dt); handles the survive-the-wave timer and cleans up
+// the extra guards if the player gets captured (pulled out of Sector 4) mid-war
+function updateHaldenWar(dt){
+  if(haldenState.phase!=='war') return;
+  if(curWorld.id!=='dimension_tres_s4'){
+    removeHaldenWarGuards();
+    haldenState.phase = 'none';
+    return;
+  }
+  const now = Date.now();
+  if(now - (haldenState.lastTauntAt||0) > HALDEN_TAUNT_GAP){
+    toast(pick(HALDEN_TAUNTS));
+    haldenState.lastTauntAt = now;
+  }
+  if(now >= haldenState.warEndsAt){
+    removeHaldenWarGuards();
+    haldenState.phase = 'ready';
+    toast('⚡ Las defensas caen. Vuelve a la puerta para terminar con esto.');
+    Audio1.sfx('achievement');
+    saveGame();
+  }
+}
+function renderHaldenFinalDialogue(){
+  document.getElementById('dlgTitle').textContent = '📢 Halden';
+  const box = document.getElementById('dlgBox');
+  if(haldenState.finalIdx < HALDEN_FINAL_LINES.length){
+    box.innerHTML = `<div class="dlgName">Halden</div>
+      <div class="dlgLine">"${HALDEN_FINAL_LINES[haldenState.finalIdx]}"</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="haldenState.finalIdx++; renderHaldenFinalDialogue();">Continuar</button>`;
+    return;
+  }
+  const hasIllegal = S.keepnet.some(i=>i.speciesId===ILLEGAL_FISH.id);
+  if(hasIllegal){
+    box.innerHTML = `<div class="dlgName">Halden</div>
+      <div class="dlgLine">"Adelante. Termina con esto de una vez."</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="strikeHaldenWithIllegalFish();">🐟 Soltar un Pez Ilegal</button>`;
+  } else {
+    box.innerHTML = `<div class="dlgName">Halden</div>
+      <div class="dlgLine">"No tienes nada con qué terminar esto. Vuelve cuando lo tengas."</div>
+      <div class="cmeta" style="margin-top:8px;">🐟 Necesitas al menos 1 Pez Ilegal en tu mochila.</div>`;
+  }
+}
+function strikeHaldenWithIllegalFish(){
+  const idx = S.keepnet.findIndex(i=>i.speciesId===ILLEGAL_FISH.id);
+  if(idx<0) return;
+  S.keepnet.splice(idx,1);
+  refreshHud();
+  haldenState.defeatIdx = 0;
+  renderHaldenDefeatDialogue();
+}
+function renderHaldenDefeatDialogue(){
+  document.getElementById('dlgTitle').textContent = '📢 Halden';
+  const box = document.getElementById('dlgBox');
+  if(haldenState.defeatIdx < HALDEN_DEFEAT_LINES.length){
+    box.innerHTML = `<div class="dlgName">Halden</div>
+      <div class="dlgLine">"${HALDEN_DEFEAT_LINES[haldenState.defeatIdx]}"</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="haldenState.defeatIdx++; renderHaldenDefeatDialogue();">Continuar</button>`;
+    return;
+  }
+  finishHaldenDefeat();
+}
+function finishHaldenDefeat(){
+  closeModal('mDialogue');
+  S.haldenDefeated = true;
+  haldenState.phase = 'defeated';
+  Audio1.sfx('achievement');
+  toast('🏆 Halden ha caído. El Complejo Umbral, por fin, se queda en silencio.');
+  checkAchievements();
+  refreshHud();
+  setWorld('dimension_cuatro_relax', {keepPos:false, forceSpawn:true});
   saveGame();
 }
 function pickAbyssFish(){
@@ -2790,8 +2956,8 @@ const ACHIEVEMENTS = [
     check:s=>(s.stats.jailReleases||0)>=1},
   {id:'los_tres_tanques',name:'Vaciados',desc:'Roba los 3 tanques sellados de Sector Cero',icon:'🫙',reward:1000000,rewardGems:30,
     check:s=>Object.keys(s.sectorTanksRobbed||{}).length>=3},
-  {id:'fuga_completada',name:'Nadie Te Vio Salir',desc:'Escapa del Complejo Umbral por el Vector de Fuga · Dimensión 3',icon:'🏁',reward:800000,rewardGems:50,
-    check:s=>(s.stats.dimensionEscapes||0)>=1},
+  {id:'fuga_completada',name:'Nadie Te Vio Salir',desc:'Derrota a Halden al final del Sector 4 y escapa del Complejo Umbral para siempre',icon:'📢',reward:3000000,rewardGems:150,
+    check:s=>!!s.haldenDefeated},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -2821,6 +2987,7 @@ function defaultState(){
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
     inAbyss:false, abyssDepth:0, abyssBestDepth:{}, checkpointPassed:false,
     sectorTanksRobbed:{}, experimentsGivenToKid:0, sectorDoorUnlocked:false, jailReturnWorld:null,
+    fugaKeyS3:false, haldenDefeated:false,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -3430,6 +3597,25 @@ function updateActionUI(){
   }
   if(nearSectorExit){
     if(!curWorld.nextSectorId){
+      if(curWorld.id==='dimension_tres_s4'){
+        if(S.haldenDefeated){
+          promptEl.textContent = '🌸 Zona de Relajación'; promptEl.classList.add('show');
+          btn.textContent='Entrar'; btn.disabled=false; return;
+        }
+        if(haldenState.phase==='war'){
+          promptEl.textContent = '🚨 Sobrevive a las defensas de Halden'; promptEl.classList.add('show');
+          btn.textContent='...'; btn.disabled=true; return;
+        }
+        if(haldenState.phase==='ready'){
+          promptEl.textContent = '⚡ Termina con Halden'; promptEl.classList.add('show');
+          btn.textContent='Actuar'; btn.disabled=false; return;
+        }
+        const pct = Math.round(complejoUmbralDexPercent()*100);
+        const ready = pct>=Math.round(DIMENSION4_UNLOCK_PCT*100);
+        promptEl.textContent = ready? '📢 Algo te observa desde el fondo...' : ('🚧 ??? · Complejo Umbral '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%');
+        promptEl.classList.add('show');
+        btn.textContent = ready? 'Investigar' : '...'; btn.disabled = !ready; return;
+      }
       const pct = Math.round(complejoUmbralDexPercent()*100);
       promptEl.textContent = '🚧 ??? · Complejo Umbral '+pct+'/'+Math.round(DIMENSION4_UNLOCK_PCT*100)+'%'; promptEl.classList.add('show');
       btn.textContent='...'; btn.disabled=true; return;
@@ -6195,8 +6381,20 @@ function drawEscapeExit(){
   const screen = worldToScreen(spot.x, spot.y);
   if(screen.x<-120||screen.x>canvas.width+120||screen.y<-120||screen.y>canvas.height+120) return;
   const t = performance.now()/1000;
-  const stub = !curWorld.nextSectorId;
-  const locked = curWorld.nextSectorRequiresKey && !S.fugaKeyS3;
+  let stub, locked, label;
+  if(curWorld.id==='dimension_tres_s4' && !curWorld.nextSectorId){
+    if(S.haldenDefeated){ stub=false; locked=false; label='🌸 Zona de Relajación'; }
+    else if(haldenState.phase==='war'){ stub=false; locked=true; label='🚨 Sobrevive'; }
+    else if(haldenState.phase==='ready'){ stub=false; locked=false; label='⚡ Termina con Halden'; }
+    else {
+      const ready = complejoUmbralDexPercent()>=DIMENSION4_UNLOCK_PCT;
+      stub = !ready; locked=false; label = ready? '📢 ???' : '❔ ???';
+    }
+  } else {
+    stub = !curWorld.nextSectorId;
+    locked = curWorld.nextSectorRequiresKey && !S.fugaKeyS3;
+    label = stub? '❔ ???' : (locked? '🔒 Siguiente Sector' : '🚪 Siguiente Sector');
+  }
   const color = stub? '#64748b' : (locked? '#ef4444' : '#4ade80');
   ctx.save(); ctx.translate(screen.x, screen.y);
   ctx.globalAlpha=0.28; ctx.fillStyle='#000';
@@ -6210,7 +6408,7 @@ function drawEscapeExit(){
   ctx.save();
   ctx.font='bold 14px system-ui'; ctx.fillStyle=color; ctx.textAlign='center';
   ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
-  ctx.fillText(stub? '❔ ???' : (locked? '🔒 Siguiente Sector' : '🚪 Siguiente Sector'), screen.x, screen.y-56);
+  ctx.fillText(label, screen.x, screen.y-56);
   ctx.restore();
 }
 
@@ -7767,6 +7965,7 @@ function update(dt){
   updateLuckySpot(dt);
   updateSectorSecurity(dt);
   updateFugaSecurity(dt);
+  updateHaldenWar(dt);
   updateActionUI();
   updateHpUI();
   S.stats.totalPlaytimeSec += dt;
