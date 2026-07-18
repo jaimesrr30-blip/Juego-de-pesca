@@ -2076,6 +2076,9 @@ function guardPositions(w){
 }
 function updateSectorSecurity(dt){
   if(!curWorld.hasBlackouts) return;
+  // locked into a cast/minigame (including a boss fight) — you can't move or react,
+  // so the facility's security can't catch you mid-animation either
+  if(fishing.state!=='idle') return;
   const now = Date.now();
   if(!sectorState.nextBlackoutAt) sectorState.nextBlackoutAt = now + 18000;
   if(!sectorState.inBlackout){
@@ -2469,6 +2472,9 @@ function fugaCameraAngle(cam){
 }
 function updateFugaSecurity(dt){
   if(!curWorld.isEscape) return;
+  // locked into a cast/minigame (including the sector boss fight) — you can't move
+  // or duck into shadow, so cameras/guards/lasers/mines can't touch you mid-animation
+  if(fishing.state!=='idle') return;
   const now = Date.now();
   const hidden = fugaHidden();
 
