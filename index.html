@@ -2260,6 +2260,10 @@ function giveExperimentsToKid(){
 }
 // Sector 3's key NPC — hand over any 3 fish from your keepnet and he gives you the
 // key that opens the door into Sector 4
+// quest-critical or otherwise unique items — never eligible to be traded away in a
+// generic "give me any N fish" exchange, no matter what order they sit in the keepnet
+const PROTECTED_KEEPNET_IDS = ['pez_ilegal','experimento_fallido','objeto_de_contrabando','testigo_silencioso'];
+function isProtectedKeepnetItem(item){ return PROTECTED_KEEPNET_IDS.includes(item.speciesId); }
 function renderKeyQuestDialogue(npc, bonus){
   document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
   const box = document.getElementById('dlgBox');
@@ -2268,14 +2272,19 @@ function renderKeyQuestDialogue(npc, bonus){
       <div class="dlgLine">"Ya tienes la llave. Úsala en la puerta antes de que cambien de idea."</div>`;
     return;
   }
-  const have = S.keepnet.length;
+  const have = S.keepnet.filter(i=>!isProtectedKeepnetItem(i)).length;
   box.innerHTML = `<div class="dlgName">${npc.name}</div>${bonus}
-    <div class="dlgLine">"Dame 3 peces, los que sean, y te doy la llave que me quitaron cuando me atraparon. Llevas ${have}."</div>
+    <div class="dlgLine">"Dame 3 peces normales, y te doy la llave que me quitaron cuando me atraparon. Llevas ${have}."</div>
     <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" ${have<3?'disabled':''} onclick="giveFishForKey();">🐟 Entregar 3 peces</button>`;
 }
 function giveFishForKey(){
-  if(S.keepnet.length<3 || S.fugaKeyS3) return;
-  S.keepnet.splice(0,3);
+  if(S.fugaKeyS3) return;
+  const eligible = S.keepnet.filter(i=>!isProtectedKeepnetItem(i));
+  if(eligible.length<3) return;
+  let removed = 0;
+  for(let i=S.keepnet.length-1; i>=0 && removed<3; i--){
+    if(!isProtectedKeepnetItem(S.keepnet[i])){ S.keepnet.splice(i,1); removed++; }
+  }
   S.fugaKeyS3 = true;
   Audio1.sfx('achievement');
   toast('🔑 Consigues la llave. La puerta al Sector 4 ya puede abrirse.');
@@ -4481,6 +4490,15 @@ function grantIllegalFish(){
     weightKg:+randRange(2,5).toFixed(2), sizeCm:Math.round(randRange(30,55)), value:0, worldId:'lago_inicial', illegal:true};
   S.keepnet.push(item);
 }
+function recoverIllegalFish(){
+  grantIllegalFish();
+  refreshHud();
+  Audio1.sfx('achievement');
+  toast('🐟 Recuperas un Pez Ilegal.');
+  saveGame();
+  const npc = curWorld.npcs.find(n=>n.role==='labEvent');
+  if(npc) openDialogue(npc);
+}
 function renderLabEventDialogue(npc, bonus){
   document.getElementById('dlgTitle').textContent = '💬 '+npc.name;
   const box = document.getElementById('dlgBox');
@@ -4505,10 +4523,21 @@ function renderLabEventDialogue(npc, bonus){
         <button class="bigBtn" style="padding:8px 18px;font-size:13px;background:var(--danger);" onclick="advanceLabEvent(4);">🚫 No hacer trato</button>
       </div>`;
   } else if(stage===3){
-    box.innerHTML = `<div class="dlgName">${npc.name}</div>
-      <div class="dlgLine">*El atacante te lanza un frasco sellado y desaparece entre los árboles.*</div>
-      <div class="dlgLine" style="margin-top:8px;">"Gracias por no complicar esto más... llévate el pez, pero escóndelo bien."</div>
-      <div class="cmeta" style="margin-top:6px;">🐟 El Pez Ilegal está en tu mochila. De momento no se puede vender ni usar en ningún sitio... todavía.</div>`;
+    const hasIllegal = S.keepnet.some(i=>i.speciesId===ILLEGAL_FISH.id);
+    if(hasIllegal){
+      box.innerHTML = `<div class="dlgName">${npc.name}</div>
+        <div class="dlgLine">*El atacante te lanza un frasco sellado y desaparece entre los árboles.*</div>
+        <div class="dlgLine" style="margin-top:8px;">"Gracias por no complicar esto más... llévate el pez, pero escóndelo bien."</div>
+        <div class="cmeta" style="margin-top:6px;">🐟 El Pez Ilegal está en tu mochila. De momento no se puede vender ni usar en ningún sitio... todavía.</div>`;
+    } else {
+      // safety net: if the player's only Pez Ilegal was lost (e.g. traded away by mistake
+      // elsewhere), it was a one-time grant with no other source — this keeps the Halden
+      // encounter from being permanently softlocked
+      box.innerHTML = `<div class="dlgName">${npc.name}</div>
+        <div class="dlgLine">"¿Y el frasco? Espero que no lo hayas perdido por ahí."</div>
+        <div class="cmeta" style="margin-top:6px;">Rebuscas en tus cosas y encuentras una segunda muestra que guardaste sin darte cuenta.</div>
+        <button class="bigBtn" style="padding:8px 20px;font-size:13px;margin-top:10px;" onclick="recoverIllegalFish();">🐟 Recuperar el Pez Ilegal</button>`;
+    }
   } else if(stage===4){
     box.innerHTML = `<div class="dlgName">${npc.name}</div>
       <div class="dlgLine">"Hiciste lo correcto entregando al atacante. El pez... probablemente sea mejor que desaparezca conmigo."</div>
