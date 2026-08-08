@@ -972,6 +972,8 @@ const AURAS = [
     unlockDesc:'Alcanza la profundidad 20 en el Abismo Infinito, buceando en el Abismo de Tritón.'},
   {id:'clasificado',name:'Aura Clasificada',color:'toxic',locked:true,
     unlockDesc:'Documenta 5 sujetos de Sector Cero para la Dra. Marrow.'},
+  {id:'vacio_absoluto',name:'Aura del Vacío Absoluto',color:'rainbow',locked:true,
+    unlockDesc:'Derrota al Leviatán de Todos los Mundos en El Vacío Final.'},
 ];
 const TRAILS = [
   {id:'none',name:'Sin Trail',price:0},
@@ -1637,6 +1639,22 @@ const WORLDS = [
     {id:'n_relax_3',name:'Mira',color:'#fda4af',x:900,y:1800,
       lines:['Los peces de aquí no muerden el anzuelo con miedo, como los de allá abajo.','Cada pétalo que cae es uno que no cayó en un sitio peor.']},
   ],
+},
+{
+  // the true final boss arena — only reachable through the altar in Zona de Relajación,
+  // once every region's capstone has fallen (Earth, Solar System, Complejo Umbral)
+  id:'dimension_final_arena', idx:23, name:'El Vacío Final', icon:'🌌', unlockCost:0, isDimension:true, hidden:true,
+  bigWorld:true, indoor:true, decorType:'voidshards',
+  palette:{water:'#1e1033', waterDeep:'#08040f', land:'#2e2350', landDetail:'#1a1330', fog:'#a78bfa'},
+  weatherPool:['distorsion'],
+  fish:[
+    F('astilla_del_vacio','Astilla del Vacío','raro','vacio','space','#a78bfa','#1e1033'),
+    F('centinela_disuelto','Centinela Disuelto','epico','vacio','ghost','#c4b5fd','#1e1033', {glowIdx:3}),
+    F('fragmento_de_mundo','Fragmento de Mundo','legendario','vacio','space','#f0abfc','#1e1033', {glowIdx:4}),
+  ],
+  boss:{id:'leviatan_de_todos_los_mundos',name:'Leviatán de Todos los Mundos',shape:'dragon',color:'#0a0612',accent:'#f0abfc',
+    minKg:50000,maxKg:120000,minCm:8000,maxCm:15000,desc:'No pertenece a ningún mundo que hayas visitado. Pertenece a todos ellos a la vez.'},
+  npcs:[],
 },
 ];
 
@@ -2756,6 +2774,213 @@ function finishHaldenDefeat(){
   setWorld('dimension_cuatro_relax', {keepPos:false, forceSpawn:true});
   saveGame();
 }
+
+/* ---------------------------- EL LEVIATÁN DE TODOS LOS MUNDOS ---------------------------- */
+const LEVIATHAN_ROUNDS = 3;
+const LEVIATHAN_FRAGMENTS_NEEDED = 3;
+const LEVIATHAN_MINI_DAMAGE = 9, LEVIATHAN_MINI_HIT_COOLDOWN = 1200, LEVIATHAN_MINI_CONTACT_RADIUS = 34;
+const LEVIATHAN_ADDS_TIMEOUT = 26000;
+const LEVIATHAN_FINISH_EFFECT_MS = 3600;
+let leviathanState = { phase:'none', round:0, strikesLanded:0, fragments:0, addsEndAt:0, dialogueIdx:0, finishEffectUntil:0 };
+let nearLeviathanAltar = false, nearMiniCreatureIdx = -1;
+(function setupLeviathanArena(){
+  const relax = WORLDS.find(w=>w.id==='dimension_cuatro_relax');
+  const arena = WORLDS.find(w=>w.id==='dimension_final_arena');
+  if(relax){
+    relax.leviathanAltar = findNearestSpot(relax, relax.width*0.5, relax.height*0.92, true);
+  }
+  if(arena){
+    arena.spawn = findNearestSpot(arena, arena.width*0.5, arena.height*0.85, true);
+    arena.boatSpawn = arena.spawn; arena.dockSpot = arena.spawn;
+    arena.bossSpot = findNearestSpot(arena, arena.width*0.5, arena.height*0.35, true);
+    addRetreatNpc(arena, findNearestSpot(arena, arena.spawn.x+80, arena.spawn.y+60, true));
+  }
+})();
+function leviathanEligible(){
+  return finalBossDefeated() && !!S.achievements['abismo_absoluto'] && !!S.haldenDefeated;
+}
+const LEVIATHAN_INTRO_LINES = [
+  '(El agua rosa de la Zona de Relajación se queda perfectamente quieta.)',
+  'Algo que no pertenece a ningún mundo que conoces te ha estado observando desde todos ellos a la vez.',
+  'Venciste al final de la Tierra. Venciste el Abismo Infinito. Venciste a Halden.',
+  'Cada una de esas victorias dejó una grieta. Y algo se ha estado colando por las tres.',
+  '(El altar se abre. No hay vuelta atrás una vez cruces.)',
+];
+const LEVIATHAN_ROUND_TAUNTS = [
+  '¡Golpe 1 de 3! El Leviatán se retuerce y suelta fragmentos de sí mismo a su alrededor.',
+  '¡Golpe 2 de 3! Ya no queda mucho de él que reconozcas de ningún mundo.',
+  '¡Golpe 3 de 3! Está a punto de deshacerse.',
+];
+const LEVIATHAN_FINISH_LINES = [
+  '(Los Fragmentos del Vacío que recogiste vibran en tu mano, tirando de sí mismos hacia el centro del Leviatán.)',
+  'Esto es todo. Un golpe más y esto termina de verdad.',
+];
+const LEVIATHAN_VICTORY_LINES = [
+  '(El Leviatán se deshace en luz de todos los colores que existen. Durante un instante, el propio mundo cambia de color contigo.)',
+  'No queda nada que venciste que no venciste tú misma. No había atajo. No había truco.',
+  'Cuando la luz se apaga, el agua rosa de la Zona de Relajación vuelve a estar quieta. Como si nada hubiera pasado.',
+  '(Pero tú sabes que sí pasó.)',
+];
+function tryLeviathanAltar(){
+  if(leviathanState.phase!=='none' && leviathanState.phase!=='defeated'){
+    toast('🌌 Ya estás dentro de esto. Termínalo.');
+    return;
+  }
+  if(!leviathanEligible()){
+    const parts = [];
+    if(!finalBossDefeated()) parts.push('el jefe final de la Tierra');
+    if(!S.achievements['abismo_absoluto']) parts.push('el Abismo Infinito completo');
+    if(!S.haldenDefeated) parts.push('a Halden');
+    toast('🌌 El altar permanece frío. Te falta vencer: '+parts.join(', ')+'.');
+    return;
+  }
+  leviathanState = { phase:'intro', round:0, strikesLanded:0, fragments:0, addsEndAt:0, dialogueIdx:0, finishEffectUntil:0 };
+  renderLeviathanIntroDialogue();
+  openModal('mDialogue');
+}
+function renderLeviathanIntroDialogue(){
+  document.getElementById('dlgTitle').textContent = '🌌 ???';
+  const box = document.getElementById('dlgBox');
+  box.innerHTML = `<div class="dlgName">???</div>
+    <div class="dlgLine">"${LEVIATHAN_INTRO_LINES[leviathanState.dialogueIdx]}"</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="advanceLeviathanIntro();">Continuar</button>`;
+}
+function advanceLeviathanIntro(){
+  leviathanState.dialogueIdx++;
+  if(leviathanState.dialogueIdx>=LEVIATHAN_INTRO_LINES.length){
+    closeModal('mDialogue');
+    setWorld('dimension_final_arena', {keepPos:false, forceSpawn:true});
+    beginLeviathanAddsPhase();
+    return;
+  }
+  renderLeviathanIntroDialogue();
+}
+function spawnMiniCreatures(count){
+  const w = curWorld;
+  w.miniCreatures = [];
+  for(let i=0;i<count;i++){
+    const spot = findNearestSpot(w, w.width*0.2+Math.random()*w.width*0.6, w.height*0.2+Math.random()*w.height*0.6, true);
+    w.miniCreatures.push({x:spot.x, y:spot.y, baseX:spot.x, baseY:spot.y, seed:Math.random()*1000, hitCooldownUntil:0});
+  }
+}
+function beginLeviathanAddsPhase(){
+  leviathanState.round++;
+  leviathanState.phase = 'adds';
+  leviathanState.addsEndAt = Date.now() + LEVIATHAN_ADDS_TIMEOUT;
+  spawnMiniCreatures(2+leviathanState.round);
+  toast('👁️ Ronda '+leviathanState.round+'/'+LEVIATHAN_ROUNDS+': criaturas del vacío te rodean. Elimínalas para conseguir Fragmentos, o esquívalas hasta que se calmen.');
+  Audio1.sfx('boss');
+}
+function updateLeviathanArena(dt){
+  if(curWorld.id!=='dimension_final_arena') return;
+  if(leviathanState.phase!=='adds') return;
+  const w = curWorld;
+  const now = Date.now();
+  let anyLeft = false;
+  (w.miniCreatures||[]).forEach(m=>{
+    anyLeft = true;
+    const t = performance.now()/1000;
+    m.x = m.baseX + Math.sin(t*0.6+m.seed)*70;
+    m.y = m.baseY + Math.cos(t*0.5+m.seed)*70;
+    if(now>=m.hitCooldownUntil && Math.hypot(m.x-player.x,m.y-player.y)<LEVIATHAN_MINI_CONTACT_RADIUS){
+      m.hitCooldownUntil = now + LEVIATHAN_MINI_HIT_COOLDOWN;
+      S.hp = Math.max(0, S.hp - LEVIATHAN_MINI_DAMAGE);
+      S._hurtFlash = 0.25;
+      Audio1.sfx('fail');
+    }
+  });
+  if(S.hp<=0){
+    toast('💫 Te retiras, malherido, hasta la Zona de Relajación.');
+    leviathanState.phase = 'none';
+    S.hp = Math.round(S.maxHp*0.4);
+    setWorld('dimension_cuatro_relax', {keepPos:false, forceSpawn:true});
+    saveGame();
+    return;
+  }
+  if(!anyLeft || now>=leviathanState.addsEndAt){
+    curWorld.miniCreatures = [];
+    leviathanState.phase = 'vulnerable';
+    toast('⚡ El Leviatán queda expuesto. ¡Atácalo ahora!');
+  }
+}
+function tryStrikeMiniCreature(){
+  if(nearMiniCreatureIdx<0 || !curWorld.miniCreatures) return;
+  const m = curWorld.miniCreatures[nearMiniCreatureIdx];
+  if(!m) return;
+  curWorld.miniCreatures.splice(nearMiniCreatureIdx,1);
+  leviathanState.fragments++;
+  Audio1.sfx('coin');
+  toast('✨ Fragmento del Vacío conseguido. ('+leviathanState.fragments+')');
+  refreshHud();
+}
+// hooked from resolveCatch() — a successful boss-catch in the arena advances the round
+// instead of granting the normal boss-defeated rewards
+function handleLeviathanStrike(){
+  leviathanState.strikesLanded++;
+  if(leviathanState.strikesLanded>=LEVIATHAN_ROUNDS){
+    beginLeviathanFinish();
+    return;
+  }
+  toast(LEVIATHAN_ROUND_TAUNTS[leviathanState.strikesLanded-1]);
+  Audio1.sfx('success');
+  setTimeout(()=>beginLeviathanAddsPhase(), 1400);
+}
+function beginLeviathanFinish(){
+  leviathanState.phase = 'finish';
+  leviathanState.dialogueIdx = 0;
+  renderLeviathanFinishDialogue();
+  openModal('mDialogue');
+}
+function renderLeviathanFinishDialogue(){
+  document.getElementById('dlgTitle').textContent = '🌌 ???';
+  const box = document.getElementById('dlgBox');
+  if(leviathanState.dialogueIdx < LEVIATHAN_FINISH_LINES.length){
+    box.innerHTML = `<div class="dlgName">???</div>
+      <div class="dlgLine">"${LEVIATHAN_FINISH_LINES[leviathanState.dialogueIdx]}"</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="leviathanState.dialogueIdx++; renderLeviathanFinishDialogue();">Continuar</button>`;
+    return;
+  }
+  if(leviathanState.fragments>=LEVIATHAN_FRAGMENTS_NEEDED){
+    box.innerHTML = `<div class="dlgName">???</div>
+      <div class="dlgLine">"Termínalo."</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="strikeLeviathanFinish();">🌈 Golpe Final</button>`;
+  } else {
+    closeModal('mDialogue');
+    toast('✨ Necesitas '+LEVIATHAN_FRAGMENTS_NEEDED+' Fragmentos del Vacío para el golpe final. Tienes '+leviathanState.fragments+'. Una ronda más.');
+    setTimeout(()=>beginLeviathanAddsPhase(), 1000);
+  }
+}
+function strikeLeviathanFinish(){
+  if(leviathanState.fragments<LEVIATHAN_FRAGMENTS_NEEDED) return;
+  leviathanState.fragments -= LEVIATHAN_FRAGMENTS_NEEDED;
+  leviathanState.phase = 'defeated';
+  leviathanState.finishEffectUntil = Date.now() + LEVIATHAN_FINISH_EFFECT_MS;
+  closeModal('mDialogue');
+  Audio1.sfx('achievement');
+  S.trueEndingUnlocked = true;
+  toast('🌈 ¡El Leviatán de Todos los Mundos se deshace en luz!');
+  checkAchievements();
+  refreshHud();
+  saveGame();
+  setTimeout(()=>{
+    leviathanState.dialogueIdx = 0;
+    renderLeviathanVictoryDialogue();
+    openModal('mDialogue');
+  }, LEVIATHAN_FINISH_EFFECT_MS);
+}
+function renderLeviathanVictoryDialogue(){
+  document.getElementById('dlgTitle').textContent = '🌈 ???';
+  const box = document.getElementById('dlgBox');
+  if(leviathanState.dialogueIdx < LEVIATHAN_VICTORY_LINES.length){
+    box.innerHTML = `<div class="dlgName">???</div>
+      <div class="dlgLine">"${LEVIATHAN_VICTORY_LINES[leviathanState.dialogueIdx]}"</div>
+      <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="leviathanState.dialogueIdx++; renderLeviathanVictoryDialogue();">Continuar</button>`;
+    return;
+  }
+  box.innerHTML = `<div class="dlgName">???</div>
+    <div class="dlgLine">(Fin.)</div>
+    <button class="bigBtn" style="padding:9px 22px;font-size:13px;margin-top:10px;" onclick="closeModal('mDialogue'); setWorld('dimension_cuatro_relax',{keepPos:false, forceSpawn:true});">Continuar</button>`;
+}
 function pickAbyssFish(){
   const pool = ABYSS_FISH_BY_WORLD[curWorld.id] || [];
   const rod = currentRod();
@@ -2967,6 +3192,9 @@ const ACHIEVEMENTS = [
     check:s=>Object.keys(s.sectorTanksRobbed||{}).length>=3},
   {id:'fuga_completada',name:'Nadie Te Vio Salir',desc:'Derrota a Halden al final del Sector 4 y escapa del Complejo Umbral para siempre',icon:'📢',reward:3000000,rewardGems:150,
     check:s=>!!s.haldenDefeated},
+  {id:'leviatan_final',name:'El Fin de Todos los Mundos',desc:'Derrota al Leviatán de Todos los Mundos en El Vacío Final',icon:'🌌',reward:10000000,rewardGems:300,
+    check:s=>!!s.trueEndingUnlocked,
+    unlockCosmetic:{slot:'aura', id:'vacio_absoluto', label:'Aura del Vacío Absoluto'}},
 ];
 
 /* ---------------------------- QUEST TEMPLATES ---------------------------- */
@@ -2996,7 +3224,7 @@ function defaultState(){
     gamePasses:{}, premiumRodEquipped:false, premiumBoatEquipped:false,
     inAbyss:false, abyssDepth:0, abyssBestDepth:{}, checkpointPassed:false,
     sectorTanksRobbed:{}, experimentsGivenToKid:0, sectorDoorUnlocked:false, jailReturnWorld:null,
-    fugaKeyS3:false, haldenDefeated:false,
+    fugaKeyS3:false, haldenDefeated:false, trueEndingUnlocked:false,
     hp:100, maxHp:100,
     currentWorld:'lago_inicial',
     unlockedWorlds:['lago_inicial','rio_mundial'],
@@ -3372,6 +3600,8 @@ function onActionPress(){
     if(nearContrabandBox){ tryStealContraband(); return; }
     if(nearEscapeDoor){ tryEnterEscapeDoor(); return; }
     if(nearSectorExit){ trySectorExit(); return; }
+    if(nearLeviathanAltar){ tryLeviathanAltar(); return; }
+    if(nearMiniCreatureIdx>=0){ tryStrikeMiniCreature(); return; }
     if(curWorld._nearBoss){ startCastWrapper(true); return; }
     if(canBoard){ S.isOnBoat=true; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('⛵ Subes a bordo de tu '+currentBoat().name+'.'); saveGame(); return; }
     if(canDisembark){ S.isOnBoat=false; player.x=boardTargetPoint.x; player.y=boardTargetPoint.y; toast('🏝️ Bajas del bote.'); saveGame(); return; }
@@ -3468,6 +3698,13 @@ function updatePlayer(dt){
   nearContrabandBox = !!(curWorld.contrabandBox && Math.hypot(curWorld.contrabandBox.x-player.x, curWorld.contrabandBox.y-player.y)<70);
   nearEscapeDoor = !!(curWorld.escapeDoor && Math.hypot(curWorld.escapeDoor.x-player.x, curWorld.escapeDoor.y-player.y)<70);
   nearSectorExit = !!(curWorld.escapeExit && Math.hypot(curWorld.escapeExit.x-player.x, curWorld.escapeExit.y-player.y)<70);
+  nearLeviathanAltar = !!(curWorld.leviathanAltar && Math.hypot(curWorld.leviathanAltar.x-player.x, curWorld.leviathanAltar.y-player.y)<70);
+  nearMiniCreatureIdx = -1;
+  if(leviathanState.phase==='adds' && curWorld.miniCreatures){
+    for(let i=0;i<curWorld.miniCreatures.length;i++){
+      if(Math.hypot(curWorld.miniCreatures[i].x-player.x, curWorld.miniCreatures[i].y-player.y)<45){ nearMiniCreatureIdx=i; break; }
+    }
+  }
 
   // pressure damage while descending the Abismo Infinito — the deeper you go, the faster it
   // drains, outpacing the passive HP_REGEN above so depth is a real risk from the very start
@@ -3480,19 +3717,20 @@ function updatePlayer(dt){
   canBoard=false; canDisembark=false; boardTargetPoint=null;
 
   if(S.isOnBoat){
-    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && fishing.state==='idle' && isLand(curWorld,fx,fy)){
+    if(!nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !nearLeviathanAltar && nearMiniCreatureIdx<0 && fishing.state==='idle' && isLand(curWorld,fx,fy)){
       canDisembark = true; boardTargetPoint = {x:fx,y:fy};
     }
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !canDisembark && !isBoatMoving;
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !nearLeviathanAltar && nearMiniCreatureIdx<0 && !canDisembark && !isBoatMoving;
   } else {
     // fishing from shore always takes priority; boarding here is just a convenience fallback
     // (use the backpack's "botar aquí" if you're stranded away from a fishable shoreline)
-    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
-    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
+    canFish = fishing.state==='idle' && !nearNpc && !nearChest && !nearWreck && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !nearLeviathanAltar && nearMiniCreatureIdx<0 && (!isLand(curWorld,fx,fy) || !isLand(curWorld,player.x,player.y));
+    if(!canFish && !nearNpc && !nearChest && !nearTower && !nearAbyssRift && !nearSealedTank && !nearContrabandBox && !nearEscapeDoor && !nearSectorExit && !nearLeviathanAltar && nearMiniCreatureIdx<0 && fishing.state==='idle' && S.boatIndex>=0 && isLand(curWorld,player.x,player.y) && !isLand(curWorld,fx,fy)){
       canBoard = true; boardTargetPoint = {x:fx,y:fy};
     }
   }
-  curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<80 && fishing.state==='idle' && !nearNpc && !nearChest;
+  curWorld._nearBoss = Math.hypot(curWorld.bossSpot.x-player.x, curWorld.bossSpot.y-player.y)<80 && fishing.state==='idle' && !nearNpc && !nearChest
+    && (curWorld.id!=='dimension_final_arena' || leviathanState.phase==='vulnerable');
 
   if(nearChest){ tryOpenChest(nearChest); }
   if(nearWreck){ tryOpenWreck(); }
@@ -3633,6 +3871,17 @@ function updateActionUI(){
     promptEl.textContent = locked? '🔒 Puerta al siguiente sector · necesitas la llave' : '🚪 Siguiente Sector';
     promptEl.classList.add('show');
     btn.textContent = locked? 'Bloqueada' : 'Avanzar'; btn.disabled=locked; return;
+  }
+  if(nearLeviathanAltar){
+    const done = S.trueEndingUnlocked;
+    const ready = leviathanEligible();
+    promptEl.textContent = done? '🌌 El Vacío Final' : (ready? '🌌 El altar reacciona a tu presencia' : '🌌 Altar frío · te falta vencer algo');
+    promptEl.classList.add('show');
+    btn.textContent = (done||ready)? 'Investigar' : 'Bloqueado'; btn.disabled = !(done||ready); return;
+  }
+  if(nearMiniCreatureIdx>=0){
+    promptEl.textContent = '👁️ Criatura del Vacío'; promptEl.classList.add('show');
+    btn.textContent='Golpear'; btn.disabled=false; return;
   }
   if(curWorld._nearBoss){
     const hasDefeated = S.bossDefeated[curWorld.boss.id];
@@ -3876,6 +4125,13 @@ function minigameEnd(success){
 
 /* ---------------------------- CATCH RESOLUTION ---------------------------- */
 function resolveCatch(fish, isBoss){
+  // the Leviatán arena runs its own multi-round strike/reward flow entirely outside the
+  // generic boss-defeated/key/gem logic below — a single landed hit here is one of several
+  // rounds, not "the boss is defeated"
+  if(isBoss && curWorld.id==='dimension_final_arena'){
+    handleLeviathanStrike();
+    return;
+  }
   const worldIdx = curWorld.idx;
   let sizeStats;
   if(isBoss || fish.minCm!=null){ sizeStats = {minCm:fish.minCm,maxCm:fish.maxCm,minKg:fish.minKg,maxKg:fish.maxKg}; }
@@ -6441,6 +6697,75 @@ function drawEscapeExit(){
   ctx.restore();
 }
 
+// the altar in Zona de Relajación that opens onto the true final boss, once every
+// region's capstone has fallen
+function drawLeviathanAltar(){
+  const spot = curWorld.leviathanAltar;
+  if(!spot) return;
+  const screen = worldToScreen(spot.x, spot.y);
+  if(screen.x<-120||screen.x>canvas.width+120||screen.y<-140||screen.y>canvas.height+120) return;
+  const t = performance.now()/1000;
+  const ready = S.trueEndingUnlocked || leviathanEligible();
+  ctx.save(); ctx.translate(screen.x, screen.y);
+  ctx.globalAlpha=0.3; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0,30,54,16,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#2e2350';
+  roundRect(ctx,-46,4,92,26,5); ctx.fill();
+  ctx.fillStyle='#1a1330';
+  roundRect(ctx,-32,-16,64,24,4); ctx.fill();
+  if(ready){
+    const hue = (t*40)%360;
+    ctx.globalAlpha=0.65+0.25*Math.sin(t*3);
+    ctx.fillStyle=`hsl(${hue},85%,65%)`; ctx.shadowColor=`hsl(${hue},85%,65%)`; ctx.shadowBlur=16;
+  } else {
+    ctx.globalAlpha=0.4; ctx.fillStyle='#475569'; ctx.shadowColor='#475569'; ctx.shadowBlur=6;
+  }
+  ctx.beginPath(); ctx.arc(0,-24,8,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 13px system-ui'; ctx.fillStyle = ready? '#e9d5ff' : '#94a3b8'; ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=4;
+  ctx.fillText(ready? '🌌 El altar reacciona' : '🌌 Altar del Vacío', screen.x, screen.y-52);
+  ctx.restore();
+}
+// small hostile shards drifting around the arena during an adds phase — hurt on contact,
+// but can be struck down for a Fragmento del Vacío
+function drawMiniCreatures(){
+  if(!curWorld.miniCreatures) return;
+  const t = performance.now()/1000;
+  curWorld.miniCreatures.forEach(m=>{
+    const screen = worldToScreen(m.x, m.y);
+    if(screen.x<-50||screen.x>canvas.width+50||screen.y<-50||screen.y>canvas.height+50) return;
+    ctx.save(); ctx.translate(screen.x, screen.y);
+    ctx.globalAlpha=0.25; ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.ellipse(0,14,16,5,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+    ctx.rotate(Math.sin(t*2+m.seed)*0.4);
+    ctx.fillStyle='#4c1d95';
+    ctx.beginPath();
+    ctx.moveTo(0,-16); ctx.lineTo(12,6); ctx.lineTo(0,16); ctx.lineTo(-12,6); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha=0.6+0.4*Math.sin(t*5+m.seed);
+    ctx.fillStyle='#f0abfc'; ctx.shadowColor='#f0abfc'; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
+    ctx.restore();
+  });
+}
+// the finishing blow's "everything changes color" moment — a screen-wide difference
+// blend against a spinning hue inverts and re-colors the whole frame for a few seconds
+function drawLeviathanFinishEffect(){
+  if(!leviathanState.finishEffectUntil || Date.now()>leviathanState.finishEffectUntil) return;
+  const remaining = leviathanState.finishEffectUntil - Date.now();
+  const frac = 1 - remaining/LEVIATHAN_FINISH_EFFECT_MS;
+  wctx.save();
+  wctx.globalCompositeOperation = 'difference';
+  const hue = (frac*720)%360;
+  wctx.fillStyle = `hsl(${hue},100%,50%)`;
+  wctx.globalAlpha = Math.sin(clamp(frac,0,1)*Math.PI);
+  wctx.fillRect(0,0,wcanvas.width,wcanvas.height);
+  wctx.restore();
+}
+
 function drawBossSpot(){
   const bs = curWorld.bossSpot;
   const screen = worldToScreen(bs.x,bs.y);
@@ -6891,6 +7216,8 @@ function render(){
   drawLasers();
   drawBombs();
   drawEscapeExit();
+  drawLeviathanAltar();
+  drawMiniCreatures();
   curWorld.chests.forEach(drawChestIcon);
   curWorld.npcs.forEach(n=>drawCube(n.x,n.y,42,n.color,performance.now()/700+n.x,n.name));
   drawTrailParticles();
@@ -6908,6 +7235,7 @@ function render(){
   drawIndoorAmbience();
   drawBlackoutOverlay();
   drawFugaHud();
+  drawLeviathanFinishEffect();
   renderMinimap();
 }
 
@@ -7995,6 +8323,7 @@ function update(dt){
   updateSectorSecurity(dt);
   updateFugaSecurity(dt);
   updateHaldenWar(dt);
+  updateLeviathanArena(dt);
   updateActionUI();
   updateHpUI();
   S.stats.totalPlaytimeSec += dt;
