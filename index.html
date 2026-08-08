@@ -2797,7 +2797,7 @@ let nearLeviathanAltar = false, nearMiniCreatureIdx = -1;
   }
 })();
 function leviathanEligible(){
-  return finalBossDefeated() && !!S.achievements['abismo_absoluto'] && !!S.haldenDefeated;
+  return !!S.haldenDefeated;
 }
 const LEVIATHAN_INTRO_LINES = [
   '(El agua rosa de la Zona de Relajación se queda perfectamente quieta.)',
@@ -2827,11 +2827,7 @@ function tryLeviathanAltar(){
     return;
   }
   if(!leviathanEligible()){
-    const parts = [];
-    if(!finalBossDefeated()) parts.push('el jefe final de la Tierra');
-    if(!S.achievements['abismo_absoluto']) parts.push('el Abismo Infinito completo');
-    if(!S.haldenDefeated) parts.push('a Halden');
-    toast('🌌 El altar permanece frío. Te falta vencer: '+parts.join(', ')+'.');
+    toast('🌌 El altar permanece frío. Te falta vencer a Halden.');
     return;
   }
   leviathanState = { phase:'intro', round:0, strikesLanded:0, fragments:0, addsEndAt:0, dialogueIdx:0, finishEffectUntil:0 };
